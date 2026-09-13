@@ -5,7 +5,7 @@ services:
     region: frankfurt
     plan: free
     branch: master
-    buildCommand: pnpm install && pnpm --filter @otoservis/database db:generate && pnpm -w build
+    buildCommand: corepack enable && pnpm install && pnpm --filter @otoservis/database db:generate && pnpm -w build
     startCommand: node apps/api/dist/src/main.js
     envVars:
       - key: DATABASE_URL
