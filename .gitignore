@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.turbo/
+apps/desktop/release/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Testing
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Misc
+*.tsbuildinfo
+
+# Vercel
+.vercel/
+.vercel-tmp/
+
+# Qoder
+.qoder/

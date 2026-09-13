@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: otoservis-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: otoservis
+      POSTGRES_PASSWORD: otoservis_dev_password
+      POSTGRES_DB: otoservis
+    ports:
+      - '5433:5432'
+    volumes:
+      - otoservis_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U otoservis']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  otoservis_pgdata:
