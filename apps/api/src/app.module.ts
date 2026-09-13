@@ -21,6 +21,7 @@ import { AuditModule_ } from './modules/audit/audit.module';
 import { SyncModule } from './modules/sync/sync.module';
 import { VehicleMaintenanceModule } from './modules/vehicle-maintenance/vehicle-maintenance.module';
 import { PublicModule } from './modules/public/public.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { PublicModule } from './modules/public/public.module';
     SyncModule,
     VehicleMaintenanceModule,
     PublicModule,
+    AdminModule,
   ],
   providers: [
     {

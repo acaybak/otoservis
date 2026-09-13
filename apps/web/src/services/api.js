@@ -96,3 +96,10 @@ export const settingsApi = {
     get: (tenantId) => api.get('/settings', tenantId),
     update: (tenantId, data) => api.put('/settings', data, tenantId),
 };
+// Admin (Super Admin)
+export const adminApi = {
+    getStats: () => api.get('/admin/stats'),
+    getTenants: () => api.get('/admin/tenants'),
+    getTenantDetail: (id) => api.get(`/admin/tenants/${id}`),
+    updateTenantStatus: (id, status) => api.patch(`/admin/tenants/${id}/status`, { status }),
+};

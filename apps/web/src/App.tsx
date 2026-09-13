@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { authApi, setToken, getToken, customerApi, vehicleApi, serviceOrderApi, accountingApi, reportingApi } from './services/api';
+import { authApi, setToken, getToken, customerApi, vehicleApi, serviceOrderApi, accountingApi, reportingApi, adminApi } from './services/api';
 
 // ============ STYLES ============
 const S = {
@@ -724,18 +724,199 @@ function SettingsPage({ user }: { user: User }) {
   );
 }
 
+// ============ LANDING PAGE ============
+function LandingPage({ onGetStarted, onLogin }: { onGetStarted: () => void; onLogin: () => void }) {
+  return (
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ fontSize: 24, fontWeight: 800, color: 'white' }}>OtoServis</div>
+        <div style={{ display: 'flex', gap: 16 }}>
+          <button onClick={onLogin} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Giriş Yap</button>
+          <button onClick={onGetStarted} style={{ padding: '10px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Ücretsiz Dene</button>
+        </div>
+      </nav>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '80px 40px', textAlign: 'center' as const }}>
+        <h1 style={{ fontSize: 56, fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: 24 }}>Servisinizi Buluta Taşıyın</h1>
+        <p style={{ fontSize: 20, color: '#94a3b8', maxWidth: 600, margin: '0 auto 40px', lineHeight: 1.6 }}>Müşteri yönetimi, servis siparişleri, stok takibi ve ön muhasebe. Hepsi tek platformda.</p>
+        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginBottom: 80 }}>
+          <button onClick={onGetStarted} style={{ padding: '16px 32px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 12, fontSize: 18, fontWeight: 700, cursor: 'pointer' }}>Hemen Başla</button>
+          <button onClick={onLogin} style={{ padding: '16px 32px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 12, fontSize: 18, fontWeight: 600, cursor: 'pointer' }}>Demo İzle</button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, maxWidth: 900, margin: '0 auto' }}>
+          {[
+            { icon: '👥', title: 'Müşteri Yönetimi', desc: 'Müşteri bilgileri, araç geçmişi, iletişim' },
+            { icon: '🔧', title: 'Servis Siparişleri', desc: 'İş emirleri, parça takibi, işçilik' },
+            { icon: '💰', title: 'Ön Muhasebe', desc: 'Faturalar, ödemeler, cari hesaplar' },
+            { icon: '🚗', title: 'Araç Takibi', desc: 'Plaka bazlı tüm araç bilgileri' },
+            { icon: '📊', title: 'Raporlama', desc: 'Gelir-gider, performans metrikleri' },
+            { icon: '📱', title: 'Desktop & Web', desc: 'Her yerde erişim, offline destek' },
+          ].map((f, i) => (
+            <div key={i} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, textAlign: 'center' as const }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>{f.icon}</div>
+              <h3 style={{ color: 'white', fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{f.title}</h3>
+              <p style={{ color: '#94a3b8', fontSize: 14 }}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ textAlign: 'center' as const, padding: '40px 20px', borderTop: '1px solid rgba(255,255,255,0.1)', color: '#64748b', fontSize: 14 }}>
+        © 2026 OtoServis. Tüm hakları saklıdır.
+      </div>
+    </div>
+  );
+}
+
+// ============ ADMIN PANEL ============
+function AdminPanel({ onBack }: { onBack: () => void }) {
+  const [stats, setStats] = useState<any>(null);
+  const [tenants, setTenants] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTenant, setSelectedTenant] = useState<any>(null);
+
+  useEffect(() => {
+    Promise.all([adminApi.getStats(), adminApi.getTenants()])
+      .then(([s, t]) => { setStats(s); setTenants(t); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleStatusChange = async (id: string, status: string) => {
+    await adminApi.updateTenantStatus(id, status);
+    setTenants(tenants.map(t => t.id === id ? { ...t, status } : t));
+  };
+
+  const handleViewDetail = async (id: string) => {
+    const detail = await adminApi.getTenantDetail(id);
+    setSelectedTenant(detail);
+  };
+
+  if (loading) return <div style={{ ...S.loginWrap, color: 'white' }}>Yükleniyor...</div>;
+
+  return (
+    <div style={S.page}>
+      <div style={{ background: '#0f172a', padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1 style={{ color: 'white', fontSize: 20, fontWeight: 700, margin: 0 }}>Süper Admin Paneli</h1>
+        <button onClick={onBack} style={S.btnSecondary}>← Geri</button>
+      </div>
+      <div style={{ padding: 32 }}>
+        <div style={S.statGrid}>
+          <div style={S.statCard}><div style={S.statLabel}>Toplam Servis</div><div style={S.statValue}>{stats?.tenantCount || 0}</div></div>
+          <div style={S.statCard}><div style={S.statLabel}>Aktif Servis</div><div style={{ ...S.statValue, color: '#16a34a' }}>{stats?.activeTenants || 0}</div></div>
+          <div style={S.statCard}><div style={S.statLabel}>Toplam Kullanıcı</div><div style={S.statValue}>{stats?.userCount || 0}</div></div>
+          <div style={S.statCard}><div style={S.statLabel}>Toplam Müşteri</div><div style={S.statValue}>{stats?.customerCount || 0}</div></div>
+          <div style={S.statCard}><div style={S.statLabel}>Toplam Araç</div><div style={S.statValue}>{stats?.vehicleCount || 0}</div></div>
+          <div style={S.statCard}><div style={S.statLabel}>Toplam Sipariş</div><div style={S.statValue}>{stats?.serviceOrderCount || 0}</div></div>
+        </div>
+        <div style={S.card}>
+          <h3 style={{ marginBottom: 16, fontWeight: 600 }}>Kayıtlı Servisler</h3>
+          <table style={S.table}>
+            <thead><tr><th style={S.th}>Firma</th><th style={S.th}>Slug</th><th style={S.th}>Durum</th><th style={S.th}>Kullanıcı</th><th style={S.th}>Müşteri</th><th style={S.th}>Araç</th><th style={S.th}>Sipariş</th><th style={S.th}>İşlem</th></tr></thead>
+            <tbody>
+              {tenants.map(t => (
+                <tr key={t.id}>
+                  <td style={S.td}><strong>{t.name}</strong></td>
+                  <td style={S.td}>{t.slug}</td>
+                  <td style={S.td}>
+                    <select value={t.status} onChange={e => handleStatusChange(t.id, e.target.value)} style={{ ...S.select, width: 'auto', padding: '4px 8px', fontSize: 12 }}>
+                      <option value="ACTIVE">Aktif</option>
+                      <option value="SUSPENDED">Askıya Al</option>
+                      <option value="TRIAL">Deneme</option>
+                    </select>
+                  </td>
+                  <td style={S.td}>{t.stats.userCount}</td>
+                  <td style={S.td}>{t.stats.customerCount}</td>
+                  <td style={S.td}>{t.stats.vehicleCount}</td>
+                  <td style={S.td}>{t.stats.serviceOrderCount}</td>
+                  <td style={S.td}><button style={S.btnSecondary} onClick={() => handleViewDetail(t.id)}>Detay</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {selectedTenant && (
+        <div style={S.modal} onClick={() => setSelectedTenant(null)}>
+          <div style={S.modalContent} onClick={e => e.stopPropagation()}>
+            <div style={S.modalTitle}>{selectedTenant.name} - Detay</div>
+            <div style={{ display: 'grid', gap: 12, marginBottom: 20 }}>
+              <div><strong>Slug:</strong> {selectedTenant.slug}</div>
+              <div><strong>Durum:</strong> {selectedTenant.status}</div>
+              <div><strong>Kayıt Tarihi:</strong> {new Date(selectedTenant.createdAt).toLocaleDateString('tr-TR')}</div>
+              <div><strong>Kullanıcı Sayısı:</strong> {selectedTenant.stats.userCount}</div>
+              <div><strong>Müşteri Sayısı:</strong> {selectedTenant.stats.customerCount}</div>
+              <div><strong>Araç Sayısı:</strong> {selectedTenant.stats.vehicleCount}</div>
+              <div><strong>Sipariş Sayısı:</strong> {selectedTenant.stats.serviceOrderCount}</div>
+            </div>
+            <h4 style={{ marginBottom: 12, fontWeight: 600 }}>Kullanıcılar</h4>
+            <table style={S.table}>
+              <thead><tr><th style={S.th}>Ad Soyad</th><th style={S.th}>E-posta</th><th style={S.th}>Durum</th></tr></thead>
+              <tbody>
+                {selectedTenant.users?.map((u: any) => (
+                  <tr key={u.id}>
+                    <td style={S.td}>{u.firstName} {u.lastName}</td>
+                    <td style={S.td}>{u.email}</td>
+                    <td style={S.td}><span style={S.badge(u.status === 'ACTIVE' ? 'green' : 'red')}>{u.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+              <button style={S.btnSecondary} onClick={() => setSelectedTenant(null)}>Kapat</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============ MAIN APP ============
 export function App() {
   const { user, loading, login, register, logout } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
+  const [showLanding, setShowLanding] = useState(true);
+  const [showAdmin, setShowAdmin] = useState(false);
 
   if (loading) return <div style={{ ...S.loginWrap, color: 'white' }}>Yükleniyor...</div>;
 
+  // Admin panel
+  if (showAdmin) {
+    return <AdminPanel onBack={() => setShowAdmin(false)} />;
+  }
+
+  // Landing page
+  if (showLanding && !user) {
+    return (
+      <LandingPage
+        onGetStarted={() => { setIsLogin(false); setShowLanding(false); }}
+        onLogin={() => { setIsLogin(true); setShowLanding(false); }}
+      />
+    );
+  }
+
   if (!user) {
-    return isLogin ? (
-      <LoginPage onLogin={login} onSwitch={() => setIsLogin(false)} />
-    ) : (
-      <RegisterPage onRegister={register} onSwitch={() => setIsLogin(true)} />
+    return (
+      <div>
+        {isLogin ? (
+          <div>
+            <LoginPage onLogin={login} onSwitch={() => setIsLogin(false)} />
+            <div style={{ position: 'fixed', bottom: 20, right: 20 }}>
+              <button onClick={() => setShowLanding(true)} style={{ ...S.btnSecondary, opacity: 0.7 }}>← Ana Sayfa</button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <RegisterPage onRegister={register} onSwitch={() => setIsLogin(true)} />
+            <div style={{ position: 'fixed', bottom: 20, right: 20 }}>
+              <button onClick={() => setShowLanding(true)} style={{ ...S.btnSecondary, opacity: 0.7 }}>← Ana Sayfa</button>
+            </div>
+          </div>
+        )}
+        {/* Admin panel link */}
+        <div style={{ position: 'fixed', bottom: 20, left: 20 }}>
+          <button onClick={() => setShowAdmin(true)} style={{ ...S.btnSecondary, fontSize: 11, opacity: 0.5 }}>Admin</button>
+        </div>
+      </div>
     );
   }
 
@@ -752,6 +933,12 @@ export function App() {
           <Route path="/settings" element={<SettingsPage user={user} />} />
         </Routes>
       </Layout>
+      {/* Admin panel link for logged-in users */}
+      {user.roles?.some((r: any) => r.name === 'SUPER_ADMIN' || r.name === 'TENANT_OWNER') && (
+        <div style={{ position: 'fixed', bottom: 20, left: 20 }}>
+          <button onClick={() => setShowAdmin(true)} style={{ ...S.btnSecondary, fontSize: 11, opacity: 0.5 }}>Admin Panel</button>
+        </div>
+      )}
     </BrowserRouter>
   );
 }
