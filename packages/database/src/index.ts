@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 
+declare const process: { env: { NODE_ENV?: string } };
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
