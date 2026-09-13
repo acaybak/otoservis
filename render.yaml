@@ -5,8 +5,8 @@ services:
     region: frankfurt
     plan: free
     branch: master
-    buildCommand: corepack enable && pnpm install && pnpm --filter @otoservis/database db:generate && pnpm -w build
-    startCommand: node apps/api/dist/src/main.js
+    buildCommand: npm install -g pnpm@9.15.9 prisma@6 @types/node @nestjs/cli @types/express @types/bcryptjs @types/jsonwebtoken && pnpm install --filter=!@otoservis/desktop && pnpm --filter @otoservis/database db:generate && pnpm --filter @otoservis/database build && pnpm --filter @otoservis/shared build && pnpm --filter @otoservis/types build && pnpm --filter @otoservis/validation build && pnpm --filter @otoservis/api build
+    startCommand: cd packages/database && npx prisma migrate deploy && cd ../.. && node apps/api/dist/main.js
     envVars:
       - key: DATABASE_URL
         fromDatabase:
