@@ -56,9 +56,9 @@ importers:
       '@otoservis/validation':
         specifier: workspace:*
         version: link:../../packages/validation
-      bcrypt:
-        specifier: ^6.0.0
-        version: 6.0.0
+      bcryptjs:
+        specifier: ^2.4.3
+        version: 2.4.3
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
@@ -105,9 +105,9 @@ importers:
       '@swc/core':
         specifier: ^1.11.0
         version: 1.16.2
-      '@types/bcrypt':
-        specifier: ^5.0.0
-        version: 5.0.2
+      '@types/bcryptjs':
+        specifier: ^2.4.6
+        version: 2.4.6
       '@types/express':
         specifier: ^5.0.6
         version: 5.0.6
@@ -1559,8 +1559,8 @@ packages:
   '@types/babel__traverse@7.28.0':
     resolution: {integrity: sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q==}
 
-  '@types/bcrypt@5.0.2':
-    resolution: {integrity: sha512-6atioO8Y75fNcbmj0G7UjI9lXN2pQ/IGJ2FWT4a/btd0Lk9lQalHLKhkgKVZ3r+spnmWUKfbMi1GEe9wyHQfNQ==}
+  '@types/bcryptjs@2.4.6':
+    resolution: {integrity: sha512-9xlo6R2qDs5uixm0bcIqCeMCE6HiQsIyel9KQySStiyqNl2tnj2mP3DX1Nf56MD6KMenNNlBBsy3LJ7gUEQPXQ==}
 
   '@types/better-sqlite3@7.6.13':
     resolution: {integrity: sha512-NMv9ASNARoKksWtsq/SHakpYAYnhBrQgGD8zkLYk/jaK8jUGn08CfEdTRgYhMypUQAfzSP8W6gNLe0q19/t4VA==}
@@ -1983,9 +1983,8 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
-  bcrypt@6.0.0:
-    resolution: {integrity: sha512-cU8v/EGSrnH+HnxV2z0J7/blxH8gq7Xh2JFT6Aroax7UohdmiJJlxApMxtKfuI7z68NvvVcmR78k2LbT6efhRg==}
-    engines: {node: '>= 18'}
+  bcryptjs@2.4.3:
+    resolution: {integrity: sha512-V/Hy/X9Vt7f3BbPJEi8BdVFMByHi+jNXrYkW3huaybV/kQ0KJg0Y6PkEMbn+zeT+i+SiKZ/HMqJGIIt4LZDqNQ==}
 
   better-sqlite3@11.10.0:
     resolution: {integrity: sha512-EwhOpyXiOEL/lKzHz9AW1msWFNzGc/z+LzeB3/jnFJpxu+th2yqvzsSWas1v9jgs9+xiXJcD5A8CJxAG2TaghQ==}
@@ -3422,10 +3421,6 @@ packages:
   node-addon-api@1.7.2:
     resolution: {integrity: sha512-ibPK3iA+vaY1eEjESkQkM0BbCqFOaZMiXRTtdB0u7b4djtY6JnsjvPdUHVMg6xQt3B8fpTTWHI9A+ADjM9frzg==}
 
-  node-addon-api@8.9.2:
-    resolution: {integrity: sha512-VijLXbi3UACN69I0JVXJsX4tjACjNoQDgv2gTF6sx2wWEi8tkSg2eX8p5gSIFi8z2+DL3oHmY6OyKce38SDolg==}
-    engines: {node: ^18 || ^20 || >= 21}
-
   node-api-version@0.2.1:
     resolution: {integrity: sha512-2xP/IGGMmmSQpI1+O/k72jF/ykvZ89JeuKX3TLJAYPDVLUalrshrLHkeVcCCZqG/eEa635cr8IBYzgnDvM2O8Q==}
 
@@ -3434,10 +3429,6 @@ packages:
 
   node-fetch-native@1.6.7:
     resolution: {integrity: sha512-g9yhqoedzIUm0nTnTqAQvueMPVOuIY16bqgAJJC8XOOubYFNwz6IER9qs0Gq2Xd0+CecCKFjtdDTMA4u4xG06Q==}
-
-  node-gyp-build@4.8.4:
-    resolution: {integrity: sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==}
-    hasBin: true
 
   node-gyp@9.4.1:
     resolution: {integrity: sha512-OQkWKbjQKbGkMf/xqI1jjy3oCTgMKJac58G2+bjZb3fza6gW2YrCSdMQYaoTb70crvE//Gngr4f0AgVHmqHvBQ==}
@@ -5734,9 +5725,7 @@ snapshots:
     dependencies:
       '@babel/types': 7.29.8
 
-  '@types/bcrypt@5.0.2':
-    dependencies:
-      '@types/node': 22.20.2
+  '@types/bcryptjs@2.4.6': {}
 
   '@types/better-sqlite3@7.6.13':
     dependencies:
@@ -6318,10 +6307,7 @@ snapshots:
 
   baseline-browser-mapping@2.11.22: {}
 
-  bcrypt@6.0.0:
-    dependencies:
-      node-addon-api: 8.9.2
-      node-gyp-build: 4.8.4
+  bcryptjs@2.4.3: {}
 
   better-sqlite3@11.10.0:
     dependencies:
@@ -7914,8 +7900,6 @@ snapshots:
   node-addon-api@1.7.2:
     optional: true
 
-  node-addon-api@8.9.2: {}
-
   node-api-version@0.2.1:
     dependencies:
       semver: 7.8.5
@@ -7925,8 +7909,6 @@ snapshots:
       lodash: 4.18.1
 
   node-fetch-native@1.6.7: {}
-
-  node-gyp-build@4.8.4: {}
 
   node-gyp@9.4.1:
     dependencies:
