@@ -2,7 +2,9 @@ import { Controller, Get, Post, Param, Body, NotFoundException, Req, Query } fro
 import { PublicService } from './public.service';
 import { normalizePlate } from '@otoservis/shared';
 import { Request } from 'express';
+import { Public } from '../../common/decorators/public.decorator';
 
+@Public()
 @Controller('public')
 export class PublicController {
   constructor(private readonly publicService: PublicService) {}
