@@ -1,10 +1,11 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
+  Delete,
   Param,
   Body,
-  Req,
   HttpCode,
   HttpStatus,
   ForbiddenException,
@@ -19,14 +20,6 @@ export class AdminController {
     private readonly configService: ConfigService,
   ) {}
 
-  private checkAdmin(request: any) {
-    const adminEmails = (this.configService.get<string>('ADMIN_EMAILS') || '').split(',').map(e => e.trim().toLowerCase());
-    const userEmail = request.user?.email?.toLowerCase();
-    if (!userEmail || !adminEmails.includes(userEmail)) {
-      throw new ForbiddenException('Bu işlem için süper admin yetkisi gerekli.');
-    }
-  }
-
   @Get('stats')
   async getStats() {
     return this.adminService.getSystemStats();
@@ -39,16 +32,52 @@ export class AdminController {
 
   @Get('tenants/:id')
   async getTenantDetail(@Param('id') id: string) {
-    const detail = await this.adminService.getTenantDetail(id);
-    if (!detail) {
-      throw new ForbiddenException('Tenant bulunamadı.');
-    }
-    return detail;
+    return this.adminService.getTenantDetail(id);
   }
 
   @Patch('tenants/:id/status')
   @HttpCode(HttpStatus.OK)
   async updateStatus(@Param('id') id: string, @Body() body: { status: string }) {
     return this.adminService.updateTenantStatus(id, body.status);
+  }
+
+  // Tenant içindeki verileri getir
+  @Get('tenants/:tenantId/data/:dataType')
+  async getTenantData(
+    @Param('tenantId') tenantId: string,
+    @Param('dataType') dataType: string,
+  ) {
+    return this.adminService.getTenantData(tenantId, dataType);
+  }
+
+  // Tenant içindeki veriyi güncelle
+  @Patch('tenants/:tenantId/data/:dataType/:id')
+  async updateTenantData(
+    @Param('tenantId') tenantId: string,
+    @Param('dataType') dataType: string,
+    @Param('id') id: string,
+    @Body() body: any,
+  ) {
+    return this.adminService.updateTenantData(tenantId, dataType, id, body);
+  }
+
+  // Tenant içindeki veriyi sil
+  @Delete('tenants/:tenantId/data/:dataType/:id')
+  async deleteTenantData(
+    @Param('tenantId') tenantId: string,
+    @Param('dataType') dataType: string,
+    @Param('id') id: string,
+  ) {
+    return this.adminService.deleteTenantData(tenantId, dataType, id);
+  }
+
+  // Tenant'a yeni kullanıcı ekle
+  @Post('tenants/:tenantId/users')
+  @HttpCode(HttpStatus.CREATED)
+  async createTenantUser(
+    @Param('tenantId') tenantId: string,
+    @Body() body: { email: string; password: string; firstName: string; lastName: string },
+  ) {
+    return this.adminService.createTenantUser(tenantId, body);
   }
 }

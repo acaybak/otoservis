@@ -138,4 +138,9 @@ export const adminApi = {
   getTenants: () => api.get<any>('/admin/tenants'),
   getTenantDetail: (id: string) => api.get<any>(`/admin/tenants/${id}`),
   updateTenantStatus: (id: string, status: string) => api.patch<any>(`/admin/tenants/${id}/status`, { status }),
+  // Tenant data CRUD
+  getTenantData: (tenantId: string, dataType: string) => api.get<any>(`/admin/tenants/${tenantId}/data/${dataType}`),
+  updateTenantData: (tenantId: string, dataType: string, id: string, data: any) => api.patch<any>(`/admin/tenants/${tenantId}/data/${dataType}/${id}`, data),
+  deleteTenantData: (tenantId: string, dataType: string, id: string) => api.delete<any>(`/admin/tenants/${tenantId}/data/${dataType}/${id}`),
+  createTenantUser: (tenantId: string, data: { email: string; password: string; firstName: string; lastName: string }) => api.post<any>(`/admin/tenants/${tenantId}/users`, data),
 };

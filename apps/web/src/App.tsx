@@ -772,6 +772,13 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
   const [tenants, setTenants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTenant, setSelectedTenant] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'vehicles' | 'orders' | 'users'>('overview');
+  const [tenantData, setTenantData] = useState<any[]>([]);
+  const [dataLoading, setDataLoading] = useState(false);
+  const [editItem, setEditItem] = useState<any>(null);
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUser, setNewUser] = useState({ email: '', password: '', firstName: '', lastName: '' });
+  const [addError, setAddError] = useState('');
 
   useEffect(() => {
     Promise.all([adminApi.getStats(), adminApi.getTenants()])
@@ -780,17 +787,71 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
       .finally(() => setLoading(false));
   }, []);
 
+  const loadTenantData = async (tenantId: string, dataType: string) => {
+    setDataLoading(true);
+    try {
+      const data = await adminApi.getTenantData(tenantId, dataType);
+      setTenantData(data);
+    } catch { setTenantData([]); }
+    setDataLoading(false);
+  };
+
   const handleStatusChange = async (id: string, status: string) => {
     await adminApi.updateTenantStatus(id, status);
     setTenants(tenants.map(t => t.id === id ? { ...t, status } : t));
+    if (selectedTenant?.id === id) setSelectedTenant({ ...selectedTenant, status });
   };
 
   const handleViewDetail = async (id: string) => {
     const detail = await adminApi.getTenantDetail(id);
     setSelectedTenant(detail);
+    setActiveTab('overview');
+    setTenantData([]);
+  };
+
+  const handleTabChange = (tab: 'overview' | 'customers' | 'vehicles' | 'orders' | 'users') => {
+    setActiveTab(tab);
+    if (tab !== 'overview' && selectedTenant) {
+      const typeMap: Record<string, string> = { customers: 'customers', vehicles: 'vehicles', orders: 'service-orders', users: 'users' };
+      loadTenantData(selectedTenant.id, typeMap[tab]);
+    }
+  };
+
+  const handleDelete = async (dataType: string, id: string) => {
+    if (!confirm('Silmek istediğinize emin misiniz?')) return;
+    await adminApi.deleteTenantData(selectedTenant.id, dataType, id);
+    const typeMap: Record<string, string> = { customers: 'customers', vehicles: 'vehicles', orders: 'service-orders', users: 'users' };
+    const tabKey = Object.entries(typeMap).find(([, v]) => v === dataType)?.[0] as any;
+    if (tabKey) loadTenantData(selectedTenant.id, dataType);
+  };
+
+  const handleUpdate = async (dataType: string, id: string, data: any) => {
+    await adminApi.updateTenantData(selectedTenant.id, dataType, id, data);
+    setEditItem(null);
+    const typeMap: Record<string, string> = { customers: 'customers', vehicles: 'vehicles', orders: 'service-orders', users: 'users' };
+    const tabKey = Object.entries(typeMap).find(([, v]) => v === dataType)?.[0] as any;
+    if (tabKey) loadTenantData(selectedTenant.id, dataType);
+  };
+
+  const handleAddUser = async () => {
+    setAddError('');
+    if (!newUser.email || !newUser.password || !newUser.firstName || !newUser.lastName) {
+      setAddError('Tüm alanları doldurun.'); return;
+    }
+    try {
+      await adminApi.createTenantUser(selectedTenant.id, newUser);
+      setShowAddUser(false);
+      setNewUser({ email: '', password: '', firstName: '', lastName: '' });
+      loadTenantData(selectedTenant.id, 'users');
+    } catch (e: any) { setAddError(e.message); }
   };
 
   if (loading) return <div style={{ ...S.loginWrap, color: 'white' }}>Yükleniyor...</div>;
+
+  const tabStyle = (active: boolean) => ({
+    padding: '10px 20px', background: active ? '#2563eb' : '#f1f5f9', color: active ? 'white' : '#475569',
+    border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+  });
 
   return (
     <div style={S.page}>
@@ -799,6 +860,7 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
         <button onClick={onBack} style={S.btnSecondary}>← Geri</button>
       </div>
       <div style={{ padding: 32 }}>
+        {/* Stats */}
         <div style={S.statGrid}>
           <div style={S.statCard}><div style={S.statLabel}>Toplam Servis</div><div style={S.statValue}>{stats?.tenantCount || 0}</div></div>
           <div style={S.statCard}><div style={S.statLabel}>Aktif Servis</div><div style={{ ...S.statValue, color: '#16a34a' }}>{stats?.activeTenants || 0}</div></div>
@@ -807,6 +869,8 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
           <div style={S.statCard}><div style={S.statLabel}>Toplam Araç</div><div style={S.statValue}>{stats?.vehicleCount || 0}</div></div>
           <div style={S.statCard}><div style={S.statLabel}>Toplam Sipariş</div><div style={S.statValue}>{stats?.serviceOrderCount || 0}</div></div>
         </div>
+
+        {/* Tenant List */}
         <div style={S.card}>
           <h3 style={{ marginBottom: 16, fontWeight: 600 }}>Kayıtlı Servisler</h3>
           <table style={S.table}>
@@ -827,45 +891,268 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                   <td style={S.td}>{t.stats.customerCount}</td>
                   <td style={S.td}>{t.stats.vehicleCount}</td>
                   <td style={S.td}>{t.stats.serviceOrderCount}</td>
-                  <td style={S.td}><button style={S.btnSecondary} onClick={() => handleViewDetail(t.id)}>Detay</button></td>
+                  <td style={S.td}><button style={S.btnPrimary} onClick={() => handleViewDetail(t.id)}>Yönet</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Tenant Management Modal */}
       {selectedTenant && (
         <div style={S.modal} onClick={() => setSelectedTenant(null)}>
-          <div style={S.modalContent} onClick={e => e.stopPropagation()}>
-            <div style={S.modalTitle}>{selectedTenant.name} - Detay</div>
-            <div style={{ display: 'grid', gap: 12, marginBottom: 20 }}>
-              <div><strong>Slug:</strong> {selectedTenant.slug}</div>
-              <div><strong>Durum:</strong> {selectedTenant.status}</div>
-              <div><strong>Kayıt Tarihi:</strong> {new Date(selectedTenant.createdAt).toLocaleDateString('tr-TR')}</div>
-              <div><strong>Kullanıcı Sayısı:</strong> {selectedTenant.stats.userCount}</div>
-              <div><strong>Müşteri Sayısı:</strong> {selectedTenant.stats.customerCount}</div>
-              <div><strong>Araç Sayısı:</strong> {selectedTenant.stats.vehicleCount}</div>
-              <div><strong>Sipariş Sayısı:</strong> {selectedTenant.stats.serviceOrderCount}</div>
+          <div style={{ ...S.modalContent, width: 900, maxWidth: '95vw' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={S.modalTitle}>{selectedTenant.name} - Yönetim</div>
+              <button style={S.btnSecondary} onClick={() => setSelectedTenant(null)}>✕</button>
             </div>
-            <h4 style={{ marginBottom: 12, fontWeight: 600 }}>Kullanıcılar</h4>
-            <table style={S.table}>
-              <thead><tr><th style={S.th}>Ad Soyad</th><th style={S.th}>E-posta</th><th style={S.th}>Durum</th></tr></thead>
-              <tbody>
-                {selectedTenant.users?.map((u: any) => (
-                  <tr key={u.id}>
-                    <td style={S.td}>{u.firstName} {u.lastName}</td>
-                    <td style={S.td}>{u.email}</td>
-                    <td style={S.td}><span style={S.badge(u.status === 'ACTIVE' ? 'green' : 'red')}>{u.status}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
-              <button style={S.btnSecondary} onClick={() => setSelectedTenant(null)}>Kapat</button>
+
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+              <button style={tabStyle(activeTab === 'overview')} onClick={() => handleTabChange('overview')}>Genel Bakış</button>
+              <button style={tabStyle(activeTab === 'customers')} onClick={() => handleTabChange('customers')}>Müşteriler</button>
+              <button style={tabStyle(activeTab === 'vehicles')} onClick={() => handleTabChange('vehicles')}>Araçlar</button>
+              <button style={tabStyle(activeTab === 'orders')} onClick={() => handleTabChange('orders')}>Siparişler</button>
+              <button style={tabStyle(activeTab === 'users')} onClick={() => handleTabChange('users')}>Kullanıcılar</button>
             </div>
+
+            {/* Overview Tab */}
+            {activeTab === 'overview' && (
+              <div style={{ display: 'grid', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8 }}><strong>Slug:</strong> {selectedTenant.slug}</div>
+                  <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8 }}>
+                    <strong>Durum:</strong>{' '}
+                    <select value={selectedTenant.status} onChange={e => handleStatusChange(selectedTenant.id, e.target.value)} style={{ ...S.select, width: 'auto', padding: '4px 8px', fontSize: 13 }}>
+                      <option value="ACTIVE">Aktif</option>
+                      <option value="SUSPENDED">Askıya Al</option>
+                      <option value="TRIAL">Deneme</option>
+                    </select>
+                  </div>
+                  <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8 }}><strong>Kayıt Tarihi:</strong> {new Date(selectedTenant.createdAt).toLocaleDateString('tr-TR')}</div>
+                  <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8 }}><strong>ID:</strong> <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{selectedTenant.id}</span></div>
+                </div>
+                <div style={S.statGrid}>
+                  <div style={S.statCard}><div style={S.statLabel}>Kullanıcı</div><div style={S.statValue}>{selectedTenant.stats?.userCount || 0}</div></div>
+                  <div style={S.statCard}><div style={S.statLabel}>Müşteri</div><div style={S.statValue}>{selectedTenant.stats?.customerCount || 0}</div></div>
+                  <div style={S.statCard}><div style={S.statLabel}>Araç</div><div style={S.statValue}>{selectedTenant.stats?.vehicleCount || 0}</div></div>
+                  <div style={S.statCard}><div style={S.statLabel}>Sipariş</div><div style={S.statValue}>{selectedTenant.stats?.serviceOrderCount || 0}</div></div>
+                </div>
+              </div>
+            )}
+
+            {/* Customers Tab */}
+            {activeTab === 'customers' && (
+              <div>
+                {dataLoading ? <div style={S.empty}>Yükleniyor...</div> : tenantData.length === 0 ? <div style={S.empty}>Müşteri bulunamadı.</div> : (
+                  <table style={S.table}>
+                    <thead><tr><th style={S.th}>Ad Soyad</th><th style={S.th}>Telefon</th><th style={S.th}>E-posta</th><th style={S.th}>Plaka</th><th style={S.th}>İşlem</th></tr></thead>
+                    <tbody>
+                      {tenantData.map((c: any) => (
+                        <tr key={c.id}>
+                          <td style={S.td}>{c.firstName} {c.lastName}</td>
+                          <td style={S.td}>{c.phone || '-'}</td>
+                          <td style={S.td}>{c.email || '-'}</td>
+                          <td style={S.td}>{c.licensePlate || '-'}</td>
+                          <td style={S.td}>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button style={S.btnSecondary} onClick={() => setEditItem({ ...c, _type: 'customers' })}>Düzenle</button>
+                              <button style={S.btnDanger} onClick={() => handleDelete('customers', c.id)}>Sil</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+
+            {/* Vehicles Tab */}
+            {activeTab === 'vehicles' && (
+              <div>
+                {dataLoading ? <div style={S.empty}>Yükleniyor...</div> : tenantData.length === 0 ? <div style={S.empty}>Araç bulunamadı.</div> : (
+                  <table style={S.table}>
+                    <thead><tr><th style={S.th}>Plaka</th><th style={S.th}>Marka</th><th style={S.th}>Model</th><th style={S.th}>Yıl</th><th style={S.th}>Müşteri</th><th style={S.th}>İşlem</th></tr></thead>
+                    <tbody>
+                      {tenantData.map((v: any) => (
+                        <tr key={v.id}>
+                          <td style={S.td}><strong>{v.licensePlate}</strong></td>
+                          <td style={S.td}>{v.brand || '-'}</td>
+                          <td style={S.td}>{v.model || '-'}</td>
+                          <td style={S.td}>{v.year || '-'}</td>
+                          <td style={S.td}>{v.customerId ? 'Bağlı' : '-'}</td>
+                          <td style={S.td}>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button style={S.btnSecondary} onClick={() => setEditItem({ ...v, _type: 'vehicles' })}>Düzenle</button>
+                              <button style={S.btnDanger} onClick={() => handleDelete('vehicles', v.id)}>Sil</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+
+            {/* Orders Tab */}
+            {activeTab === 'orders' && (
+              <div>
+                {dataLoading ? <div style={S.empty}>Yükleniyor...</div> : tenantData.length === 0 ? <div style={S.empty}>Sipariş bulunamadı.</div> : (
+                  <table style={S.table}>
+                    <thead><tr><th style={S.th}>No</th><th style={S.th}>Müşteri</th><th style={S.th}>Araç</th><th style={S.th}>Durum</th><th style={S.th}>Tutar</th><th style={S.th}>Tarih</th><th style={S.th}>İşlem</th></tr></thead>
+                    <tbody>
+                      {tenantData.map((o: any) => (
+                        <tr key={o.id}>
+                          <td style={S.td}><strong>#{o.orderNumber || o.id.slice(0, 6)}</strong></td>
+                          <td style={S.td}>{o.customer ? `${o.customer.firstName} ${o.customer.lastName}` : '-'}</td>
+                          <td style={S.td}>{o.vehicle?.licensePlate || '-'}</td>
+                          <td style={S.td}><span style={S.badge(o.status === 'COMPLETED' ? 'green' : o.status === 'CANCELLED' ? 'red' : 'yellow')}>{o.status}</span></td>
+                          <td style={S.td}>{o.totalAmount ? `${o.totalAmount} ₺` : '-'}</td>
+                          <td style={S.td}>{new Date(o.createdAt).toLocaleDateString('tr-TR')}</td>
+                          <td style={S.td}>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button style={S.btnSecondary} onClick={() => setEditItem({ ...o, _type: 'service-orders' })}>Düzenle</button>
+                              <button style={S.btnDanger} onClick={() => handleDelete('service-orders', o.id)}>Sil</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+
+            {/* Users Tab */}
+            {activeTab === 'users' && (
+              <div>
+                <div style={{ marginBottom: 16 }}>
+                  <button style={S.btnSuccess} onClick={() => { setShowAddUser(true); setAddError(''); }}>+ Yeni Kullanıcı Ekle</button>
+                </div>
+                {showAddUser && (
+                  <div style={{ background: '#f8fafc', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+                    <h4 style={{ marginBottom: 12 }}>Yeni Kullanıcı</h4>
+                    {addError && <div style={S.error}>{addError}</div>}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <input style={S.input} placeholder="Ad" value={newUser.firstName} onChange={e => setNewUser({ ...newUser, firstName: e.target.value })} />
+                      <input style={S.input} placeholder="Soyad" value={newUser.lastName} onChange={e => setNewUser({ ...newUser, lastName: e.target.value })} />
+                      <input style={S.input} placeholder="E-posta" type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} />
+                      <input style={S.input} placeholder="Şifre" type="password" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button style={S.btnPrimary} onClick={handleAddUser}>Ekle</button>
+                      <button style={S.btnSecondary} onClick={() => setShowAddUser(false)}>İptal</button>
+                    </div>
+                  </div>
+                )}
+                {dataLoading ? <div style={S.empty}>Yükleniyor...</div> : tenantData.length === 0 ? <div style={S.empty}>Kullanıcı bulunamadı.</div> : (
+                  <table style={S.table}>
+                    <thead><tr><th style={S.th}>Ad Soyad</th><th style={S.th}>E-posta</th><th style={S.th}>Durum</th><th style={S.th}>Kayıt Tarihi</th><th style={S.th}>İşlem</th></tr></thead>
+                    <tbody>
+                      {tenantData.map((u: any) => (
+                        <tr key={u.id}>
+                          <td style={S.td}>{u.firstName} {u.lastName}</td>
+                          <td style={S.td}>{u.email}</td>
+                          <td style={S.td}><span style={S.badge(u.status === 'ACTIVE' ? 'green' : 'red')}>{u.status}</span></td>
+                          <td style={S.td}>{new Date(u.createdAt).toLocaleDateString('tr-TR')}</td>
+                          <td style={S.td}>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button style={S.btnSecondary} onClick={() => setEditItem({ ...u, _type: 'users' })}>Düzenle</button>
+                              <button style={S.btnDanger} onClick={() => handleDelete('users', u.id)}>Sil</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+
+            {/* Edit Modal */}
+            {editItem && (
+              <EditRecordModal
+                item={editItem}
+                onSave={(data) => handleUpdate(editItem._type, editItem.id, data)}
+                onClose={() => setEditItem(null)}
+              />
+            )}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============ EDIT RECORD MODAL ============
+function EditRecordModal({ item, onSave, onClose }: { item: any; onSave: (data: any) => void; onClose: () => void }) {
+  const [form, setForm] = useState<any>({});
+  const type = item._type;
+
+  const fieldMap: Record<string, { label: string; key: string; type?: string }[]> = {
+    customers: [
+      { label: 'Ad', key: 'firstName' },
+      { label: 'Soyad', key: 'lastName' },
+      { label: 'Telefon', key: 'phone' },
+      { label: 'E-posta', key: 'email' },
+      { label: 'Plaka', key: 'licensePlate' },
+      { label: 'Adres', key: 'address' },
+    ],
+    vehicles: [
+      { label: 'Plaka', key: 'licensePlate' },
+      { label: 'Marka', key: 'brand' },
+      { label: 'Model', key: 'model' },
+      { label: 'Yıl', key: 'year' },
+      { label: 'Renk', key: 'color' },
+      { label: 'VIN', key: 'vin' },
+    ],
+    'service-orders': [
+      { label: 'Durum', key: 'status' },
+      { label: 'Toplam Tutar', key: 'totalAmount', type: 'number' },
+      { label: 'İndirim', key: 'discount', type: 'number' },
+      { label: 'KDV', key: 'tax', type: 'number' },
+      { label: 'Notlar', key: 'notes' },
+    ],
+    users: [
+      { label: 'Ad', key: 'firstName' },
+      { label: 'Soyad', key: 'lastName' },
+      { label: 'E-posta', key: 'email' },
+      { label: 'Durum', key: 'status' },
+    ],
+  };
+
+  const fields = fieldMap[type] || [];
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={onClose}>
+      <div style={{ ...S.modalContent, width: 450 }} onClick={e => e.stopPropagation()}>
+        <div style={S.modalTitle}>Düzenle</div>
+        {fields.map(f => (
+          <div style={S.formGroup} key={f.key}>
+            <label style={S.label}>{f.label}</label>
+            {f.key === 'status' ? (
+              <select style={S.select} value={form[f.key] ?? item[f.key] ?? ''} onChange={e => setForm({ ...form, [f.key]: e.target.value })}>
+                {type === 'users' ? (
+                  <><option value="ACTIVE">Aktif</option><option value="INACTIVE">Pasif</option></>
+                ) : (
+                  <><option value="PENDING">Bekliyor</option><option value="IN_PROGRESS">Devam Ediyor</option><option value="COMPLETED">Tamamlandı</option><option value="CANCELLED">İptal</option></>
+                )}
+              </select>
+            ) : f.key === 'notes' || f.key === 'address' ? (
+              <textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' as const }} value={form[f.key] ?? item[f.key] ?? ''} onChange={e => setForm({ ...form, [f.key]: e.target.value })} />
+            ) : (
+              <input style={S.input} type={f.type || 'text'} value={form[f.key] ?? item[f.key] ?? ''} onChange={e => setForm({ ...form, [f.key]: e.target.value })} />
+            )}
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+          <button style={S.btnSecondary} onClick={onClose}>İptal</button>
+          <button style={S.btnPrimary} onClick={() => onSave(form)}>Kaydet</button>
+        </div>
+      </div>
     </div>
   );
 }
