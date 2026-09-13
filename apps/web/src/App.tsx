@@ -877,12 +877,18 @@ export function App() {
   const [showLanding, setShowLanding] = useState(true);
   const [showAdmin, setShowAdmin] = useState(false);
 
-  if (loading) return <div style={{ ...S.loginWrap, color: 'white' }}>Yükleniyor...</div>;
+  // Admin panel - URL'den erişim: #admin veya /admin
+  const isAdminUrl = window.location.hash === '#admin' || window.location.pathname === '/admin';
+  if (isAdminUrl && user) {
+    return <AdminPanel onBack={() => { window.location.hash = ''; window.location.pathname = '/'; }} />;
+  }
 
-  // Admin panel
-  if (showAdmin) {
+  // Admin panel - buton ile erişim
+  if (showAdmin && user) {
     return <AdminPanel onBack={() => setShowAdmin(false)} />;
   }
+
+  if (loading) return <div style={{ ...S.loginWrap, color: 'white' }}>Yükleniyor...</div>;
 
   // Landing page
   if (showLanding && !user) {
@@ -895,26 +901,18 @@ export function App() {
   }
 
   if (!user) {
-    return (
+    return isLogin ? (
       <div>
-        {isLogin ? (
-          <div>
-            <LoginPage onLogin={login} onSwitch={() => setIsLogin(false)} />
-            <div style={{ position: 'fixed', bottom: 20, right: 20 }}>
-              <button onClick={() => setShowLanding(true)} style={{ ...S.btnSecondary, opacity: 0.7 }}>← Ana Sayfa</button>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <RegisterPage onRegister={register} onSwitch={() => setIsLogin(true)} />
-            <div style={{ position: 'fixed', bottom: 20, right: 20 }}>
-              <button onClick={() => setShowLanding(true)} style={{ ...S.btnSecondary, opacity: 0.7 }}>← Ana Sayfa</button>
-            </div>
-          </div>
-        )}
-        {/* Admin panel link */}
-        <div style={{ position: 'fixed', bottom: 20, left: 20 }}>
-          <button onClick={() => setShowAdmin(true)} style={{ ...S.btnSecondary, fontSize: 11, opacity: 0.5 }}>Admin</button>
+        <LoginPage onLogin={login} onSwitch={() => setIsLogin(false)} />
+        <div style={{ position: 'fixed', bottom: 20, right: 20 }}>
+          <button onClick={() => setShowLanding(true)} style={{ ...S.btnSecondary, opacity: 0.7 }}>← Ana Sayfa</button>
+        </div>
+      </div>
+    ) : (
+      <div>
+        <RegisterPage onRegister={register} onSwitch={() => setIsLogin(true)} />
+        <div style={{ position: 'fixed', bottom: 20, right: 20 }}>
+          <button onClick={() => setShowLanding(true)} style={{ ...S.btnSecondary, opacity: 0.7 }}>← Ana Sayfa</button>
         </div>
       </div>
     );
@@ -933,12 +931,6 @@ export function App() {
           <Route path="/settings" element={<SettingsPage user={user} />} />
         </Routes>
       </Layout>
-      {/* Admin panel link for logged-in users */}
-      {user.roles?.some((r: any) => r.name === 'SUPER_ADMIN' || r.name === 'TENANT_OWNER') && (
-        <div style={{ position: 'fixed', bottom: 20, left: 20 }}>
-          <button onClick={() => setShowAdmin(true)} style={{ ...S.btnSecondary, fontSize: 11, opacity: 0.5 }}>Admin Panel</button>
-        </div>
-      )}
     </BrowserRouter>
   );
 }

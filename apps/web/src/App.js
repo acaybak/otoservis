@@ -388,18 +388,23 @@ export function App() {
     const [isLogin, setIsLogin] = useState(true);
     const [showLanding, setShowLanding] = useState(true);
     const [showAdmin, setShowAdmin] = useState(false);
-    if (loading)
-        return _jsx("div", { style: { ...S.loginWrap, color: 'white' }, children: "Y\u00FCkleniyor..." });
-    // Admin panel
-    if (showAdmin) {
+    // Admin panel - URL'den erişim: #admin veya /admin
+    const isAdminUrl = window.location.hash === '#admin' || window.location.pathname === '/admin';
+    if (isAdminUrl && user) {
+        return _jsx(AdminPanel, { onBack: () => { window.location.hash = ''; window.location.pathname = '/'; } });
+    }
+    // Admin panel - buton ile erişim
+    if (showAdmin && user) {
         return _jsx(AdminPanel, { onBack: () => setShowAdmin(false) });
     }
+    if (loading)
+        return _jsx("div", { style: { ...S.loginWrap, color: 'white' }, children: "Y\u00FCkleniyor..." });
     // Landing page
     if (showLanding && !user) {
         return (_jsx(LandingPage, { onGetStarted: () => { setIsLogin(false); setShowLanding(false); }, onLogin: () => { setIsLogin(true); setShowLanding(false); } }));
     }
     if (!user) {
-        return (_jsxs("div", { children: [isLogin ? (_jsxs("div", { children: [_jsx(LoginPage, { onLogin: login, onSwitch: () => setIsLogin(false) }), _jsx("div", { style: { position: 'fixed', bottom: 20, right: 20 }, children: _jsx("button", { onClick: () => setShowLanding(true), style: { ...S.btnSecondary, opacity: 0.7 }, children: "\u2190 Ana Sayfa" }) })] })) : (_jsxs("div", { children: [_jsx(RegisterPage, { onRegister: register, onSwitch: () => setIsLogin(true) }), _jsx("div", { style: { position: 'fixed', bottom: 20, right: 20 }, children: _jsx("button", { onClick: () => setShowLanding(true), style: { ...S.btnSecondary, opacity: 0.7 }, children: "\u2190 Ana Sayfa" }) })] })), _jsx("div", { style: { position: 'fixed', bottom: 20, left: 20 }, children: _jsx("button", { onClick: () => setShowAdmin(true), style: { ...S.btnSecondary, fontSize: 11, opacity: 0.5 }, children: "Admin" }) })] }));
+        return isLogin ? (_jsxs("div", { children: [_jsx(LoginPage, { onLogin: login, onSwitch: () => setIsLogin(false) }), _jsx("div", { style: { position: 'fixed', bottom: 20, right: 20 }, children: _jsx("button", { onClick: () => setShowLanding(true), style: { ...S.btnSecondary, opacity: 0.7 }, children: "\u2190 Ana Sayfa" }) })] })) : (_jsxs("div", { children: [_jsx(RegisterPage, { onRegister: register, onSwitch: () => setIsLogin(true) }), _jsx("div", { style: { position: 'fixed', bottom: 20, right: 20 }, children: _jsx("button", { onClick: () => setShowLanding(true), style: { ...S.btnSecondary, opacity: 0.7 }, children: "\u2190 Ana Sayfa" }) })] }));
     }
-    return (_jsxs(BrowserRouter, { children: [_jsx(Layout, { user: user, onLogout: logout, children: _jsxs(Routes, { children: [_jsx(Route, { path: "/", element: _jsx(DashboardPage, { tenantId: user.tenantId }) }), _jsx(Route, { path: "/customers", element: _jsx(CustomersPage, { tenantId: user.tenantId }) }), _jsx(Route, { path: "/vehicles", element: _jsx(VehiclesPage, { tenantId: user.tenantId }) }), _jsx(Route, { path: "/service-orders", element: _jsx(ServiceOrdersPage, { tenantId: user.tenantId }) }), _jsx(Route, { path: "/receivables", element: _jsx(ReceivablesPage, { tenantId: user.tenantId }) }), _jsx(Route, { path: "/financial", element: _jsx(FinancialPage, { tenantId: user.tenantId }) }), _jsx(Route, { path: "/settings", element: _jsx(SettingsPage, { user: user }) })] }) }), user.roles?.some((r) => r.name === 'SUPER_ADMIN' || r.name === 'TENANT_OWNER') && (_jsx("div", { style: { position: 'fixed', bottom: 20, left: 20 }, children: _jsx("button", { onClick: () => setShowAdmin(true), style: { ...S.btnSecondary, fontSize: 11, opacity: 0.5 }, children: "Admin Panel" }) }))] }));
+    return (_jsx(BrowserRouter, { children: _jsx(Layout, { user: user, onLogout: logout, children: _jsxs(Routes, { children: [_jsx(Route, { path: "/", element: _jsx(DashboardPage, { tenantId: user.tenantId }) }), _jsx(Route, { path: "/customers", element: _jsx(CustomersPage, { tenantId: user.tenantId }) }), _jsx(Route, { path: "/vehicles", element: _jsx(VehiclesPage, { tenantId: user.tenantId }) }), _jsx(Route, { path: "/service-orders", element: _jsx(ServiceOrdersPage, { tenantId: user.tenantId }) }), _jsx(Route, { path: "/receivables", element: _jsx(ReceivablesPage, { tenantId: user.tenantId }) }), _jsx(Route, { path: "/financial", element: _jsx(FinancialPage, { tenantId: user.tenantId }) }), _jsx(Route, { path: "/settings", element: _jsx(SettingsPage, { user: user }) })] }) }) }));
 }
