@@ -144,3 +144,17 @@ export const adminApi = {
   deleteTenantData: (tenantId: string, dataType: string, id: string) => api.delete<any>(`/admin/tenants/${tenantId}/data/${dataType}/${id}`),
   createTenantUser: (tenantId: string, data: { email: string; password: string; firstName: string; lastName: string }) => api.post<any>(`/admin/tenants/${tenantId}/users`, data),
 };
+
+// License
+export const licenseApi = {
+  // Public
+  validate: (key: string) => api.post<any>('/licenses/validate', { key }),
+  activate: (key: string, tenantId: string, machineId: string) => api.post<any>('/licenses/activate', { key, tenantId, machineId }),
+  check: (tenantId: string) => api.post<any>('/licenses/check', { tenantId }),
+  // Admin
+  createKeys: (count: number, planType?: string, maxUsers?: number, duration?: number, note?: string) =>
+    api.post<any>('/licenses/keys', { count, planType, maxUsers, duration, note }),
+  listKeys: () => api.get<any>('/licenses/keys'),
+  listLicenses: () => api.get<any>('/licenses'),
+  updateStatus: (id: string, status: string) => api.patch<any>(`/licenses/${id}/status`, { status }),
+};

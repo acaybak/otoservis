@@ -22,6 +22,7 @@ import { SyncModule } from './modules/sync/sync.module';
 import { VehicleMaintenanceModule } from './modules/vehicle-maintenance/vehicle-maintenance.module';
 import { PublicModule } from './modules/public/public.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { LicensesModule } from './modules/licenses/licenses.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { AdminModule } from './modules/admin/admin.module';
     VehicleMaintenanceModule,
     PublicModule,
     AdminModule,
+    LicensesModule,
   ],
   providers: [
     {

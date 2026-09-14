@@ -42,6 +42,8 @@ model Tenant {
   maintenanceTypes     MaintenanceType[]
   vehicleMaintenances  VehicleMaintenance[]
   maintenanceRecords   MaintenanceRecord[]
+  license              License?
+  licenseKeys          LicenseKey[]
 
   @@map("tenants")
 }
@@ -889,4 +891,46 @@ model Subscription {
   plan   Plan   @relation(fields: [planId], references: [id])
 
   @@map("subscriptions")
+}
+
+// =============================================================================
+// LICENSE SYSTEM
+// =============================================================================
+
+model License {
+  id           String    @id @default(uuid())
+  tenantId     String    @unique @map("tenant_id")
+  licenseKey   String    @unique @map("license_key")
+  status       String    @default("ACTIVE") // ACTIVE, EXPIRED, SUSPENDED
+  planType     String    @default("STANDARD") // STANDARD, PROFESSIONAL, ENTERPRISE
+  maxUsers     Int       @default(3)
+  activatedAt  DateTime? @map("activated_at")
+  expiresAt    DateTime? @map("expires_at")
+  machineId    String?   @map("machine_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  licenseKeys LicenseKey[]
+
+  @@map("licenses")
+}
+
+model LicenseKey {
+  id         String    @id @default(uuid())
+  key        String    @unique
+  planType   String    @default("STANDARD") // STANDARD, PROFESSIONAL, ENTERPRISE
+  maxUsers   Int       @default(3)
+  duration   Int       @default(365) // days
+  status     String    @default("AVAILABLE") // AVAILABLE, USED, EXPIRED
+  tenantId   String?   @map("tenant_id")
+  licenseId  String?   @unique @map("license_id")
+  note       String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  activatedAt DateTime? @map("activated_at")
+
+  tenant  Tenant?  @relation(fields: [tenantId], references: [id])
+  license License? @relation(fields: [licenseId], references: [id])
+
+  @@map("license_keys")
 }

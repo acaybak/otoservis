@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { authApi, setToken, getToken, customerApi, vehicleApi, serviceOrderApi, accountingApi, reportingApi, adminApi } from './services/api';
+import { authApi, setToken, getToken, customerApi, vehicleApi, serviceOrderApi, accountingApi, reportingApi, adminApi, licenseApi } from './services/api';
 
 // ============ STYLES ============
 const S = {
@@ -779,6 +779,12 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState({ email: '', password: '', firstName: '', lastName: '' });
   const [addError, setAddError] = useState('');
+  const [adminView, setAdminView] = useState<'tenants' | 'licenses'>('tenants');
+  const [licenseKeys, setLicenseKeys] = useState<any[]>([]);
+  const [licenses, setLicenses] = useState<any[]>([]);
+  const [showCreateKeys, setShowCreateKeys] = useState(false);
+  const [keyForm, setKeyForm] = useState({ count: 5, planType: 'STANDARD', maxUsers: 3, duration: 365, note: '' });
+  const [keysLoading, setKeysLoading] = useState(false);
 
   useEffect(() => {
     Promise.all([adminApi.getStats(), adminApi.getTenants()])
@@ -846,6 +852,24 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
     } catch (e: any) { setAddError(e.message); }
   };
 
+  const loadLicenses = async () => {
+    setKeysLoading(true);
+    try {
+      const [keys, lics] = await Promise.all([licenseApi.listKeys(), licenseApi.listLicenses()]);
+      setLicenseKeys(keys);
+      setLicenses(lics);
+    } catch {}
+    setKeysLoading(false);
+  };
+
+  const handleCreateKeys = async () => {
+    try {
+      await licenseApi.createKeys(keyForm.count, keyForm.planType, keyForm.maxUsers, keyForm.duration, keyForm.note || undefined);
+      setShowCreateKeys(false);
+      loadLicenses();
+    } catch {}
+  };
+
   if (loading) return <div style={{ ...S.loginWrap, color: 'white' }}>Yükleniyor...</div>;
 
   const tabStyle = (active: boolean) => ({
@@ -857,7 +881,11 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
     <div style={S.page}>
       <div style={{ background: '#0f172a', padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 style={{ color: 'white', fontSize: 20, fontWeight: 700, margin: 0 }}>Süper Admin Paneli</h1>
-        <button onClick={onBack} style={S.btnSecondary}>← Geri</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={() => { setAdminView('tenants'); }} style={{ ...tabStyle(adminView === 'tenants'), fontSize: 13 }}>🏢 Servisler</button>
+          <button onClick={() => { setAdminView('licenses'); loadLicenses(); }} style={{ ...tabStyle(adminView === 'licenses'), fontSize: 13 }}>🔑 Lisanslar</button>
+          <button onClick={onBack} style={S.btnSecondary}>← Geri</button>
+        </div>
       </div>
       <div style={{ padding: 32 }}>
         {/* Stats */}
@@ -870,7 +898,78 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
           <div style={S.statCard}><div style={S.statLabel}>Toplam Sipariş</div><div style={S.statValue}>{stats?.serviceOrderCount || 0}</div></div>
         </div>
 
-        {/* Tenant List */}
+        {/* LICENSES VIEW */}
+        {adminView === 'licenses' && (
+          <>
+            <div style={S.card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h3 style={{ fontWeight: 600, margin: 0 }}>Lisans Anahtarları</h3>
+                <button style={S.btnSuccess} onClick={() => setShowCreateKeys(true)}>+ Yeni Anahtar Oluştur</button>
+              </div>
+              {showCreateKeys && (
+                <div style={{ background: '#f8fafc', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
+                    <div><label style={S.label}>Adet</label><input style={S.input} type="number" value={keyForm.count} onChange={e => setKeyForm({ ...keyForm, count: parseInt(e.target.value) || 1 })} /></div>
+                    <div><label style={S.label}>Plan</label><select style={S.select} value={keyForm.planType} onChange={e => setKeyForm({ ...keyForm, planType: e.target.value })}><option value="STANDARD">Standard</option><option value="PROFESSIONAL">Professional</option><option value="ENTERPRISE">Enterprise</option></select></div>
+                    <div><label style={S.label}>Max Kullanıcı</label><input style={S.input} type="number" value={keyForm.maxUsers} onChange={e => setKeyForm({ ...keyForm, maxUsers: parseInt(e.target.value) || 1 })} /></div>
+                    <div><label style={S.label}>Süre (gün)</label><input style={S.input} type="number" value={keyForm.duration} onChange={e => setKeyForm({ ...keyForm, duration: parseInt(e.target.value) || 365 })} /></div>
+                  </div>
+                  <div style={{ marginTop: 8 }}><label style={S.label}>Not</label><input style={S.input} placeholder="Opsiyonel not" value={keyForm.note} onChange={e => setKeyForm({ ...keyForm, note: e.target.value })} /></div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button style={S.btnPrimary} onClick={handleCreateKeys}>Oluştur</button>
+                    <button style={S.btnSecondary} onClick={() => setShowCreateKeys(false)}>İptal</button>
+                  </div>
+                </div>
+              )}
+              {keysLoading ? <div style={S.empty}>Yükleniyor...</div> : (
+                <table style={S.table}>
+                  <thead><tr><th style={S.th}>Anahtar</th><th style={S.th}>Plan</th><th style={S.th}>Max User</th><th style={S.th}>Süre</th><th style={S.th}>Durum</th><th style={S.th}>Firma</th><th style={S.th}>Tarih</th></tr></thead>
+                  <tbody>
+                    {licenseKeys.map((k: any) => (
+                      <tr key={k.id}>
+                        <td style={{ ...S.td, fontFamily: 'monospace', fontWeight: 700, letterSpacing: 1 }}>{k.key}</td>
+                        <td style={S.td}>{k.planType}</td>
+                        <td style={S.td}>{k.maxUsers}</td>
+                        <td style={S.td}>{k.duration} gün</td>
+                        <td style={S.td}><span style={S.badge(k.status === 'AVAILABLE' ? 'green' : k.status === 'USED' ? 'yellow' : 'red')}>{k.status}</span></td>
+                        <td style={S.td}>{k.tenant?.name || '-'}</td>
+                        <td style={S.td}>{new Date(k.createdAt).toLocaleDateString('tr-TR')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div style={S.card}>
+              <h3 style={{ marginBottom: 16, fontWeight: 600 }}>Aktif Lisanslar</h3>
+              <table style={S.table}>
+                <thead><tr><th style={S.th}>Firma</th><th style={S.th}>Plan</th><th style={S.th}>Durum</th><th style={S.th}>Max User</th><th style={S.th}>Aktivasyon</th><th style={S.th}>Bitiş</th><th style={S.th}>İşlem</th></tr></thead>
+                <tbody>
+                  {licenses.map((l: any) => (
+                    <tr key={l.id}>
+                      <td style={S.td}><strong>{l.tenant?.name || '-'}</strong></td>
+                      <td style={S.td}>{l.planType}</td>
+                      <td style={S.td}><span style={S.badge(l.status === 'ACTIVE' ? 'green' : l.status === 'EXPIRED' ? 'red' : 'yellow')}>{l.status}</span></td>
+                      <td style={S.td}>{l.maxUsers}</td>
+                      <td style={S.td}>{l.activatedAt ? new Date(l.activatedAt).toLocaleDateString('tr-TR') : '-'}</td>
+                      <td style={S.td}>{l.expiresAt ? new Date(l.expiresAt).toLocaleDateString('tr-TR') : 'Süresiz'}</td>
+                      <td style={S.td}>
+                        <select value={l.status} onChange={async (e) => { await licenseApi.updateStatus(l.id, e.target.value); loadLicenses(); }} style={{ ...S.select, width: 'auto', padding: '4px 8px', fontSize: 12 }}>
+                          <option value="ACTIVE">Aktif</option>
+                          <option value="SUSPENDED">Askıya Al</option>
+                          <option value="EXPIRED">Süresi Doldu</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {/* TENANTS VIEW */}
+        {adminView === 'tenants' && (
         <div style={S.card}>
           <h3 style={{ marginBottom: 16, fontWeight: 600 }}>Kayıtlı Servisler</h3>
           <table style={S.table}>
@@ -897,9 +996,8 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
             </tbody>
           </table>
         </div>
+        )}
       </div>
-
-      {/* Tenant Management Modal */}
       {selectedTenant && (
         <div style={S.modal} onClick={() => setSelectedTenant(null)}>
           <div style={{ ...S.modalContent, width: 900, maxWidth: '95vw' }} onClick={e => e.stopPropagation()}>
