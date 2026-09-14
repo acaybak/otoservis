@@ -145,7 +145,7 @@ export class LicensesService {
   }
 
   // Public: Check license status for a tenant
-  async checkLicense(tenantId: string) {
+  async checkLicense(tenantId: string, machineId?: string) {
     const license = await (this.prisma as any).license.findUnique({
       where: { tenantId },
     });
@@ -154,6 +154,18 @@ export class LicensesService {
       return {
         hasLicense: false,
         status: 'NONE',
+      };
+    }
+
+    // Validate machine ID if provided and license has one
+    if (machineId && license.machineId && license.machineId !== machineId) {
+      return {
+        hasLicense: true,
+        status: 'INVALID_MACHINE',
+        planType: license.planType,
+        maxUsers: license.maxUsers,
+        expiresAt: license.expiresAt,
+        error: 'Bu lisans farklı bir cihaza bağlı.',
       };
     }
 
@@ -181,6 +193,7 @@ export class LicensesService {
       maxUsers: license.maxUsers,
       activatedAt: license.activatedAt,
       expiresAt: license.expiresAt,
+      machineId: license.machineId,
     };
   }
 

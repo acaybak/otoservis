@@ -4680,17 +4680,21 @@ function LicenseScreen({ onActivated, serverUrl }: { onActivated: () => void; se
   const [step, setStep] = useState<'input' | 'validating' | 'success' | 'error'>('input');
   const [message, setMessage] = useState('');
   const [licenseInfo, setLicenseInfo] = useState<any>(null);
+  const [machineId, setMachineId] = useState<string>('');
+
+  // Get machine ID on mount
+  useEffect(() => {
+    bridge?.getConfig().then(cfg => {
+      setMachineId(cfg?.deviceKey || 'unknown');
+    }).catch(() => setMachineId('unknown'));
+  }, []);
 
   const handleActivate = async () => {
     if (!licenseKey.trim() || !tenantId.trim()) return;
     setStep('validating');
     setMessage('');
     try {
-      // Get machine ID from electron
-      const cfg = await bridge?.getConfig().catch(() => ({ serverUrl: null, deviceKey: null }));
-      const machineId = cfg?.deviceKey || 'unknown';
-
-      // Activate
+      // Activate with stored machine ID
       const res = await fetch(`${serverUrl}/api/v1/licenses/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -4746,6 +4750,12 @@ function LicenseScreen({ onActivated, serverUrl }: { onActivated: () => void; se
               />
               <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.3rem' }}>Firma ID'nizi admin panelinden veya destek ekibinden alabilirsiniz.</p>
             </div>
+            {machineId && machineId !== 'unknown' && (
+              <div style={{ marginBottom: '1.5rem', background: '#f8fafc', borderRadius: '8px', padding: '0.75rem', border: '1px solid #e2e8f0' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', marginBottom: '0.3rem' }}>Cihaz Kimliği (Admin'e bildirin)</label>
+                <div style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: '#0f172a', wordBreak: 'break-all', userSelect: 'all' }}>{machineId}</div>
+              </div>
+            )}
             <button
               onClick={handleActivate}
               disabled={!licenseKey.trim() || !tenantId.trim()}

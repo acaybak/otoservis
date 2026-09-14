@@ -38,8 +38,8 @@ export class LicensesController {
   @Public()
   @Post('check')
   @HttpCode(HttpStatus.OK)
-  async checkLicense(@Body() body: { tenantId: string }) {
-    return this.licensesService.checkLicense(body.tenantId);
+  async checkLicense(@Body() body: { tenantId: string; machineId?: string }) {
+    return this.licensesService.checkLicense(body.tenantId, body.machineId);
   }
 
   // ---- Admin endpoints ----
