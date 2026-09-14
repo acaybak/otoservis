@@ -1090,12 +1090,11 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                 <thead>
                   <tr>
                     <th style={AdminStyles.th}>Firma</th>
+                    <th style={AdminStyles.th}>İletişim</th>
                     <th style={AdminStyles.th}>Slug</th>
                     <th style={AdminStyles.th}>Durum</th>
                     <th style={AdminStyles.th}>Kullanıcı</th>
                     <th style={AdminStyles.th}>Müşteri</th>
-                    <th style={AdminStyles.th}>Araç</th>
-                    <th style={AdminStyles.th}>Sipariş</th>
                     <th style={AdminStyles.th}>İşlem</th>
                   </tr>
                 </thead>
@@ -1103,6 +1102,13 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                   {tenants.map(t => (
                     <tr key={t.id}>
                       <td style={AdminStyles.td}><strong>{t.name}</strong></td>
+                      <td style={AdminStyles.td}>
+                        <div style={{ fontSize: 13 }}>
+                          {t.phone && <div>📞 {t.phone}</div>}
+                          {t.email && <div>✉️ {t.email}</div>}
+                          {!t.phone && !t.email && <span style={{ color: '#94a3b8' }}>-</span>}
+                        </div>
+                      </td>
                       <td style={AdminStyles.td}><code style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: 4, fontSize: 12 }}>{t.slug}</code></td>
                       <td style={AdminStyles.td}>
                         <select value={t.status} onChange={e => handleStatusChange(t.id, e.target.value)} style={{ ...AdminStyles.select, padding: '6px 10px', fontSize: 12 }}>
@@ -1235,6 +1241,36 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
 
             {activeTab === 'overview' && (
               <div>
+                {/* Contact Info Section */}
+                <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                  <h4 style={{ margin: '0 0 12px', color: '#0369a1', fontSize: 14 }}>📞 İletişim Bilgileri</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Telefon</div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{selectedTenant.phone || <span style={{ color: '#94a3b8', fontWeight: 400 }}>Belirtilmemiş</span>}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>E-posta</div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{selectedTenant.email || <span style={{ color: '#94a3b8', fontWeight: 400 }}>Belirtilmemiş</span>}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Web Sitesi</div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{selectedTenant.website || <span style={{ color: '#94a3b8', fontWeight: 400 }}>Belirtilmemiş</span>}</div>
+                    </div>
+                    <div style={{ gridColumn: 'span 3' }}>
+                      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Adres</div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{selectedTenant.address || <span style={{ color: '#94a3b8', fontWeight: 400 }}>Belirtilmemiş</span>}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Şehir</div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{selectedTenant.city || <span style={{ color: '#94a3b8', fontWeight: 400 }}>Belirtilmemiş</span>}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Vergi No</div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{selectedTenant.taxNumber || <span style={{ color: '#94a3b8', fontWeight: 400 }}>Belirtilmemiş</span>}</div>
+                    </div>
+                  </div>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
                   <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8 }}><strong>Slug:</strong> {selectedTenant.slug}</div>
                   <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8 }}>

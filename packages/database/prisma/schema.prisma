@@ -17,6 +17,13 @@ model Tenant {
   slug      String   @unique
   status    String   @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED, TRIAL
   settings  Json?
+  // Contact information
+  phone     String?
+  email     String?
+  address   String?
+  city      String?
+  taxNumber String?  @map("tax_number")
+  website   String?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
