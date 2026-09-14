@@ -135,6 +135,9 @@ function RegisterPage({ onRegister, onSwitch }: { onRegister: (data: any) => Pro
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [tenantName, setTenantName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -144,7 +147,7 @@ function RegisterPage({ onRegister, onSwitch }: { onRegister: (data: any) => Pro
     setLoading(true);
     try {
       const slug = tenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      await onRegister({ tenantName, tenantSlug: slug, adminEmail: email, adminPassword: password, adminFirstName: firstName, adminLastName: lastName });
+      await onRegister({ tenantName, tenantSlug: slug, adminEmail: email, adminPassword: password, adminFirstName: firstName, adminLastName: lastName, phone, address, city });
     } catch (err: any) {
       setError(err.message || 'Kayıt başarısız');
     } finally {
@@ -154,19 +157,26 @@ function RegisterPage({ onRegister, onSwitch }: { onRegister: (data: any) => Pro
 
   return (
     <div style={S.loginWrap}>
-      <div style={S.loginCard}>
+      <div style={{ ...S.loginCard, width: 500 }}>
         <div style={S.loginTitle}>Hesap Oluştur</div>
         <div style={S.loginSub}>Servisinizi buluta taşıyın</div>
         {error && <div style={S.error}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <input style={S.input} placeholder="Firma Adı" value={tenantName} onChange={e => setTenantName(e.target.value)} required />
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8, marginTop: 4 }}>Firma Bilgileri</div>
+          <input style={S.input} placeholder="Firma Adı *" value={tenantName} onChange={e => setTenantName(e.target.value)} required />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <input style={S.input} placeholder="Ad" value={firstName} onChange={e => setFirstName(e.target.value)} required />
-            <input style={S.input} placeholder="Soyad" value={lastName} onChange={e => setLastName(e.target.value)} required />
+            <input style={S.input} placeholder="Telefon" value={phone} onChange={e => setPhone(e.target.value)} />
+            <input style={S.input} placeholder="Şehir" value={city} onChange={e => setCity(e.target.value)} />
           </div>
-          <input style={S.input} placeholder="E-posta" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
-          <input style={S.input} placeholder="Şifre (min 8, büyük+küçük+rakam)" type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} />
-          <button type="submit" style={{ ...S.btnPrimary, opacity: loading ? 0.7 : 1 }} disabled={loading}>
+          <input style={S.input} placeholder="Adres" value={address} onChange={e => setAddress(e.target.value)} />
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8, marginTop: 12 }}>Hesap Bilgileri</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <input style={S.input} placeholder="Ad *" value={firstName} onChange={e => setFirstName(e.target.value)} required />
+            <input style={S.input} placeholder="Soyad *" value={lastName} onChange={e => setLastName(e.target.value)} required />
+          </div>
+          <input style={S.input} placeholder="E-posta *" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+          <input style={S.input} placeholder="Şifre * (min 8, büyük+küçük+rakam)" type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} />
+          <button type="submit" style={{ ...S.btnPrimary, opacity: loading ? 0.7 : 1, marginTop: 8 }} disabled={loading}>
             {loading ? 'Oluşturuluyor...' : 'Kayıt Ol'}
           </button>
         </form>

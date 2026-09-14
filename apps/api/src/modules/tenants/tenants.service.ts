@@ -96,6 +96,9 @@ export class TenantsService {
     adminFirstName: string;
     adminLastName: string;
     adminPhone?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
   }): Promise<{ tenant: TenantResponse; message: string }> {
     const existingSlug = await this.prisma.tenant.findUnique({
       where: { slug: data.tenantSlug },
@@ -119,6 +122,9 @@ export class TenantsService {
           name: data.tenantName,
           slug: data.tenantSlug,
           status: 'ACTIVE',
+          phone: data.phone || null,
+          address: data.address || null,
+          city: data.city || null,
         },
       });
 

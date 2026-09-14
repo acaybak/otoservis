@@ -37,6 +37,10 @@ export const tenantSetupSchema = z.object({
   adminFirstName: z.string().min(1, 'Ad zorunludur.').max(100),
   adminLastName: z.string().min(1, 'Soyad zorunludur.').max(100),
   adminPhone: z.string().max(20).optional(),
+  // Tenant contact info
+  phone: z.string().max(20).optional(),
+  address: z.string().max(500).optional(),
+  city: z.string().max(100).optional(),
 });
 
 export type CreateTenantDto = z.infer<typeof createTenantSchema>;
