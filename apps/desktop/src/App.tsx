@@ -4671,17 +4671,164 @@ function SuppliersPage() {
 // ============================================================================
 // App root
 // ============================================================================
+// ============================================================================
+// License Activation Screen
+// ============================================================================
+function LicenseScreen({ onActivated, serverUrl }: { onActivated: () => void; serverUrl: string }) {
+  const [licenseKey, setLicenseKey] = useState('');
+  const [tenantId, setTenantId] = useState('');
+  const [step, setStep] = useState<'input' | 'validating' | 'success' | 'error'>('input');
+  const [message, setMessage] = useState('');
+  const [licenseInfo, setLicenseInfo] = useState<any>(null);
+
+  const handleActivate = async () => {
+    if (!licenseKey.trim() || !tenantId.trim()) return;
+    setStep('validating');
+    setMessage('');
+    try {
+      // Get machine ID from electron
+      const cfg = await bridge?.getConfig().catch(() => ({ serverUrl: null, deviceKey: null }));
+      const machineId = cfg?.deviceKey || 'unknown';
+
+      // Activate
+      const res = await fetch(`${serverUrl}/api/v1/licenses/activate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: licenseKey.trim(), tenantId: tenantId.trim(), machineId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Aktivasyon başarısız.');
+
+      setLicenseInfo(data);
+      setStep('success');
+      // Store license info locally
+      localStorage.setItem('otoservis:license', JSON.stringify(data));
+    } catch (e: any) {
+      setMessage(e.message || 'Bir hata oluştu.');
+      setStep('error');
+    }
+  };
+
+  const handleSkip = () => {
+    // Allow using without license for now (trial mode)
+    localStorage.setItem('otoservis:license', JSON.stringify({ status: 'TRIAL', planType: 'TRIAL' }));
+    onActivated();
+  };
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
+      <div style={{ background: 'white', padding: '2.5rem', borderRadius: '16px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', width: '480px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🔑</div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.25rem' }}>Lisans Aktivasyonu</h1>
+          <p style={{ color: '#64748b', fontSize: '0.9rem' }}>Programı kullanmak için lisans anahtarınızı girin</p>
+        </div>
+
+        {step === 'input' && (
+          <>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.4rem' }}>Lisans Anahtarı</label>
+              <input
+                style={{ width: '100%', padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '1rem', fontFamily: 'monospace', letterSpacing: '2px', textAlign: 'center', outline: 'none', boxSizing: 'border-box' }}
+                placeholder="XXXX-XXXX-XXXX-XXXX"
+                value={licenseKey}
+                onChange={e => setLicenseKey(e.target.value.toUpperCase())}
+                maxLength={19}
+              />
+            </div>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.4rem' }}>Firma ID (Tenant ID)</label>
+              <input
+                style={{ width: '100%', padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '0.85rem', fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' }}
+                placeholder="Firma ID'nizi girin"
+                value={tenantId}
+                onChange={e => setTenantId(e.target.value)}
+              />
+              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.3rem' }}>Firma ID'nizi admin panelinden veya destek ekibinden alabilirsiniz.</p>
+            </div>
+            <button
+              onClick={handleActivate}
+              disabled={!licenseKey.trim() || !tenantId.trim()}
+              style={{ width: '100%', padding: '14px', background: (!licenseKey.trim() || !tenantId.trim()) ? '#94a3b8' : '#2563eb', color: 'white', border: 'none', borderRadius: '10px', fontSize: '1rem', fontWeight: 700, cursor: (!licenseKey.trim() || !tenantId.trim()) ? 'not-allowed' : 'pointer', marginBottom: '0.75rem' }}
+            >
+              Aktifleştir
+            </button>
+            <button
+              onClick={handleSkip}
+              style={{ width: '100%', padding: '10px', background: 'transparent', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '0.85rem', cursor: 'pointer' }}
+            >
+              Deneme Modunda Devam Et
+            </button>
+          </>
+        )}
+
+        {step === 'validating' && (
+          <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+            <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏳</div>
+            <p style={{ color: '#475569' }}>Lisans doğrulanıyor...</p>
+          </div>
+        )}
+
+        {step === 'success' && (
+          <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
+            <h2 style={{ color: '#16a34a', fontWeight: 700, marginBottom: '0.5rem' }}>Lisans Aktif!</h2>
+            <div style={{ background: '#f0fdf4', borderRadius: '8px', padding: '1rem', marginBottom: '1rem', textAlign: 'left' }}>
+              <div style={{ fontSize: '0.85rem', color: '#475569' }}>
+                <div><strong>Plan:</strong> {licenseInfo?.planType}</div>
+                <div><strong>Max Kullanıcı:</strong> {licenseInfo?.maxUsers}</div>
+                <div><strong>Bitiş:</strong> {licenseInfo?.expiresAt ? new Date(licenseInfo.expiresAt).toLocaleDateString('tr-TR') : 'Süresiz'}</div>
+              </div>
+            </div>
+            <button onClick={onActivated} style={{ width: '100%', padding: '14px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '10px', fontSize: '1rem', fontWeight: 700, cursor: 'pointer' }}>
+              Devam Et →
+            </button>
+          </div>
+        )}
+
+        {step === 'error' && (
+          <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>❌</div>
+            <p style={{ color: '#dc2626', fontWeight: 600, marginBottom: '0.5rem' }}>Aktivasyon Başarısız</p>
+            <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '1rem' }}>{message}</p>
+            <button onClick={() => setStep('input')} style={{ padding: '10px 24px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+              Tekrar Dene
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [booting, setBooting] = useState(true);
   const [hasServer, setHasServer] = useState<boolean | null>(null);
+  const [serverUrl, setServerUrl] = useState<string>('');
+  const [hasLicense, setHasLicense] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!bridge) { setBooting(false); return; }
     (async () => {
       const cfg = await bridge.getConfig().catch(() => ({ serverUrl: null, deviceKey: null }));
       setHasServer(!!cfg.serverUrl);
+      setServerUrl(cfg.serverUrl || '');
       if (cfg.serverUrl) {
+        // Check license
+        const lic = localStorage.getItem('otoservis:license');
+        if (lic) {
+          try {
+            const parsed = JSON.parse(lic);
+            if (parsed.status === 'ACTIVE' || parsed.status === 'TRIAL') {
+              setHasLicense(true);
+            } else {
+              setHasLicense(false);
+            }
+          } catch { setHasLicense(false); }
+        } else {
+          setHasLicense(false);
+        }
         const u = await bridge.currentUser().catch(() => null);
         if (u) setUser(u);
       }
@@ -4726,6 +4873,7 @@ export function App() {
     );
   }
   if (hasServer === false) return <SetupScreen onDone={() => setHasServer(true)} />;
+  if (hasLicense === false) return <LicenseScreen serverUrl={serverUrl} onActivated={() => setHasLicense(true)} />;
 
   return (
     <AuthContext.Provider value={{ user, setUser }}>
