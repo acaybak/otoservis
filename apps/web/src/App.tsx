@@ -724,13 +724,88 @@ function SettingsPage({ user }: { user: User }) {
   );
 }
 
+// ============ DOWNLOAD PAGE ============
+function DownloadPage({ onBack }: { onBack: () => void }) {
+  return (
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ fontSize: 24, fontWeight: 800, color: 'white', cursor: 'pointer' }} onClick={onBack}>OtoServis</div>
+        <button onClick={onBack} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>← Geri</button>
+      </nav>
+      <div style={{ maxWidth: 800, margin: '0 auto', padding: '60px 40px', textAlign: 'center' as const }}>
+        <div style={{ fontSize: 64, marginBottom: 16 }}>🖥️</div>
+        <h1 style={{ fontSize: 40, fontWeight: 800, color: 'white', marginBottom: 16 }}>OtoServis Desktop</h1>
+        <p style={{ fontSize: 18, color: '#94a3b8', marginBottom: 40, lineHeight: 1.6 }}>Windows için masaüstü uygulamasını indirin.<br />Kurulum ile birlikte Program Files'e yüklenir.</p>
+
+        <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 20, padding: 40, marginBottom: 40, border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 24 }}>
+            <div style={{ fontSize: 40 }}>🪟</div>
+            <div style={{ textAlign: 'left' as const }}>
+              <div style={{ color: 'white', fontSize: 20, fontWeight: 700 }}>Windows 10/11 (64-bit)</div>
+              <div style={{ color: '#94a3b8', fontSize: 14 }}>Installer (.exe) • ~81 MB</div>
+            </div>
+          </div>
+          <a
+            href="https://github.com/acaybak/otoservis/releases/latest/download/OtoServis-Setup.exe"
+            download
+            style={{ display: 'inline-block', padding: '16px 48px', background: '#2563eb', color: 'white', borderRadius: 12, fontSize: 18, fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}
+          >
+            📥 İndir
+          </a>
+          <p style={{ color: '#64748b', fontSize: 13, marginTop: 16 }}>v0.1.0 • Son güncelleme: Eylül 2026</p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20, textAlign: 'center' as const }}>
+          {[
+            { icon: '🔑', title: 'Lisans Sistemi', desc: 'Aktivasyon anahtarı ile güvenli kullanım' },
+            { icon: '📡', title: 'Offline + Online', desc: 'İnternet olmadan da çalışır, bulut senkronizasyon' },
+            { icon: '🔧', title: 'Kolay Kurulum', desc: 'Program Files\u0027e otomatik kurulum' },
+          ].map((f, i) => (
+            <div key={i} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>{f.icon}</div>
+              <h3 style={{ color: 'white', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{f.title}</h3>
+              <p style={{ color: '#94a3b8', fontSize: 13 }}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginTop: 40, background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, textAlign: 'left' as const }}>
+          <h3 style={{ color: 'white', fontSize: 16, fontWeight: 700, marginBottom: 12 }}>📋 Kurulum Adımları</h3>
+          {[
+            'OtoServis Setup dosyasını indirin',
+            'Kurulum dosyasını çalıştırın',
+            'Sunucu adresini girin: https://otoservis-api.onrender.com',
+            'Lisans anahtarınızı girin',
+            'Giriş yapın ve kullanmaya başlayın',
+          ].map((step, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#2563eb', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+              <span style={{ color: '#cbd5e1', fontSize: 14 }}>{step}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ textAlign: 'center' as const, padding: '40px 20px', borderTop: '1px solid rgba(255,255,255,0.1)', color: '#64748b', fontSize: 14 }}>
+        © 2026 OtoServis. Tüm hakları saklıdır.
+      </div>
+    </div>
+  );
+}
+
 // ============ LANDING PAGE ============
 function LandingPage({ onGetStarted, onLogin }: { onGetStarted: () => void; onLogin: () => void }) {
+  const [showDownload, setShowDownload] = useState(false);
+
+  if (showDownload) {
+    return <DownloadPage onBack={() => setShowDownload(false)} />;
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ fontSize: 24, fontWeight: 800, color: 'white' }}>OtoServis</div>
         <div style={{ display: 'flex', gap: 16 }}>
+          <button onClick={() => setShowDownload(true)} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>📥 İndir</button>
           <button onClick={onLogin} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Giriş Yap</button>
           <button onClick={onGetStarted} style={{ padding: '10px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Ücretsiz Dene</button>
         </div>
