@@ -4,8 +4,114 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Müşteri Portalı - OtoServisApp</title>
-  <style>* { margin: 0; padding: 0; box-sizing: border-box; } body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }</style>
-  <script type="module" crossorigin src="/assets/index-BfV8UNNG.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    
+    /* Print Styles */
+    @media print {
+      /* Reset backgrounds and colors */
+      body {
+        background: white !important;
+        color: black !important;
+        font-size: 12pt !important;
+      }
+      
+      /* Hide elements that shouldn't print */
+      header button,
+      header a,
+      .no-print {
+        display: none !important;
+      }
+      
+      /* Remove shadows and borders for printing */
+      * {
+        box-shadow: none !important;
+        text-shadow: none !important;
+      }
+      
+      /* Ensure backgrounds print */
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+      
+      /* Page setup */
+      @page {
+        margin: 1.5cm;
+        size: A4;
+      }
+      
+      /* Header styling for print */
+      header {
+        background: white !important;
+        color: black !important;
+        border-bottom: 2px solid #333 !important;
+        padding: 1rem 0 !important;
+        page-break-after: avoid;
+      }
+      
+      header * {
+        color: black !important;
+      }
+      
+      /* Cards */
+      div[style*="background: white"],
+      div[style*="background:white"] {
+        border: 1px solid #ddd !important;
+        page-break-inside: avoid;
+        margin-bottom: 1rem !important;
+      }
+      
+      /* Tables */
+      table {
+        page-break-inside: auto;
+        width: 100% !important;
+      }
+      
+      tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+      }
+      
+      thead {
+        display: table-header-group;
+      }
+      
+      /* Stats grid */
+      div[style*="grid-template-columns"] {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.5rem !important;
+      }
+      
+      /* Prevent orphans */
+      h1, h2, h3, h4 {
+        page-break-after: avoid;
+      }
+      
+      /* Links */
+      a {
+        text-decoration: none !important;
+        color: black !important;
+      }
+      
+      /* Remove gradients for cleaner print */
+      div[style*="gradient"] {
+        background: white !important;
+      }
+      
+      /* Footer */
+      footer {
+        border-top: 1px solid #ccc !important;
+        margin-top: 2rem !important;
+        padding-top: 1rem !important;
+        font-size: 10pt !important;
+      }
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-rgs28pfM.js"></script>
 </head>
 <body><div id="root"></div></body>
 </html>

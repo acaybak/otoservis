@@ -243,13 +243,33 @@ function VehicleHistoryPage() {
   if (!data) return null;
   const { vehicle, maintenanceRecords, serviceOrders, maintenanceSchedule, summary } = data;
 
+  const handlePrint = () => {
+    // Add print date to the page
+    const printDate = new Date().toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const printHeader = document.createElement('div');
+    printHeader.className = 'print-date-header';
+    printHeader.style.cssText = 'text-align: center; padding: 0.5rem; font-size: 10pt; color: #666; border-bottom: 1px solid #ddd; margin-bottom: 1rem;';
+    printHeader.innerHTML = `Yazdırma Tarihi: ${printDate}`;
+    document.body.insertBefore(printHeader, document.body.firstChild);
+    
+    // Print
+    window.print();
+    
+    // Remove the header after printing
+    setTimeout(() => {
+      if (printHeader.parentNode) {
+        printHeader.parentNode.removeChild(printHeader);
+      }
+    }, 1000);
+  };
+
   return (
     <div style={S.contentPage}>
       <header style={S.contentHeader(primaryColor)}>
         <Link to="/" style={{ ...S.logo, color: 'white' }}><span>🔧</span><span>{shopName}</span></Link>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           {shopPhone && <span style={S.headerPhone}>📞 {shopPhone}</span>}
-          <button onClick={() => window.print()} style={S.printBtn}>🖨️ Yazdır</button>
+          <button onClick={handlePrint} style={S.printBtn}>🖨️ Yazdır</button>
         </div>
       </header>
 
