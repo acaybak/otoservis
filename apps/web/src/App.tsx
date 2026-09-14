@@ -802,12 +802,160 @@ function DownloadPage({ onBack }: { onBack: () => void }) {
   );
 }
 
+// ============ PRICING PAGE ============
+function PricingPage({ onBack, onGetStarted }: { onBack: () => void; onGetStarted: () => void }) {
+  const plans = [
+    {
+      name: 'Başlangıç',
+      price: '2.990',
+      period: 'yıl',
+      desc: 'Tek kişilik servisler için',
+      color: '#3b82f6',
+      features: [
+        '1 kullanıcı',
+        '100 müşteri kaydı',
+        '200 araç kaydı',
+        'Temel raporlama',
+        'E-posta desteği',
+      ],
+      popular: false,
+    },
+    {
+      name: 'Profesyonel',
+      price: '5.990',
+      period: 'yıl',
+      desc: 'Küçük-orta servisler için',
+      color: '#2563eb',
+      features: [
+        '3 kullanıcı',
+        'Sınırsız müşteri',
+        'Sınırsız araç',
+        'Gelişmiş raporlama',
+        'SMS bildirimleri',
+        'Öncelikli destek',
+        'Müşteri portalı',
+      ],
+      popular: true,
+    },
+    {
+      name: 'Kurumsal',
+      price: '9.990',
+      period: 'yıl',
+      desc: 'Büyük servisler için',
+      color: '#1d4ed8',
+      features: [
+        '10 kullanıcı',
+        'Sınırsız her şey',
+        'Özel entegrasyonlar',
+        'API erişimi',
+        'Öncelikli destek 7/24',
+        'Özel raporlama',
+        'Çoklu şube desteği',
+        'Beyaz etiket seçeneği',
+      ],
+      popular: false,
+    },
+  ];
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ fontSize: 24, fontWeight: 800, color: 'white', cursor: 'pointer' }} onClick={onBack}>OtoServis</div>
+        <button onClick={onBack} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>← Geri</button>
+      </nav>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '60px 40px' }}>
+        <div style={{ textAlign: 'center' as const, marginBottom: 60 }}>
+          <h1 style={{ fontSize: 48, fontWeight: 800, color: 'white', marginBottom: 16 }}>Fiyatlandırma</h1>
+          <p style={{ fontSize: 18, color: '#94a3b8', maxWidth: 600, margin: '0 auto' }}>İhtiyacınıza uygun paketi seçin. Tüm planlar 7 gün ücretsiz deneme içerir.</p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, alignItems: 'stretch' }}>
+          {plans.map((plan, i) => (
+            <div key={i} style={{
+              background: plan.popular ? 'rgba(37,99,235,0.15)' : 'rgba(255,255,255,0.05)',
+              borderRadius: 20,
+              padding: 32,
+              border: plan.popular ? '2px solid #2563eb' : '1px solid rgba(255,255,255,0.1)',
+              position: 'relative' as const,
+              display: 'flex',
+              flexDirection: 'column' as const,
+            }}>
+              {plan.popular && (
+                <div style={{ position: 'absolute' as const, top: -12, left: '50%', transform: 'translateX(-50%)', background: '#2563eb', color: 'white', padding: '4px 16px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>EN POPÜLER</div>
+              )}
+              <div style={{ textAlign: 'center' as const, marginBottom: 24 }}>
+                <h3 style={{ color: 'white', fontSize: 22, fontWeight: 700, marginBottom: 8 }}>{plan.name}</h3>
+                <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 16 }}>{plan.desc}</p>
+                <div style={{ color: 'white' }}>
+                  <span style={{ fontSize: 16, verticalAlign: 'top' }}>₺</span>
+                  <span style={{ fontSize: 48, fontWeight: 800 }}>{plan.price}</span>
+                  <span style={{ fontSize: 16, color: '#94a3b8' }}>/{plan.period}</span>
+                </div>
+              </div>
+              <div style={{ flex: 1, marginBottom: 24 }}>
+                {plan.features.map((f, j) => (
+                  <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                    <span style={{ color: '#22c55e', fontSize: 16 }}>✓</span>
+                    <span style={{ color: '#cbd5e1', fontSize: 14 }}>{f}</span>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={onGetStarted}
+                style={{
+                  width: '100%',
+                  padding: '14px 24px',
+                  background: plan.popular ? '#2563eb' : 'transparent',
+                  color: 'white',
+                  border: plan.popular ? 'none' : '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: 10,
+                  fontSize: 16,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Ücretsiz Dene
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Additional Info */}
+        <div style={{ marginTop: 60, textAlign: 'center' as const }}>
+          <h2 style={{ color: 'white', fontSize: 24, fontWeight: 700, marginBottom: 24 }}>Sıkça Sorulan Sorular</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, maxWidth: 800, margin: '0 auto', textAlign: 'left' as const }}>
+            {[
+              { q: 'Ücretsiz deneme süresi ne kadar?', a: 'Tüm planlar 7 gün ücretsiz deneme içerir. Kredi kartı gerekmez.' },
+              { q: 'Yıllık ödeme zorunlu mu?', a: 'Hayır, aylık ödeme de yapabilirsiniz. Yıllık ödemede 2 ay bedava.' },
+              { q: 'Paket değiştirebilir miyim?', a: 'Evet, istediğiniz zaman yükseltme veya düşürme yapabilirsiniz.' },
+              { q: 'Verilerim güvende mi?', a: 'Tüm veriler şifrelenerek saklanır ve günlük yedekleme yapılır.' },
+            ].map((faq, i) => (
+              <div key={i} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 20 }}>
+                <h4 style={{ color: 'white', fontSize: 15, fontWeight: 600, marginBottom: 8 }}>{faq.q}</h4>
+                <p style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>{faq.a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div style={{ textAlign: 'center' as const, padding: '40px 20px', borderTop: '1px solid rgba(255,255,255,0.1)', color: '#64748b', fontSize: 14 }}>
+        © 2026 OtoServis. Tüm hakları saklıdır.
+      </div>
+    </div>
+  );
+}
+
 // ============ LANDING PAGE ============
 function LandingPage({ onGetStarted, onLogin }: { onGetStarted: () => void; onLogin: () => void }) {
   const [showDownload, setShowDownload] = useState(false);
+  const [showPricing, setShowPricing] = useState(false);
 
   if (showDownload) {
     return <DownloadPage onBack={() => setShowDownload(false)} />;
+  }
+
+  if (showPricing) {
+    return <PricingPage onBack={() => setShowPricing(false)} onGetStarted={onGetStarted} />;
   }
 
   return (
@@ -815,6 +963,7 @@ function LandingPage({ onGetStarted, onLogin }: { onGetStarted: () => void; onLo
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ fontSize: 24, fontWeight: 800, color: 'white' }}>OtoServis</div>
         <div style={{ display: 'flex', gap: 16 }}>
+          <button onClick={() => setShowPricing(true)} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>💰 Fiyatlar</button>
           <button onClick={() => setShowDownload(true)} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>📥 İndir</button>
           <button onClick={onLogin} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Giriş Yap</button>
           <button onClick={onGetStarted} style={{ padding: '10px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Ücretsiz Dene</button>
