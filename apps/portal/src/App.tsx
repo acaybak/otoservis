@@ -116,6 +116,23 @@ function HomePage() {
           <span>{shopName}</span>
         </Link>
         <div style={S.headerRight}>
+          {tenantSlug && (
+            <Link
+              to={`/${tenantSlug}/appointment`}
+              style={{
+                padding: '0.4rem 1rem',
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: '8px',
+                color: 'white',
+                textDecoration: 'none',
+                fontSize: '0.85rem',
+                fontWeight: '600',
+              }}
+            >
+              📅 Randevu
+            </Link>
+          )}
           {shopPhone && (
             <span style={S.headerPhone}>📞 {shopPhone}</span>
           )}
@@ -149,6 +166,32 @@ function HomePage() {
           </button>
           {error && <div style={S.error}>{error}</div>}
         </div>
+
+        {/* Appointment Link */}
+        {tenantSlug && (
+          <div style={{ marginTop: '1.5rem' }}>
+            <Link
+              to={`/${tenantSlug}/appointment`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.75rem 1.75rem',
+                background: 'rgba(255,255,255,0.15)',
+                border: '2px solid rgba(255,255,255,0.3)',
+                borderRadius: '12px',
+                color: 'white',
+                textDecoration: 'none',
+                fontWeight: '600',
+                fontSize: '1rem',
+                transition: 'all 0.2s',
+                backdropFilter: 'blur(4px)',
+              }}
+            >
+              📅 Online Randevu Al
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Features */}
