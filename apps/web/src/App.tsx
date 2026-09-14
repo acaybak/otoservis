@@ -746,7 +746,7 @@ function DownloadPage({ onBack }: { onBack: () => void }) {
             </div>
           </div>
           <a
-            href="https://github.com/acaybak/otoservis/releases/latest/download/OtoServis-Setup.exe"
+            href="https://github.com/acaybak/otoservis/releases/latest/download/OtoServis.Setup.0.1.0.exe"
             download
             style={{ display: 'inline-block', padding: '16px 48px', background: '#2563eb', color: 'white', borderRadius: 12, fontSize: 18, fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}
           >
