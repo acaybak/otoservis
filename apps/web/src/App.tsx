@@ -1,6 +1,31 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import { authApi, setToken, getToken, customerApi, vehicleApi, serviceOrderApi, accountingApi, reportingApi, adminApi, licenseApi } from './services/api';
+
+// ============ TOAST NOTIFICATION ============
+interface Toast { id: number; message: string; type: 'success' | 'error' | 'info' }
+const ToastContext = createContext<{ addToast: (msg: string, type: 'success' | 'error' | 'info') => void }>({ addToast: () => {} });
+function ToastProvider({ children }: { children: React.ReactNode }) {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const addToast = useCallback((message: string, type: 'success' | 'error' | 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+  }, []);
+  const colors = { success: { bg: '#f0fdf4', border: '#86efac', text: '#166534' }, error: { bg: '#fef2f2', border: '#fca5a5', text: '#991b1b' }, info: { bg: '#eff6ff', border: '#93c5fd', text: '#1e40af' } };
+  return (
+    <ToastContext.Provider value={{ addToast }}>
+      {children}
+      <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {toasts.map(t => {
+          const c = colors[t.type];
+          return <div key={t.id} style={{ background: c.bg, border: `1px solid ${c.border}`, color: c.text, padding: '14px 20px', borderRadius: 10, fontSize: 14, fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', animation: 'slideIn 0.3s ease', maxWidth: 360 }}>{t.type === 'success' ? '✓ ' : t.type === 'error' ? '✕ ' : 'ℹ '}{t.message}</div>;
+        })}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+function useToast() { return useContext(ToastContext); }
 
 // ============ STYLES ============
 const S = {
@@ -70,7 +95,7 @@ function useAuth() {
     return res;
   };
 
-  const register = async (data: { tenantName: string; tenantSlug: string; adminEmail: string; adminPassword: string; adminFirstName: string; adminLastName: string }) => {
+  const register = async (data: { tenantName: string; tenantSlug: string; adminEmail: string; adminPassword: string; adminFirstName: string; adminLastName: string; phone?: string; address?: string; city?: string }) => {
     await authApi.register(data);
     const loginRes = await authApi.login({ email: data.adminEmail, password: data.adminPassword });
     setToken(loginRes.accessToken);
@@ -92,6 +117,7 @@ function LoginPage({ onLogin, onSwitch }: { onLogin: (email: string, password: s
   const [tenantName, setTenantName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { addToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,8 +125,11 @@ function LoginPage({ onLogin, onSwitch }: { onLogin: (email: string, password: s
     setLoading(true);
     try {
       await onLogin(email, password);
+      addToast('Giriş başarılı!', 'success');
     } catch (err: any) {
-      setError(err.message || 'Giriş başarısız');
+      const msg = err?.response?.data?.error?.message || err.message || 'Giriş başarısız';
+      setError(msg);
+      addToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -140,6 +169,8 @@ function RegisterPage({ onRegister, onSwitch }: { onRegister: (data: any) => Pro
   const [city, setCity] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState('');
+  const { addToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,9 +178,15 @@ function RegisterPage({ onRegister, onSwitch }: { onRegister: (data: any) => Pro
     setLoading(true);
     try {
       const slug = tenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      setStep('Hesap oluşturuluyor...');
       await onRegister({ tenantName, tenantSlug: slug, adminEmail: email, adminPassword: password, adminFirstName: firstName, adminLastName: lastName, phone, address, city });
+      setStep('Giriş yapılıyor...');
+      addToast('Kayıt başarılı! Hoş geldiniz.', 'success');
     } catch (err: any) {
-      setError(err.message || 'Kayıt başarısız');
+      setStep('');
+      const msg = err?.response?.data?.error?.message || err.message || 'Kayıt başarısız';
+      setError(msg);
+      addToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -177,7 +214,7 @@ function RegisterPage({ onRegister, onSwitch }: { onRegister: (data: any) => Pro
           <input style={S.input} placeholder="E-posta *" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
           <input style={S.input} placeholder="Şifre * (min 8, büyük+küçük+rakam)" type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} />
           <button type="submit" style={{ ...S.btnPrimary, opacity: loading ? 0.7 : 1, marginTop: 8 }} disabled={loading}>
-            {loading ? 'Oluşturuluyor...' : 'Kayıt Ol'}
+            {loading ? (step || 'Oluşturuluyor...') : 'Kayıt Ol'}
           </button>
         </form>
         <div style={{ marginTop: 16, textAlign: 'center' }}>
@@ -1648,6 +1685,14 @@ function EditRecordModal({ item, onSave, onClose }: { item: any; onSave: (data: 
 
 // ============ MAIN APP ============
 export function App() {
+  return (
+    <ToastProvider>
+      <AppInner />
+    </ToastProvider>
+  );
+}
+
+function AppInner() {
   const { user, loading, login, register, logout } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [showLanding, setShowLanding] = useState(true);

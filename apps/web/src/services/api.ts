@@ -45,7 +45,7 @@ export const api = {
 
 // Auth
 export const authApi = {
-  register: (data: { tenantName: string; tenantSlug: string; adminEmail: string; adminPassword: string; adminFirstName: string; adminLastName: string }) =>
+  register: (data: { tenantName: string; tenantSlug: string; adminEmail: string; adminPassword: string; adminFirstName: string; adminLastName: string; phone?: string; address?: string; city?: string }) =>
     api.post<any>('/tenants/setup', data),
   login: (data: { email: string; password: string }) =>
     api.post<any>('/auth/login', data),
