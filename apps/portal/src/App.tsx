@@ -18,7 +18,8 @@ const S = {
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
   }) as React.CSSProperties,
   logo: { fontSize: '1.25rem', fontWeight: '700', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' } as React.CSSProperties,
-  logoImg: { height: '36px', width: 'auto' } as React.CSSProperties,
+  logoImg: { height: '32px', width: 'auto' } as React.CSSProperties,
+  logoBadge: { background: 'white', borderRadius: 8, padding: '2px 8px', display: 'flex', alignItems: 'center' } as React.CSSProperties,
   headerRight: { display: 'flex', alignItems: 'center', gap: '1rem' } as React.CSSProperties,
   headerPhone: { color: 'rgba(255,255,255,0.9)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.35rem' } as React.CSSProperties,
   
@@ -113,7 +114,7 @@ function HomePage() {
       {/* Header */}
       <header style={S.header(primaryColor)}>
         <Link to="/" style={S.logo}>
-          <img src="/logo.png" alt={shopName} style={S.logoImg} />
+          <div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={S.logoImg} /></div>
           <span>{shopName}</span>
         </Link>
         <div style={S.headerRight}>
@@ -263,7 +264,7 @@ function VehicleHistoryPage() {
   if (loading) return (
     <div style={S.contentPage}>
       <header style={S.contentHeader(primaryColor)}>
-        <Link to="/" style={{ ...S.logo, color: 'white' }}><img src="/logo.png" alt={shopName} style={S.logoImg} /><span>{shopName}</span></Link>
+        <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
       </header>
       <div style={{ textAlign: 'center', padding: '4rem', color: '#64748b' }}>Yükleniyor...</div>
     </div>
@@ -272,7 +273,7 @@ function VehicleHistoryPage() {
   if (error) return (
     <div style={S.contentPage}>
       <header style={S.contentHeader(primaryColor)}>
-        <Link to="/" style={{ ...S.logo, color: 'white' }}><img src="/logo.png" alt={shopName} style={S.logoImg} /><span>{shopName}</span></Link>
+        <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
       </header>
       <div style={{ ...S.contentMain, textAlign: 'center' }}>
         <div style={{ ...S.card, maxWidth: '450px', margin: '3rem auto', padding: '2.5rem' }}>
@@ -310,7 +311,7 @@ function VehicleHistoryPage() {
   return (
     <div style={S.contentPage}>
       <header style={S.contentHeader(primaryColor)}>
-        <Link to="/" style={{ ...S.logo, color: 'white' }}><img src="/logo.png" alt={shopName} style={S.logoImg} /><span>{shopName}</span></Link>
+        <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           {shopPhone && <span style={S.headerPhone}>📞 {shopPhone}</span>}
           <button onClick={handlePrint} style={S.printBtn}>🖨️ Yazdır</button>
@@ -490,7 +491,7 @@ function AppointmentPage() {
   if (success) return (
     <div style={S.contentPage}>
       <header style={S.contentHeader(primaryColor)}>
-        <Link to="/" style={{ ...S.logo, color: 'white' }}><img src="/logo.png" alt={shopName} style={S.logoImg} /><span>{shopName}</span></Link>
+        <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
       </header>
       <div style={{ ...S.contentMain, textAlign: 'center' }}>
         <div style={{ ...S.card, maxWidth: '450px', margin: '3rem auto', padding: '2.5rem' }}>
@@ -511,7 +512,7 @@ function AppointmentPage() {
   return (
     <div style={S.contentPage}>
       <header style={S.contentHeader(primaryColor)}>
-        <Link to="/" style={{ ...S.logo, color: 'white' }}><img src="/logo.png" alt={shopName} style={S.logoImg} /><span>{shopName}</span></Link>
+        <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
       </header>
       <main style={S.contentMain}>
         <div style={{ maxWidth: '550px', margin: '0 auto' }}>

@@ -739,7 +739,9 @@ function DownloadPage({ onBack }: { onBack: () => void }) {
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ fontSize: 24, fontWeight: 800, color: 'white', cursor: 'pointer' }} onClick={onBack}>OtoServis</div>
+        <div style={{ background: 'white', borderRadius: 10, padding: '4px 12px', cursor: 'pointer' }} onClick={onBack}>
+          <img src="/logo.png" alt="OtoServis" style={{ height: 38, width: 'auto' }} />
+        </div>
         <button onClick={onBack} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>← Geri</button>
       </nav>
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '60px 40px', textAlign: 'center' as const }}>
@@ -860,7 +862,9 @@ function PricingPage({ onBack, onGetStarted }: { onBack: () => void; onGetStarte
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ fontSize: 24, fontWeight: 800, color: 'white', cursor: 'pointer' }} onClick={onBack}>OtoServis</div>
+        <div style={{ background: 'white', borderRadius: 10, padding: '4px 12px', cursor: 'pointer' }} onClick={onBack}>
+          <img src="/logo.png" alt="OtoServis" style={{ height: 38, width: 'auto' }} />
+        </div>
         <button onClick={onBack} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>← Geri</button>
       </nav>
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '60px 40px' }}>
@@ -962,8 +966,9 @@ function LandingPage({ onGetStarted, onLogin }: { onGetStarted: () => void; onLo
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <img src="/logo.png" alt="OtoServis" style={{ height: 40, width: 'auto' }} />
-          <span style={{ fontSize: 24, fontWeight: 800, color: 'white' }}>OtoServis</span>
+          <div style={{ background: 'white', borderRadius: 10, padding: '4px 12px', display: 'flex', alignItems: 'center' }}>
+            <img src="/logo.png" alt="OtoServis" style={{ height: 38, width: 'auto' }} />
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 16 }}>
           <button onClick={() => setShowPricing(true)} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>💰 Fiyatlar</button>
