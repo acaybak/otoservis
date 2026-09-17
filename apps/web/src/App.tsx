@@ -961,7 +961,10 @@ function LandingPage({ onGetStarted, onLogin }: { onGetStarted: () => void; onLo
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ fontSize: 24, fontWeight: 800, color: 'white' }}>OtoServis</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <img src="/logo.png" alt="OtoServis" style={{ height: 40, width: 'auto' }} />
+          <span style={{ fontSize: 24, fontWeight: 800, color: 'white' }}>OtoServis</span>
+        </div>
         <div style={{ display: 'flex', gap: 16 }}>
           <button onClick={() => setShowPricing(true)} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>💰 Fiyatlar</button>
           <button onClick={() => setShowDownload(true)} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>📥 İndir</button>
