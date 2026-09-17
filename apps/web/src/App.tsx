@@ -737,68 +737,48 @@ function SettingsPage({ user }: { user: User }) {
 // ============ DOWNLOAD PAGE ============
 function DownloadPage({ onBack }: { onBack: () => void }) {
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ background: 'white', borderRadius: 10, padding: '4px 12px', cursor: 'pointer' }} onClick={onBack}>
-          <img src="/logo.png" alt="OtoServis" style={{ height: 38, width: 'auto' }} />
-        </div>
-        <button onClick={onBack} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>← Geri</button>
+    <div style={{ minHeight: '100vh', background: '#ffffff' }}>
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 48px', maxWidth: 1280, margin: '0 auto', borderBottom: '1px solid #f1f5f9' }}>
+        <img src="/logo.png" alt="OtoServis" style={{ height: 40, cursor: 'pointer' }} onClick={onBack} />
+        <button onClick={onBack} style={{ padding: '9px 18px', background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>← Geri</button>
       </nav>
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '60px 40px', textAlign: 'center' as const }}>
-        <div style={{ fontSize: 64, marginBottom: 16 }}>🖥️</div>
-        <h1 style={{ fontSize: 40, fontWeight: 800, color: 'white', marginBottom: 16 }}>OtoServis Desktop</h1>
-        <p style={{ fontSize: 18, color: '#94a3b8', marginBottom: 40, lineHeight: 1.6 }}>Windows için masaüstü uygulamasını indirin.<br />Kurulum ile birlikte Program Files'e yüklenir.</p>
-
-        <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 20, padding: 40, marginBottom: 40, border: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 24 }}>
-            <div style={{ fontSize: 40 }}>🪟</div>
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '80px 40px', textAlign: 'center' as const }}>
+        <div style={{ display: 'inline-block', padding: '6px 16px', background: '#eff6ff', color: '#2563eb', borderRadius: 20, fontSize: 13, fontWeight: 600, marginBottom: 24 }}>Desktop Uygulaması</div>
+        <h1 style={{ fontSize: 44, fontWeight: 800, color: '#0f172a', marginBottom: 16, letterSpacing: -0.5 }}>OtoServis Desktop</h1>
+        <p style={{ fontSize: 18, color: '#64748b', marginBottom: 48, lineHeight: 1.7 }}>Windows için masaüstü uygulamasını indirin.<br />Kurulum ile birlikte Program Files'e yüklenir.</p>
+        <div style={{ background: '#fafbfc', borderRadius: 20, padding: 40, marginBottom: 48, border: '1px solid #f1f5f9' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 28 }}>
+            <div style={{ width: 56, height: 56, borderRadius: 14, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>🪟</div>
             <div style={{ textAlign: 'left' as const }}>
-              <div style={{ color: 'white', fontSize: 20, fontWeight: 700 }}>Windows 10/11 (64-bit)</div>
-              <div style={{ color: '#94a3b8', fontSize: 14 }}>Installer (.exe) • ~81 MB</div>
+              <div style={{ color: '#0f172a', fontSize: 18, fontWeight: 700 }}>Windows 10/11 (64-bit)</div>
+              <div style={{ color: '#94a3b8', fontSize: 13 }}>Installer (.exe) • ~81 MB</div>
             </div>
           </div>
-          <a
-            href="https://github.com/acaybak/otoservis/releases/latest/download/OtoServis.Setup.0.1.0.exe"
-            download
-            style={{ display: 'inline-block', padding: '16px 48px', background: '#2563eb', color: 'white', borderRadius: 12, fontSize: 18, fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}
-          >
-            📥 İndir
-          </a>
-          <p style={{ color: '#64748b', fontSize: 13, marginTop: 16 }}>v0.1.0 • Son güncelleme: Eylül 2026</p>
+          <a href="https://github.com/acaybak/otoservis/releases/latest/download/OtoServis.Setup.0.1.0.exe" download style={{ display: 'inline-block', padding: '16px 56px', background: '#2563eb', color: 'white', borderRadius: 10, fontSize: 17, fontWeight: 700, textDecoration: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.3)' }}>İndir</a>
+          <p style={{ color: '#94a3b8', fontSize: 12, marginTop: 16 }}>v0.1.0 • Son güncelleme: Eylül 2026</p>
         </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20, textAlign: 'center' as const }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, textAlign: 'center' as const }}>
           {[
-            { icon: '🔑', title: 'Lisans Sistemi', desc: 'Aktivasyon anahtarı ile güvenli kullanım' },
-            { icon: '📡', title: 'Offline + Online', desc: 'İnternet olmadan da çalışır, bulut senkronizasyon' },
-            { icon: '🔧', title: 'Kolay Kurulum', desc: 'Program Files\u0027e otomatik kurulum' },
+            { icon: '🔑', title: 'Lisans Sistemi', desc: 'Aktivasyon anahtarı ile güvenli kullanım', color: '#2563eb' },
+            { icon: '📡', title: 'Offline + Online', desc: 'İnternet olmadan da çalışır, bulut senkronizasyon', color: '#059669' },
+            { icon: '🔧', title: 'Kolay Kurulum', desc: 'Program Files\'e otomatik kurulum', color: '#7c3aed' },
           ].map((f, i) => (
-            <div key={i} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 20 }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>{f.icon}</div>
-              <h3 style={{ color: 'white', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{f.title}</h3>
-              <p style={{ color: '#94a3b8', fontSize: 13 }}>{f.desc}</p>
+            <div key={i} style={{ background: '#fafbfc', borderRadius: 14, padding: 24, border: '1px solid #f1f5f9' }}>
+              <div style={{ width: 44, height: 44, borderRadius: 10, background: f.color + '15', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 12, margin: '0 auto 12px' }}>{f.icon}</div>
+              <h3 style={{ color: '#0f172a', fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{f.title}</h3>
+              <p style={{ color: '#94a3b8', fontSize: 12, margin: 0 }}>{f.desc}</p>
             </div>
           ))}
         </div>
-
-        <div style={{ marginTop: 40, background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, textAlign: 'left' as const }}>
-          <h3 style={{ color: 'white', fontSize: 16, fontWeight: 700, marginBottom: 12 }}>📋 Kurulum Adımları</h3>
-          {[
-            'OtoServis Setup dosyasını indirin',
-            'Kurulum dosyasını çalıştırın',
-            'Sunucu adresini girin: https://otoservis-api.onrender.com',
-            'Lisans anahtarınızı girin',
-            'Giriş yapın ve kullanmaya başlayın',
-          ].map((step, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#2563eb', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
-              <span style={{ color: '#cbd5e1', fontSize: 14 }}>{step}</span>
+        <div style={{ marginTop: 40, background: '#fafbfc', borderRadius: 16, padding: 28, textAlign: 'left' as const, border: '1px solid #f1f5f9' }}>
+          <h3 style={{ color: '#0f172a', fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Kurulum Adımları</h3>
+          {['OtoServis Setup dosyasını indirin', 'Kurulum dosyasını çalıştırın', 'Sunucu adresini girin: https://otoservis-api.onrender.com', 'Lisans anahtarınızı girin', 'Giriş yapın ve kullanmaya başlayın'].map((step, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#2563eb', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+              <span style={{ color: '#475569', fontSize: 14 }}>{step}</span>
             </div>
           ))}
         </div>
-      </div>
-      <div style={{ textAlign: 'center' as const, padding: '40px 20px', borderTop: '1px solid rgba(255,255,255,0.1)', color: '#64748b', fontSize: 14 }}>
-        © 2026 OtoServis. Tüm hakları saklıdır.
       </div>
     </div>
   );
@@ -810,97 +790,68 @@ function PricingPage({ onBack, onGetStarted }: { onBack: () => void; onGetStarte
     {
       name: 'Başlangıç',
       price: '2.990',
-      period: 'yıl',
       desc: 'Tek kişilik servisler için',
-      color: '#3b82f6',
-      features: [
-        '1 kullanıcı',
-        '100 müşteri kaydı',
-        '200 araç kaydı',
-        'Temel raporlama',
-        'E-posta desteği',
-      ],
+      features: ['1 kullanıcı', '100 müşteri kaydı', '200 araç kaydı', 'Temel raporlama', 'E-posta desteği'],
       popular: false,
     },
     {
       name: 'Profesyonel',
       price: '5.990',
-      period: 'yıl',
       desc: 'Küçük-orta servisler için',
-      color: '#2563eb',
-      features: [
-        '3 kullanıcı',
-        'Sınırsız müşteri',
-        'Sınırsız araç',
-        'Gelişmiş raporlama',
-        'SMS bildirimleri',
-        'Öncelikli destek',
-        'Müşteri portalı',
-      ],
+      features: ['3 kullanıcı', 'Sınırsız müşteri', 'Sınırsız araç', 'Gelişmiş raporlama', 'SMS bildirimleri', 'Öncelikli destek', 'Müşteri portalı'],
       popular: true,
     },
     {
       name: 'Kurumsal',
       price: '9.990',
-      period: 'yıl',
       desc: 'Büyük servisler için',
-      color: '#1d4ed8',
-      features: [
-        '10 kullanıcı',
-        'Sınırsız her şey',
-        'Özel entegrasyonlar',
-        'API erişimi',
-        'Öncelikli destek 7/24',
-        'Özel raporlama',
-        'Çoklu şube desteği',
-        'Beyaz etiket seçeneği',
-      ],
+      features: ['10 kullanıcı', 'Sınırsız her şey', 'Özel entegrasyonlar', 'API erişimi', 'Öncelikli destek 7/24', 'Özel raporlama', 'Çoklu şube desteği', 'Beyaz etiket seçeneği'],
       popular: false,
     },
   ];
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ background: 'white', borderRadius: 10, padding: '4px 12px', cursor: 'pointer' }} onClick={onBack}>
-          <img src="/logo.png" alt="OtoServis" style={{ height: 38, width: 'auto' }} />
-        </div>
-        <button onClick={onBack} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>← Geri</button>
+    <div style={{ minHeight: '100vh', background: '#ffffff' }}>
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 48px', maxWidth: 1280, margin: '0 auto', borderBottom: '1px solid #f1f5f9' }}>
+        <img src="/logo.png" alt="OtoServis" style={{ height: 40, cursor: 'pointer' }} onClick={onBack} />
+        <button onClick={onBack} style={{ padding: '9px 18px', background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>← Geri</button>
       </nav>
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '60px 40px' }}>
-        <div style={{ textAlign: 'center' as const, marginBottom: 60 }}>
-          <h1 style={{ fontSize: 48, fontWeight: 800, color: 'white', marginBottom: 16 }}>Fiyatlandırma</h1>
-          <p style={{ fontSize: 18, color: '#94a3b8', maxWidth: 600, margin: '0 auto' }}>İhtiyacınıza uygun paketi seçin. Tüm planlar 7 gün ücretsiz deneme içerir.</p>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '80px 48px' }}>
+        <div style={{ textAlign: 'center' as const, marginBottom: 64 }}>
+          <div style={{ display: 'inline-block', padding: '6px 16px', background: '#eff6ff', color: '#2563eb', borderRadius: 20, fontSize: 13, fontWeight: 600, marginBottom: 20 }}>Fiyatlandırma</div>
+          <h1 style={{ fontSize: 48, fontWeight: 800, color: '#0f172a', marginBottom: 16, letterSpacing: -0.5 }}>İhtiyacınıza uygun plan</h1>
+          <p style={{ fontSize: 18, color: '#64748b', maxWidth: 500, margin: '0 auto' }}>Tüm planlar 7 gün ücretsiz deneme içerir. Kredi kartı gerekmez.</p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, alignItems: 'stretch' }}>
           {plans.map((plan, i) => (
             <div key={i} style={{
-              background: plan.popular ? 'rgba(37,99,235,0.15)' : 'rgba(255,255,255,0.05)',
+              background: plan.popular ? '#ffffff' : '#fafbfc',
               borderRadius: 20,
-              padding: 32,
-              border: plan.popular ? '2px solid #2563eb' : '1px solid rgba(255,255,255,0.1)',
+              padding: '36px 32px',
+              border: plan.popular ? '2px solid #2563eb' : '1px solid #f1f5f9',
               position: 'relative' as const,
               display: 'flex',
               flexDirection: 'column' as const,
+              boxShadow: plan.popular ? '0 8px 30px rgba(37,99,235,0.12)' : 'none',
             }}>
               {plan.popular && (
-                <div style={{ position: 'absolute' as const, top: -12, left: '50%', transform: 'translateX(-50%)', background: '#2563eb', color: 'white', padding: '4px 16px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>EN POPÜLER</div>
+                <div style={{ position: 'absolute' as const, top: -13, left: '50%', transform: 'translateX(-50%)', background: '#2563eb', color: 'white', padding: '5px 18px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>EN POPÜLER</div>
               )}
-              <div style={{ textAlign: 'center' as const, marginBottom: 24 }}>
-                <h3 style={{ color: 'white', fontSize: 22, fontWeight: 700, marginBottom: 8 }}>{plan.name}</h3>
-                <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 16 }}>{plan.desc}</p>
-                <div style={{ color: 'white' }}>
-                  <span style={{ fontSize: 16, verticalAlign: 'top' }}>₺</span>
-                  <span style={{ fontSize: 48, fontWeight: 800 }}>{plan.price}</span>
-                  <span style={{ fontSize: 16, color: '#94a3b8' }}>/{plan.period}</span>
+              <div style={{ marginBottom: 28 }}>
+                <h3 style={{ color: '#0f172a', fontSize: 20, fontWeight: 700, marginBottom: 6 }}>{plan.name}</h3>
+                <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 20 }}>{plan.desc}</p>
+                <div>
+                  <span style={{ fontSize: 16, color: '#64748b', verticalAlign: 'top' }}>₺</span>
+                  <span style={{ fontSize: 48, fontWeight: 800, color: '#0f172a' }}>{plan.price}</span>
+                  <span style={{ fontSize: 15, color: '#94a3b8' }}>/yıl</span>
                 </div>
               </div>
-              <div style={{ flex: 1, marginBottom: 24 }}>
+              <div style={{ flex: 1, marginBottom: 28 }}>
                 {plan.features.map((f, j) => (
-                  <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                    <span style={{ color: '#22c55e', fontSize: 16 }}>✓</span>
-                    <span style={{ color: '#cbd5e1', fontSize: 14 }}>{f}</span>
+                  <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                    <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>✓</div>
+                    <span style={{ color: '#475569', fontSize: 14 }}>{f}</span>
                   </div>
                 ))}
               </div>
@@ -909,13 +860,14 @@ function PricingPage({ onBack, onGetStarted }: { onBack: () => void; onGetStarte
                 style={{
                   width: '100%',
                   padding: '14px 24px',
-                  background: plan.popular ? '#2563eb' : 'transparent',
-                  color: 'white',
-                  border: plan.popular ? 'none' : '1px solid rgba(255,255,255,0.3)',
+                  background: plan.popular ? '#2563eb' : '#f8fafc',
+                  color: plan.popular ? 'white' : '#334155',
+                  border: plan.popular ? 'none' : '1px solid #e2e8f0',
                   borderRadius: 10,
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: 700,
                   cursor: 'pointer',
+                  boxShadow: plan.popular ? '0 4px 14px rgba(37,99,235,0.3)' : 'none',
                 }}
               >
                 Ücretsiz Dene
@@ -924,25 +876,25 @@ function PricingPage({ onBack, onGetStarted }: { onBack: () => void; onGetStarte
           ))}
         </div>
 
-        {/* Additional Info */}
-        <div style={{ marginTop: 60, textAlign: 'center' as const }}>
-          <h2 style={{ color: 'white', fontSize: 24, fontWeight: 700, marginBottom: 24 }}>Sıkça Sorulan Sorular</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, maxWidth: 800, margin: '0 auto', textAlign: 'left' as const }}>
+        {/* FAQ */}
+        <div style={{ marginTop: 80, textAlign: 'center' as const }}>
+          <h2 style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', marginBottom: 32 }}>Sıkça Sorulan Sorular</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, maxWidth: 800, margin: '0 auto', textAlign: 'left' as const }}>
             {[
               { q: 'Ücretsiz deneme süresi ne kadar?', a: 'Tüm planlar 7 gün ücretsiz deneme içerir. Kredi kartı gerekmez.' },
               { q: 'Yıllık ödeme zorunlu mu?', a: 'Hayır, aylık ödeme de yapabilirsiniz. Yıllık ödemede 2 ay bedava.' },
               { q: 'Paket değiştirebilir miyim?', a: 'Evet, istediğiniz zaman yükseltme veya düşürme yapabilirsiniz.' },
-              { q: 'Verilerim güvende mi?', a: 'Tüm veriler şifrelenerek saklanır ve günlük yedekleme yapılır.' },
+              { q: 'Verilerim güvende mi?', a: 'Tüm veriler 256-bit SSL ile şifrelenerek saklanır ve günlük yedekleme yapılır.' },
             ].map((faq, i) => (
-              <div key={i} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 20 }}>
-                <h4 style={{ color: 'white', fontSize: 15, fontWeight: 600, marginBottom: 8 }}>{faq.q}</h4>
-                <p style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5 }}>{faq.a}</p>
+              <div key={i} style={{ background: '#fafbfc', borderRadius: 14, padding: 24, border: '1px solid #f1f5f9' }}>
+                <h4 style={{ color: '#0f172a', fontSize: 15, fontWeight: 700, marginBottom: 8, margin: '0 0 8px' }}>{faq.q}</h4>
+                <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.6, margin: 0 }}>{faq.a}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
-      <div style={{ textAlign: 'center' as const, padding: '40px 20px', borderTop: '1px solid rgba(255,255,255,0.1)', color: '#64748b', fontSize: 14 }}>
+      <div style={{ textAlign: 'center' as const, padding: '32px 20px', borderTop: '1px solid #f1f5f9', color: '#94a3b8', fontSize: 13 }}>
         © 2026 OtoServis. Tüm hakları saklıdır.
       </div>
     </div>
@@ -954,54 +906,79 @@ function LandingPage({ onGetStarted, onLogin }: { onGetStarted: () => void; onLo
   const [showDownload, setShowDownload] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
 
-  if (showDownload) {
-    return <DownloadPage onBack={() => setShowDownload(false)} />;
-  }
-
-  if (showPricing) {
-    return <PricingPage onBack={() => setShowPricing(false)} onGetStarted={onGetStarted} />;
-  }
+  if (showDownload) return <DownloadPage onBack={() => setShowDownload(false)} />;
+  if (showPricing) return <PricingPage onBack={() => setShowPricing(false)} onGetStarted={onGetStarted} />;
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ background: 'white', borderRadius: 10, padding: '4px 12px', display: 'flex', alignItems: 'center' }}>
-            <img src="/logo.png" alt="OtoServis" style={{ height: 38, width: 'auto' }} />
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 16 }}>
-          <button onClick={() => setShowPricing(true)} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>💰 Fiyatlar</button>
-          <button onClick={() => setShowDownload(true)} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>📥 İndir</button>
-          <button onClick={onLogin} style={{ padding: '10px 20px', background: 'transparent', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Giriş Yap</button>
-          <button onClick={onGetStarted} style={{ padding: '10px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Ücretsiz Dene</button>
+    <div style={{ minHeight: '100vh', background: '#ffffff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+      {/* Nav */}
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 48px', maxWidth: 1280, margin: '0 auto', borderBottom: '1px solid #f1f5f9' }}>
+        <img src="/logo.png" alt="OtoServis" style={{ height: 40, cursor: 'pointer' }} />
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button onClick={() => setShowPricing(true)} style={{ padding: '9px 18px', background: 'transparent', color: '#475569', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Fiyatlar</button>
+          <button onClick={() => setShowDownload(true)} style={{ padding: '9px 18px', background: 'transparent', color: '#475569', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>İndir</button>
+          <button onClick={onLogin} style={{ padding: '9px 18px', background: '#f8fafc', color: '#334155', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Giriş Yap</button>
+          <button onClick={onGetStarted} style={{ padding: '9px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Ücretsiz Dene</button>
         </div>
       </nav>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '80px 40px', textAlign: 'center' as const }}>
-        <h1 style={{ fontSize: 56, fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: 24 }}>Servisinizi Buluta Taşıyın</h1>
-        <p style={{ fontSize: 20, color: '#94a3b8', maxWidth: 600, margin: '0 auto 40px', lineHeight: 1.6 }}>Müşteri yönetimi, servis siparişleri, stok takibi ve ön muhasebe. Hepsi tek platformda.</p>
-        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginBottom: 80 }}>
-          <button onClick={onGetStarted} style={{ padding: '16px 32px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 12, fontSize: 18, fontWeight: 700, cursor: 'pointer' }}>Hemen Başla</button>
-          <button onClick={onLogin} style={{ padding: '16px 32px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 12, fontSize: 18, fontWeight: 600, cursor: 'pointer' }}>Demo İzle</button>
+
+      {/* Hero */}
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '100px 48px 80px', textAlign: 'center' as const }}>
+        <div style={{ display: 'inline-block', padding: '6px 16px', background: '#eff6ff', color: '#2563eb', borderRadius: 20, fontSize: 13, fontWeight: 600, marginBottom: 24 }}>Oto Servis Yönetim Platformu</div>
+        <h1 style={{ fontSize: 64, fontWeight: 800, color: '#0f172a', lineHeight: 1.1, marginBottom: 24, letterSpacing: -1 }}>
+          Servisinizi <span style={{ color: '#2563eb' }}>Buluta</span> Taşıyın
+        </h1>
+        <p style={{ fontSize: 20, color: '#64748b', maxWidth: 580, margin: '0 auto 48px', lineHeight: 1.7 }}>Müşteri yönetimi, servis siparişleri, stok takibi ve ön muhasebe. Hepsi tek platformda, tek fiyatla.</p>
+        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginBottom: 100 }}>
+          <button onClick={onGetStarted} style={{ padding: '16px 36px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 10, fontSize: 17, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.3)' }}>Hemen Başla →</button>
+          <button onClick={onLogin} style={{ padding: '16px 36px', background: 'white', color: '#334155', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 17, fontWeight: 600, cursor: 'pointer' }}>Demo İzle</button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, maxWidth: 900, margin: '0 auto' }}>
+
+        {/* Features */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, maxWidth: 1000, margin: '0 auto' }}>
           {[
-            { icon: '👥', title: 'Müşteri Yönetimi', desc: 'Müşteri bilgileri, araç geçmişi, iletişim' },
-            { icon: '🔧', title: 'Servis Siparişleri', desc: 'İş emirleri, parça takibi, işçilik' },
-            { icon: '💰', title: 'Ön Muhasebe', desc: 'Faturalar, ödemeler, cari hesaplar' },
-            { icon: '🚗', title: 'Araç Takibi', desc: 'Plaka bazlı tüm araç bilgileri' },
-            { icon: '📊', title: 'Raporlama', desc: 'Gelir-gider, performans metrikleri' },
-            { icon: '📱', title: 'Desktop & Web', desc: 'Her yerde erişim, offline destek' },
+            { icon: '👥', title: 'Müşteri Yönetimi', desc: 'Müşteri bilgileri, araç geçmişi ve iletişim tek yerde', color: '#2563eb' },
+            { icon: '🔧', title: 'Servis Siparişleri', desc: 'İş emirleri, parça takibi ve işçilik yönetimi', color: '#7c3aed' },
+            { icon: '💰', title: 'Ön Muhasebe', desc: 'Faturalar, ödemeler ve cari hesap takibi', color: '#059669' },
+            { icon: '🚗', title: 'Araç Takibi', desc: 'Plaka bazlı tüm araç bilgileri ve geçmiş', color: '#dc2626' },
+            { icon: '📊', title: 'Raporlama', desc: 'Gelir-gider analizi ve performans metrikleri', color: '#d97706' },
+            { icon: '📱', title: 'Desktop & Web', desc: 'Her yerde erişim, offline destek', color: '#0891b2' },
           ].map((f, i) => (
-            <div key={i} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 24, textAlign: 'center' as const }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>{f.icon}</div>
-              <h3 style={{ color: 'white', fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{f.title}</h3>
-              <p style={{ color: '#94a3b8', fontSize: 14 }}>{f.desc}</p>
+            <div key={i} style={{ background: '#fafbfc', borderRadius: 16, padding: '32px 24px', textAlign: 'left' as const, border: '1px solid #f1f5f9', transition: 'box-shadow 0.2s' }}>
+              <div style={{ width: 48, height: 48, borderRadius: 12, background: f.color + '15', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, marginBottom: 16 }}>{f.icon}</div>
+              <h3 style={{ color: '#0f172a', fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{f.title}</h3>
+              <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
             </div>
           ))}
         </div>
       </div>
-      <div style={{ textAlign: 'center' as const, padding: '40px 20px', borderTop: '1px solid rgba(255,255,255,0.1)', color: '#64748b', fontSize: 14 }}>
+
+      {/* Stats Bar */}
+      <div style={{ background: '#f8fafc', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9', padding: '48px 48px' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 32, textAlign: 'center' as const }}>
+          {[
+            { val: '7', label: 'Gün Ücretsiz Deneme' },
+            { val: '%99.9', label: 'Çalışma Süresi' },
+            { val: '256-bit', label: 'SSL Şifreleme' },
+            { val: '7/24', label: 'Destek' },
+          ].map((s, i) => (
+            <div key={i}>
+              <div style={{ fontSize: 32, fontWeight: 800, color: '#2563eb', marginBottom: 4 }}>{s.val}</div>
+              <div style={{ fontSize: 14, color: '#64748b', fontWeight: 500 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '80px 48px', textAlign: 'center' as const }}>
+        <h2 style={{ fontSize: 36, fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>Hemen başlayın</h2>
+        <p style={{ fontSize: 18, color: '#64748b', marginBottom: 36, maxWidth: 500, margin: '0 auto 36px' }}>7 gün ücretsiz deneme. Kredi kartı gerekmez.</p>
+        <button onClick={onGetStarted} style={{ padding: '16px 48px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 10, fontSize: 17, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.3)' }}>Ücretsiz Hesap Oluştur →</button>
+      </div>
+
+      {/* Footer */}
+      <div style={{ textAlign: 'center' as const, padding: '32px 20px', borderTop: '1px solid #f1f5f9', color: '#94a3b8', fontSize: 13 }}>
         © 2026 OtoServis. Tüm hakları saklıdır.
       </div>
     </div>
