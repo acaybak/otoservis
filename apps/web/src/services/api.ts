@@ -3,6 +3,12 @@ const API_BASE = import.meta.env.VITE_API_URL || 'https://otoservis-api.onrender
 // Müşteri portalı (randevu + araç geçmişi linkleri buradan üretilir)
 export const PORTAL_URL = (import.meta.env.VITE_PORTAL_URL as string) || 'https://portal.otoservisapp.com';
 
+// API soğuk başlatma önleyici: sunucu uykudaysa sayfa açılışında arka planda uyandırır.
+// Kullanıcı formu doldururken API hazır hale gelir. Sessizce çalışır, hata fırlatmaz.
+export function warmupApi() {
+  fetch(`${API_BASE}/health`, { method: 'GET' }).catch(() => {});
+}
+
 let accessToken: string | null = null;
 
 export function setToken(token: string | null) {

@@ -89,6 +89,8 @@ function HomePage() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // API soğuk başlatma önleyici: portal açılınca sunucu uykudaysa arka planda uyandır.
+    fetch(`${API_BASE}/health`).catch(() => {});
     const host = window.location.hostname;
     const parts = host.split('.');
     let slug = '';

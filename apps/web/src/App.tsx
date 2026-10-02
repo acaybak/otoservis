@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { authApi, setToken, getToken, customerApi, vehicleApi, serviceOrderApi, accountingApi, reportingApi, adminApi, licenseApi, tenantApi, PORTAL_URL } from './services/api';
+import { authApi, setToken, getToken, customerApi, vehicleApi, serviceOrderApi, accountingApi, reportingApi, adminApi, licenseApi, tenantApi, PORTAL_URL, warmupApi } from './services/api';
 
 // ============ TOAST NOTIFICATION ============
 interface Toast { id: number; message: string; type: 'success' | 'error' | 'info' }
@@ -1868,6 +1868,10 @@ function AppInner() {
   const [isLogin, setIsLogin] = useState(true);
   const [showLanding, setShowLanding] = useState(true);
   const [showAdmin, setShowAdmin] = useState(false);
+
+  // Sunucu uyandırma: sayfa/ekran açılışında API'ye sessiz ping atılır;
+  // kullanıcı kayıt/giriş formunu doldururken sunucu arka planda uyanır.
+  useEffect(() => { warmupApi(); }, [showLanding, isLogin]);
 
   // Admin panel - URL'den erişim: #admin veya /admin
   const isAdminUrl = window.location.hash === '#admin' || window.location.pathname === '/admin';
