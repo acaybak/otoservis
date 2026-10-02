@@ -181,7 +181,7 @@ export class AdminService {
   // Tenant'a yeni kullanıcı ekle
   async createTenantUser(tenantId: string, data: { email: string; password: string; firstName: string; lastName: string }) {
     const bcrypt = await import('bcryptjs');
-    const passwordHash = await bcrypt.hash(data.password, 12);
+    const passwordHash = await bcrypt.hash(data.password, 10);
     return this.prisma.user.create({
       data: {
         tenantId,

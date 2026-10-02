@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Param, Body, NotFoundException, Req, Query } from '@nestjs/common';
 import { PublicService } from './public.service';
 import { normalizePlate } from '@otoservis/shared';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 
 @Public()

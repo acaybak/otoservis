@@ -3,7 +3,6 @@ import { PrismaClient } from '@otoservis/database';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
-  maintenanceType: any;
   async onModuleInit() {
     await this.$connect();
   }

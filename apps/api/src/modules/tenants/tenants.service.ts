@@ -128,7 +128,7 @@ export class TenantsService {
         },
       });
 
-      const passwordHash = await bcrypt.hash(data.adminPassword, 12);
+      const passwordHash = await bcrypt.hash(data.adminPassword, 10);
 
       const user = await tx.user.create({
         data: {

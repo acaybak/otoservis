@@ -23,6 +23,7 @@ import { VehicleMaintenanceModule } from './modules/vehicle-maintenance/vehicle-
 import { PublicModule } from './modules/public/public.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { LicensesModule } from './modules/licenses/licenses.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { LicensesModule } from './modules/licenses/licenses.module';
     PublicModule,
     AdminModule,
     LicensesModule,
+    HealthModule,
   ],
   providers: [
     {

@@ -51,7 +51,7 @@ export class AuthService {
       }
     }
 
-    const passwordHash = await bcrypt.hash(data.password, 12);
+    const passwordHash = await bcrypt.hash(data.password, 10);
 
     const user = await this.prisma.user.create({
       data: {
@@ -142,7 +142,7 @@ export class AuthService {
       { expiresIn: 604800 }, // 7 days
     );
 
-    const refreshTokenHash = await bcrypt.hash(refreshToken, 12);
+    const refreshTokenHash = await bcrypt.hash(refreshToken, 8);
     await this.prisma.user.update({
       where: { id: user.id },
       data: { refreshTokenHash },
@@ -244,7 +244,7 @@ export class AuthService {
       { expiresIn: 604800 }, // 7 days
     );
 
-    const newRefreshHash = await bcrypt.hash(newRefreshToken, 12);
+    const newRefreshHash = await bcrypt.hash(newRefreshToken, 8);
     await this.prisma.user.update({
       where: { id: user.id },
       data: { refreshTokenHash: newRefreshHash },

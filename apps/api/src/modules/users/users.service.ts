@@ -92,7 +92,7 @@ export class UsersService {
       throw new ConflictException('Bu e-posta adresi zaten bu serviste kullanılıyor.');
     }
 
-    const passwordHash = await bcrypt.hash(data.password, 12);
+    const passwordHash = await bcrypt.hash(data.password, 10);
 
     const user = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
