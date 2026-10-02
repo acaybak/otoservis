@@ -1873,6 +1873,13 @@ function AppInner() {
   // kullanıcı kayıt/giriş formunu doldururken sunucu arka planda uyanır.
   useEffect(() => { warmupApi(); }, [showLanding, isLogin]);
 
+  // Panel açık kaldığı sürece 8 dakikada bir sessiz ping: Render ücretsiz sunucu
+  // 15 dk hareketsizlikte uyuduğu için, açık bir sekme olması API'yi uyanık tutar.
+  useEffect(() => {
+    const t = window.setInterval(() => warmupApi(), 8 * 60 * 1000);
+    return () => window.clearInterval(t);
+  }, []);
+
   // Admin panel - URL'den erişim: #admin veya /admin
   const isAdminUrl = window.location.hash === '#admin' || window.location.pathname === '/admin';
   if (isAdminUrl && user) {

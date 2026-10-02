@@ -90,7 +90,7 @@ function HomePage() {
 
   useEffect(() => {
     // API soğuk başlatma önleyici: portal açılınca sunucu uykudaysa arka planda uyandır.
-    fetch(`${API_BASE}/health`).catch(() => {});
+    fetch(`${API_BASE}/health`, { cache: 'no-store' }).catch(() => {});
     const host = window.location.hostname;
     const parts = host.split('.');
     let slug = '';
@@ -673,6 +673,12 @@ function AppointmentPage() {
 // App
 // ============================================================================
 export function App() {
+  // Portal açık kaldığı sürece 8 dakikada bir sessiz ping: Render ücretsiz sunucu
+  // 15 dk hareketsizlikte uyuduğu için, açık bir sekme olması API'yi uyanık tutar.
+  useEffect(() => {
+    const t = window.setInterval(() => { fetch(`${API_BASE}/health`, { cache: 'no-store' }).catch(() => {}); }, 8 * 60 * 1000);
+    return () => window.clearInterval(t);
+  }, []);
   return (
     <BrowserRouter>
       <Routes>

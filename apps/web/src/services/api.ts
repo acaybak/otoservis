@@ -6,7 +6,7 @@ export const PORTAL_URL = (import.meta.env.VITE_PORTAL_URL as string) || 'https:
 // API soğuk başlatma önleyici: sunucu uykudaysa sayfa açılışında arka planda uyandırır.
 // Kullanıcı formu doldururken API hazır hale gelir. Sessizce çalışır, hata fırlatmaz.
 export function warmupApi() {
-  fetch(`${API_BASE}/health`, { method: 'GET' }).catch(() => {});
+  fetch(`${API_BASE}/health`, { method: 'GET', cache: 'no-store' }).catch(() => {});
 }
 
 let accessToken: string | null = null;
