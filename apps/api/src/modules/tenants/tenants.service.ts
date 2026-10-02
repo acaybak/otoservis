@@ -148,7 +148,7 @@ export class TenantsService {
     });
 
     if (existingSlug) {
-      throw new ConflictException('Bu slug zaten kullanılıyor.');
+      throw new ConflictException('Bu firma adı zaten kullanılıyor. Lütfen farklı bir firma adı seçin.');
     }
 
     const existingEmail = await this.prisma.user.findFirst({

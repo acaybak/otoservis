@@ -46,15 +46,30 @@ async function bootstrap() {
   const port = process.env.API_PORT || 3002;
   const host = process.env.API_HOST || '0.0.0.0';
 
-  const corsOrigins = process.env.CORS_ORIGINS
+  const corsOrigins = (process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',')
-    : ['http://localhost:5173', 'http://localhost:5175'];
+    : ['http://localhost:5173', 'http://localhost:5175']
+  ).map((o) => o.trim()).filter(Boolean);
+
+  // İzinli alan adı kalıpları: Vercel önizlemeleri + üretim alan adları (web ve müşteri portalı)
+  const allowedHostPatterns = [/(^|\.)vercel\.app$/, /(^|\.)otoservisapp\.com$/];
 
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      // Origin göndermeyen istemciler (curl, sunucu-sunucu, keep-alive pingleri)
       if (!origin) return callback(null, true);
-      if (corsOrigins.includes(origin)) return callback(null, true);
-      if (/\.vercel\.app$/.test(origin)) return callback(null, true);
+      const normalized = origin.trim();
+      // Electron masaüstü uygulaması file:// üzerinden çalışırken Origin: "null" gönderir
+      if (normalized === 'null') return callback(null, true);
+      if (corsOrigins.includes(normalized)) return callback(null, true);
+      try {
+        const { protocol, hostname } = new URL(normalized);
+        if (protocol === 'https:' && allowedHostPatterns.some((p) => p.test(hostname))) {
+          return callback(null, true);
+        }
+      } catch {
+        // Geçersiz origin biçimi: izin verme
+      }
       callback(null, false);
     },
     credentials: true,

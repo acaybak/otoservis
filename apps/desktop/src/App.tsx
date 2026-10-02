@@ -454,14 +454,15 @@ function RegisterPage() {
       });
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        const errorMsg = errData.message || (errData.errors ? errData.errors.join(', ') : 'Kayıt işlemi başarısız oldu.');
+        const errData: any = await res.json().catch(() => ({}));
+        const errorMsg = errData?.error?.message || errData?.message || (Array.isArray(errData?.errors) ? errData.errors.join(', ') : 'Kayıt işlemi başarısız oldu.');
         throw new Error(errorMsg);
       }
 
       setSuccess(true);
     } catch (err: any) {
-      setError(err.message || 'Bir hata oluştu.');
+      const raw = err?.message || '';
+      setError(raw === 'Failed to fetch' ? 'Sunucuya ulaşılamadı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.' : (raw || 'Bir hata oluştu.'));
     } finally {
       setLoading(false);
     }

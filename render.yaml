@@ -23,7 +23,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: CORS_ORIGINS
-        value: https://otoservis-web-six.vercel.app,https://dist-theta-one-72.vercel.app,https://kupligroup.com,http://localhost:5173,http://localhost:5175
+        value: https://otoservisapp.com,https://www.otoservisapp.com,https://portal.otoservisapp.com,https://otoservis-web-six.vercel.app,https://dist-theta-one-72.vercel.app,https://kupligroup.com,http://localhost:5173,http://localhost:5175
       - key: ADMIN_EMAILS
         value: acaybak@gmail.com,test2@otoservis.com
 

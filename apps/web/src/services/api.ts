@@ -30,11 +30,17 @@ async function request<T>(method: string, path: string, body?: any, tenantId?: s
   if (token) headers['Authorization'] = `Bearer ${token}`;
   if (tenantId) headers['x-tenant-id'] = tenantId;
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    // Ağ/CORS erişim hatası: ham "Failed to fetch" yerine anlaşılır mesaj göster
+    throw new Error('Sunucuya ulaşılamadı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.');
+  }
 
   if (!res.ok) {
     // API hata gövdesi: { success: false, error: { code, message } }
