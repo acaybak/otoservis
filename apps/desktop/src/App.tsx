@@ -385,6 +385,36 @@ function LoginPage() {
 // ============================================================================
 // Registration Page - Desktop
 // ============================================================================
+// ============ ŞİFRE KURALLARI ============
+// Şifre kurallarını canlı gösteren kontrol listesi
+const getPasswordChecks = (p: string) => [
+  { ok: p.length >= 8, label: 'En az 8 karakter' },
+  { ok: /[A-Z]/.test(p), label: 'Bir büyük harf' },
+  { ok: /[a-z]/.test(p), label: 'Bir küçük harf' },
+  { ok: /[0-9]/.test(p), label: 'Bir rakam' },
+];
+
+const validateAdminPassword = (p: string): string => {
+  if (!p) return 'Şifre zorunludur.';
+  if (p.length < 8) return 'Şifre en az 8 karakter olmalıdır.';
+  if (!/[A-Z]/.test(p)) return 'Şifre en az bir büyük harf içermelidir.';
+  if (!/[a-z]/.test(p)) return 'Şifre en az bir küçük harf içermelidir.';
+  if (!/[0-9]/.test(p)) return 'Şifre en az bir rakam içermelidir.';
+  return '';
+};
+
+function PasswordChecklist({ password }: { password: string }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', marginTop: '0.35rem', fontSize: '0.75rem', lineHeight: 1.6 }}>
+      {getPasswordChecks(password).map((c) => (
+        <span key={c.label} style={{ color: c.ok ? '#16a34a' : '#94a3b8', fontWeight: c.ok ? 600 : 400 }}>
+          {c.ok ? '✓' : '○'} {c.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function RegisterPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -427,11 +457,8 @@ function RegisterPage() {
     if (!formData.tenantName.trim()) { setError('Firma adı zorunludur.'); return; }
     if (!formData.tenantSlug.trim()) { setError('URL adı zorunludur.'); return; }
     if (!formData.adminEmail.trim()) { setError('E-posta zorunludur.'); return; }
-    if (!formData.adminPassword) { setError('Şifre zorunludur.'); return; }
-    if (formData.adminPassword.length < 8) { setError('Şifre en az 8 karakter olmalıdır.'); return; }
-    if (!/[A-Z]/.test(formData.adminPassword)) { setError('Şifre en az bir büyük harf içermelidir.'); return; }
-    if (!/[a-z]/.test(formData.adminPassword)) { setError('Şifre en az bir küçük harf içermelidir.'); return; }
-    if (!/[0-9]/.test(formData.adminPassword)) { setError('Şifre en az bir rakam içermelidir.'); return; }
+    const passwordError = validateAdminPassword(formData.adminPassword);
+    if (passwordError) { setError(passwordError); return; }
     if (formData.adminPassword !== formData.adminPasswordConfirm) { setError('Şifreler eşleşmiyor.'); return; }
     if (!formData.adminFirstName.trim()) { setError('Ad zorunludur.'); return; }
     if (!formData.adminLastName.trim()) { setError('Soyad zorunludur.'); return; }
@@ -566,11 +593,16 @@ function RegisterPage() {
             <div style={{ marginBottom: '1rem' }}>
               <label style={S.label}>Şifre *</label>
               <input style={S.input} type="password" value={formData.adminPassword} onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })} placeholder="••••••••" />
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>En az 8 karakter, büyük-küçük harf ve rakam</div>
+              <PasswordChecklist password={formData.adminPassword} />
             </div>
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={S.label}>Şifre Tekrar *</label>
               <input style={S.input} type="password" value={formData.adminPasswordConfirm} onChange={(e) => setFormData({ ...formData, adminPasswordConfirm: e.target.value })} placeholder="••••••••" />
+              {formData.adminPasswordConfirm.length > 0 && (
+                <div style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: formData.adminPassword === formData.adminPasswordConfirm ? '#16a34a' : '#dc2626' }}>
+                  {formData.adminPassword === formData.adminPasswordConfirm ? '✓ Şifreler eşleşiyor' : '✗ Şifreler eşleşmiyor'}
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button onClick={() => { setError(''); setStep(1); }} style={{ ...S.btnSecondary, flex: 1 }}>← Geri</button>
@@ -578,8 +610,8 @@ function RegisterPage() {
                 if (!formData.adminFirstName.trim()) { setError('Ad zorunludur.'); return; }
                 if (!formData.adminLastName.trim()) { setError('Soyad zorunludur.'); return; }
                 if (!formData.adminEmail.trim()) { setError('E-posta zorunludur.'); return; }
-                if (!formData.adminPassword) { setError('Şifre zorunludur.'); return; }
-                if (formData.adminPassword.length < 8) { setError('Şifre en az 8 karakter olmalıdır.'); return; }
+                const passwordError = validateAdminPassword(formData.adminPassword);
+                if (passwordError) { setError(passwordError); return; }
                 if (formData.adminPassword !== formData.adminPasswordConfirm) { setError('Şifreler eşleşmiyor.'); return; }
                 setError(''); setStep(3);
               }} style={{ ...S.btnPrimary, flex: 2 }}>Devam →</button>

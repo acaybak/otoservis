@@ -174,6 +174,28 @@ function LoginPage({ onLogin, onSwitch }: { onLogin: (email: string, password: s
   );
 }
 
+// ============ ŞİFRE KURALLARI ============
+// Şifre kurallarını canlı gösteren kontrol listesi (kayıt + yeni kullanıcı formları)
+const getPasswordChecks = (p: string) => [
+  { ok: p.length >= 8, label: 'En az 8 karakter' },
+  { ok: /[A-Z]/.test(p), label: 'Bir büyük harf' },
+  { ok: /[a-z]/.test(p), label: 'Bir küçük harf' },
+  { ok: /[0-9]/.test(p), label: 'Bir rakam' },
+];
+const isPasswordValid = (p: string) => getPasswordChecks(p).every((c) => c.ok);
+
+function PasswordChecklist({ password, compact }: { password: string; compact?: boolean }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: compact ? '2px 10px' : '4px 14px', marginTop: 6, fontSize: compact ? 11.5 : 12.5, lineHeight: 1.7 }}>
+      {getPasswordChecks(password).map((c) => (
+        <span key={c.label} style={{ color: c.ok ? '#16a34a' : '#94a3b8', fontWeight: c.ok ? 600 : 400 }}>
+          {c.ok ? '✓' : '○'} {c.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ============ REGISTER PAGE ============
 function RegisterPage({ onRegister, onSwitch }: { onRegister: (data: any) => Promise<void>; onSwitch: () => void }) {
   const [email, setEmail] = useState('');
@@ -194,7 +216,7 @@ function RegisterPage({ onRegister, onSwitch }: { onRegister: (data: any) => Pro
     setError('');
     setLoading(true);
     // API'ye gitmeden anlık şifre kontrolü (Türkçe uyarı)
-    if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+    if (!isPasswordValid(password)) {
       const msg = 'Şifre en az 8 karakter olmalı ve büyük harf, küçük harf ile rakam içermelidir.';
       setError(msg);
       addToast(msg, 'error');
@@ -247,7 +269,8 @@ function RegisterPage({ onRegister, onSwitch }: { onRegister: (data: any) => Pro
             <input style={S.input} placeholder="Soyad *" value={lastName} onChange={e => setLastName(e.target.value)} required />
           </div>
           <input style={S.input} placeholder="E-posta *" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
-          <input style={S.input} placeholder="Şifre * (min 8, büyük+küçük+rakam)" type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} />
+          <input style={S.input} placeholder="Şifre *" type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} />
+          <PasswordChecklist password={password} />
           <button type="submit" style={{ ...S.btnPrimary, opacity: loading ? 0.7 : 1, marginTop: 8 }} disabled={loading}>
             {loading ? (step || 'Oluşturuluyor...') : 'Kayıt Ol'}
           </button>
@@ -1305,6 +1328,9 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
     if (!newUser.email || !newUser.password || !newUser.firstName || !newUser.lastName) {
       setAddError('Tüm alanları doldurun.'); return;
     }
+    if (!isPasswordValid(newUser.password)) {
+      setAddError('Şifre en az 8 karakter olmalı ve büyük harf, küçük harf ile rakam içermelidir.'); return;
+    }
     try {
       await adminApi.createTenantUser(selectedTenant.id, newUser);
       setShowAddUser(false);
@@ -1740,6 +1766,7 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                       <input style={AdminStyles.input} placeholder="E-posta" type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} />
                       <input style={AdminStyles.input} placeholder="Şifre" type="password" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} />
                     </div>
+                    <PasswordChecklist password={newUser.password} compact />
                     <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                       <button style={AdminStyles.btnPrimary} onClick={handleAddUser}>Ekle</button>
                       <button style={AdminStyles.btnSecondary} onClick={() => setShowAddUser(false)}>İptal</button>
