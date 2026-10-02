@@ -22,6 +22,10 @@ interface OtoservisBridge {
   syncStatus: () => Promise<SyncStatus>;
   syncNow: () => Promise<SyncStatus>;
   onSyncStatus: (cb: (s: SyncStatus) => void) => () => void;
+  updateStatus: () => Promise<UpdateStatus>;
+  updateCheck: () => Promise<UpdateStatus>;
+  updateInstall: () => Promise<{ success: boolean }>;
+  onUpdateStatus: (cb: (s: UpdateStatus) => void) => () => void;
   getZoomFactor: () => number;
   setZoomFactor: (factor: number) => void;
   // Service order sub-entities
@@ -61,6 +65,13 @@ interface OtoservisBridge {
 
 interface User { id: string; email: string; firstName: string; lastName: string; tenantId: string; }
 interface SyncStatus { online: boolean; syncing: boolean; lastSyncAt: string | null; lastError: string | null; pending: number; }
+interface UpdateStatus {
+  status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error';
+  version: string | null;
+  percent: number;
+  lastError: string | null;
+  lastCheckedAt: string | null;
+}
 interface DashboardStats {
   totalCustomers: number; totalVehicles: number; activeOrders: number; completedOrders: number;
   pendingAppointments: number; lowStockProducts: number; pendingSync: number;
@@ -147,6 +158,75 @@ function SyncBar() {
 }
 
 // ============================================================================
+// Update banner (auto-update via electron-updater)
+// ============================================================================
+const UPDATE_IDLE: UpdateStatus = { status: 'idle', version: null, percent: 0, lastError: null, lastCheckedAt: null };
+
+function UpdateBanner() {
+  const [st, setSt] = useState<UpdateStatus>(UPDATE_IDLE);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!bridge || typeof bridge.updateStatus !== 'function') return;
+    bridge.updateStatus().then(setSt).catch(() => {});
+    const unsub = bridge.onUpdateStatus(setSt);
+    return unsub;
+  }, []);
+
+  const check = async () => {
+    if (!bridge) return;
+    setBusy(true);
+    try { setSt(await bridge.updateCheck()); } catch { /* ignore */ }
+    setBusy(false);
+  };
+
+  const install = async () => {
+    if (!bridge) return;
+    try { await bridge.updateInstall(); } catch { /* ignore */ }
+  };
+
+  if (st.status === 'checking') {
+    return (
+      <span style={{ padding: '0.3rem 0.7rem', borderRadius: '999px', background: '#f1f5f9', color: '#475569', fontWeight: 600, fontSize: '0.8rem' }}>
+        Güncelleme kontrol ediliyor...
+      </span>
+    );
+  }
+  if (st.status === 'available' || st.status === 'downloading') {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.3rem 0.7rem', borderRadius: '999px', background: '#dbeafe', color: '#1e40af', fontWeight: 600, fontSize: '0.8rem' }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563eb', flexShrink: 0 }} />
+        {st.status === 'downloading' ? `Yeni sürüm indiriliyor %${st.percent}` : `Yeni sürüm ${st.version || ''} bulundu...`}
+      </span>
+    );
+  }
+  if (st.status === 'downloaded') {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+        <span style={{ padding: '0.3rem 0.7rem', borderRadius: '999px', background: '#dcfce7', color: '#166534', fontWeight: 600, fontSize: '0.8rem' }}>
+          Sürüm {st.version} hazır
+        </span>
+        <button onClick={install} style={{ ...S.btnPrimary, padding: '0.35rem 0.8rem', fontSize: '0.8rem' }}>
+          Yeniden Başlat ve Güncelle
+        </button>
+      </span>
+    );
+  }
+  if (st.status === 'error') {
+    return (
+      <span
+        title={st.lastError || ''}
+        onClick={check}
+        style={{ cursor: busy ? 'default' : 'pointer', padding: '0.3rem 0.7rem', borderRadius: '999px', background: '#fef3c7', color: '#92400e', fontWeight: 600, fontSize: '0.8rem' }}
+      >
+        Güncelleme alınamadı — tekrar dene
+      </span>
+    );
+  }
+  return null;
+}
+
+// ============================================================================
 // Zoom controls (work on every keyboard layout, incl. Turkish and numpad)
 // ============================================================================
 const ZOOM_MIN = 0.5;
@@ -206,7 +286,7 @@ function ZoomControls() {
 // Setup screen (first run: server address)
 // ============================================================================
 function SetupScreen({ onDone }: { onDone: () => void }) {
-  const [serverUrl, setServerUrl] = useState('http://localhost:3002');
+  const [serverUrl, setServerUrl] = useState('https://otoservis-api.onrender.com');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -358,7 +438,7 @@ function RegisterPage() {
 
     setLoading(true);
     try {
-      const serverUrl = (await bridge?.getConfig())?.serverUrl || 'http://localhost:3002/api/v1';
+      const serverUrl = (await bridge?.getConfig())?.serverUrl || 'https://otoservis-api.onrender.com/api/v1';
       const res = await fetch(`${serverUrl.replace('/api/v1', '')}/api/v1/tenants/setup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -751,6 +831,7 @@ function Layout({ children, title }: { children: React.ReactNode; title: string 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <ZoomControls />
             <SyncBar />
+            <UpdateBanner />
           </div>
         </header>
         <div style={{ padding: '1.25rem 1.5rem', flex: 1 }}>{children}</div>

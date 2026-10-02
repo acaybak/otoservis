@@ -779,6 +779,11 @@ function registerIpc() {
     isDev,
   }));
 
+  // Auto-update
+  ipcMain.handle('update:status', () => updateState);
+  ipcMain.handle('update:check', () => checkForUpdates());
+  ipcMain.handle('update:install', () => installUpdate());
+
   ipcMain.handle('app:print', (_e, htmlContent) => {
     const { BrowserWindow } = require('electron');
     const printWindow = new BrowserWindow({
@@ -1263,6 +1268,139 @@ function registerIpc() {
 }
 
 // ============================================================================
+// Auto-update (GitHub Releases via electron-updater)
+// ============================================================================
+let updateState = {
+  status: 'idle', // idle | checking | available | downloading | downloaded | error
+  version: null, // version of the available/downloaded update
+  percent: 0,
+  lastError: null,
+  lastCheckedAt: null,
+};
+
+function broadcastUpdate() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update:status', updateState);
+  }
+}
+
+function getUpdater() {
+  return global.__otoservisUpdater || null;
+}
+
+function checkForUpdates() {
+  const updater = getUpdater();
+  if (!updater) return updateState;
+  updater.checkForUpdates().catch(() => {});
+  return updateState;
+}
+
+function installUpdate() {
+  const updater = getUpdater();
+  if (!updater) return { success: false };
+  setImmediate(() => {
+    try { updater.quitAndInstall(false, true); } catch (_) { /* ignore */ }
+  });
+  return { success: true };
+}
+
+function manualCheck() {
+  const { dialog } = require('electron');
+  const updater = getUpdater();
+  if (!updater) {
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Güncelleme',
+      message: 'Güncelleme kontrolü kullanılamıyor.',
+      detail: isDev ? 'Geliştirme modunda otomatik güncelleme devre dışıdır.' : 'Güncelleme servisine ulaşılamadı.',
+    }).catch(() => {});
+    return;
+  }
+  updateState = { ...updateState, status: 'checking', lastError: null };
+  broadcastUpdate();
+  updater.checkForUpdates().catch(() => {});
+}
+
+function setUpdater() {
+  if (isDev) return; // packaged builds only
+  let updater;
+  try {
+    ({ autoUpdater: updater } = require('electron-updater'));
+  } catch (err) {
+    console.warn('electron-updater yüklenemedi:', err && err.message);
+    return;
+  }
+
+  updater.autoDownload = true;
+  updater.autoInstallOnAppQuit = true;
+  updater.allowPrerelease = false;
+
+  global.__otoservisUpdater = updater;
+
+  updater.on('checking-for-update', () => {
+    updateState = { ...updateState, status: 'checking', lastError: null };
+    broadcastUpdate();
+  });
+  updater.on('update-available', (info) => {
+    updateState = {
+      ...updateState,
+      status: 'available',
+      version: info && info.version ? info.version : null,
+      percent: 0,
+      lastError: null,
+      lastCheckedAt: new Date().toISOString(),
+    };
+    broadcastUpdate();
+  });
+  updater.on('update-not-available', () => {
+    updateState = { ...updateState, status: 'idle', version: null, percent: 0, lastCheckedAt: new Date().toISOString() };
+    broadcastUpdate();
+  });
+  updater.on('download-progress', (p) => {
+    updateState = {
+      ...updateState,
+      status: 'downloading',
+      percent: p && typeof p.percent === 'number' ? Math.round(p.percent) : updateState.percent,
+    };
+    broadcastUpdate();
+  });
+  updater.on('update-downloaded', (info) => {
+    updateState = {
+      ...updateState,
+      status: 'downloaded',
+      version: info && info.version ? info.version : updateState.version,
+      percent: 100,
+    };
+    broadcastUpdate();
+    const { dialog } = require('electron');
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Güncelleme Hazır',
+      message: `OtoServis ${updateState.version || ''} indirildi.`.trim(),
+      detail: 'Yeni sürüme geçmek için uygulamayı yeniden başlatın. Verileriniz korunur.',
+      buttons: ['Yeniden Başlat ve Güncelle', 'Daha Sonra'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true,
+    }).then(({ response }) => {
+      if (response === 0) installUpdate();
+    }).catch(() => {});
+  });
+  updater.on('error', (err) => {
+    updateState = {
+      ...updateState,
+      status: 'error',
+      lastError: err && err.message ? err.message : String(err),
+    };
+    broadcastUpdate();
+  });
+
+  // Check shortly after startup, then every 4 hours
+  setTimeout(() => { checkForUpdates(); }, 12000);
+  setInterval(() => { checkForUpdates(); }, 4 * 60 * 60 * 1000);
+}
+
+// ============================================================================
 // Window + menu
 // ============================================================================
 function createWindow() {
@@ -1335,6 +1473,8 @@ function createWindow() {
     {
       label: 'Yardım',
       submenu: [
+        { label: 'Güncellemeleri Kontrol Et', click: () => manualCheck() },
+        { type: 'separator' },
         {
           label: 'Hakkında',
           click: () => {
@@ -1354,12 +1494,34 @@ function createWindow() {
 }
 
 // ============================================================================
+// One-time repair: early builds prefilled the setup screen with localhost,
+// which silently disabled cloud sync. Point packaged installs at production
+// and clear the session (old tokens belong to the previous server).
+// ============================================================================
+function repairServerUrl() {
+  if (!app.isPackaged) return;
+  const current = getMeta('serverUrl');
+  if (!current) return;
+  let host = '';
+  try { host = new URL(current).hostname; } catch { return; }
+  if (host !== 'localhost' && host !== '127.0.0.1') return;
+  setMeta('serverUrl', 'https://otoservis-api.onrender.com');
+  setMeta('user', null);
+  setMeta('accessToken', null);
+  setMeta('refreshToken', null);
+  console.log('[config] localhost server URL repaired to production; session cleared for re-login');
+}
+
+// ============================================================================
 // App lifecycle
 // ============================================================================
 app.whenReady().then(() => {
+  app.setAppUserModelId('com.otoservis.desktop');
   getDb(); // initialize local database
+  repairServerUrl(); // fix installs that were configured against localhost
   registerIpc();
   createWindow();
+  setUpdater();
 
   // Periodic auto-sync
   syncTimer = setInterval(() => {

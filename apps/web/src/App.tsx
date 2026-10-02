@@ -117,12 +117,14 @@ function LoginPage({ onLogin, onSwitch }: { onLogin: (email: string, password: s
   const [tenantName, setTenantName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [slow, setSlow] = useState(false);
   const { addToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    const slowTimer = window.setTimeout(() => setSlow(true), 6000);
     try {
       await onLogin(email, password);
       addToast('Giriş başarılı!', 'success');
@@ -131,6 +133,8 @@ function LoginPage({ onLogin, onSwitch }: { onLogin: (email: string, password: s
       setError(msg);
       addToast(msg, 'error');
     } finally {
+      window.clearTimeout(slowTimer);
+      setSlow(false);
       setLoading(false);
     }
   };
@@ -147,6 +151,7 @@ function LoginPage({ onLogin, onSwitch }: { onLogin: (email: string, password: s
           <button type="submit" style={{ ...S.btnPrimary, opacity: loading ? 0.7 : 1 }} disabled={loading}>
             {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
           </button>
+          {slow && <div style={{ marginTop: 10, fontSize: 12, color: '#f59e0b', textAlign: 'center' }}>Sunucu uyanıyor, bu işlem 1 dakikayı bulabilir...</div>}
         </form>
         <div style={{ marginTop: 16, textAlign: 'center' }}>
           <span style={{ color: '#64748b', fontSize: 14 }}>Hesabınız yok mu? </span>
@@ -176,8 +181,25 @@ function RegisterPage({ onRegister, onSwitch }: { onRegister: (data: any) => Pro
     e.preventDefault();
     setError('');
     setLoading(true);
+    // API'ye gitmeden anlık şifre kontrolü (Türkçe uyarı)
+    if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+      const msg = 'Şifre en az 8 karakter olmalı ve büyük harf, küçük harf ile rakam içermelidir.';
+      setError(msg);
+      addToast(msg, 'error');
+      setLoading(false);
+      return;
+    }
+    const slowTimer = window.setTimeout(() => {
+      setStep('Sunucu uyanıyor, bu işlem 1 dakika sürebilir...');
+    }, 6000);
     try {
-      const slug = tenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      // Türkçe karakterleri Türkçe olmayan eşdeğerlerine çevir (ı→i, ş→s ...)
+      const slug = tenantName
+        .toLowerCase()
+        .replace(/\u0307/g, '')
+        .replace(/[çğıöşü]/g, (ch) => ({ 'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u' } as Record<string, string>)[ch] ?? ch)
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
       setStep('Hesap oluşturuluyor...');
       await onRegister({ tenantName, tenantSlug: slug, adminEmail: email, adminPassword: password, adminFirstName: firstName, adminLastName: lastName, phone, address, city });
       setStep('Giriş yapılıyor...');
@@ -188,6 +210,7 @@ function RegisterPage({ onRegister, onSwitch }: { onRegister: (data: any) => Pro
       setError(msg);
       addToast(msg, 'error');
     } finally {
+      window.clearTimeout(slowTimer);
       setLoading(false);
     }
   };
@@ -782,23 +805,23 @@ function DownloadPage({ onBack }: { onBack: () => void }) {
       <div style={{ maxWidth: 680, margin: '0 auto', padding: '80px 40px', textAlign: 'center' as const }}>
         <div style={{ display: 'inline-block', padding: '6px 16px', background: '#eff6ff', color: '#2563eb', borderRadius: 20, fontSize: 13, fontWeight: 600, marginBottom: 24 }}>Desktop Uygulaması</div>
         <h1 style={{ fontSize: 44, fontWeight: 800, color: '#0f172a', marginBottom: 16, letterSpacing: -0.5 }}>OtoServis Desktop</h1>
-        <p style={{ fontSize: 18, color: '#64748b', marginBottom: 48, lineHeight: 1.7 }}>Windows için masaüstü uygulamasını indirin.<br />Kurulum ile birlikte Program Files'e yüklenir.</p>
+        <p style={{ fontSize: 18, color: '#64748b', marginBottom: 48, lineHeight: 1.7 }}>Windows için masaüstü uygulamasını indirin.<br />Yönetici izni gerekmeden birkaç dakikada kurulur.</p>
         <div style={{ background: '#fafbfc', borderRadius: 20, padding: 40, marginBottom: 48, border: '1px solid #f1f5f9' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 28 }}>
             <div style={{ width: 56, height: 56, borderRadius: 14, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>🪟</div>
             <div style={{ textAlign: 'left' as const }}>
               <div style={{ color: '#0f172a', fontSize: 18, fontWeight: 700 }}>Windows 10/11 (64-bit)</div>
-              <div style={{ color: '#94a3b8', fontSize: 13 }}>Installer (.exe) • ~81 MB</div>
+              <div style={{ color: '#94a3b8', fontSize: 13 }}>Installer (.exe) • ~82 MB</div>
             </div>
           </div>
-          <a href="https://github.com/acaybak/otoservis/releases/latest/download/OtoServis.Setup.0.1.0.exe" download style={{ display: 'inline-block', padding: '16px 56px', background: '#2563eb', color: 'white', borderRadius: 10, fontSize: 17, fontWeight: 700, textDecoration: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.3)' }}>İndir</a>
-          <p style={{ color: '#94a3b8', fontSize: 12, marginTop: 16 }}>v0.1.0 • Son güncelleme: Eylül 2026</p>
+          <a href="https://github.com/acaybak/otoservis/releases/latest/download/OtoServis-Setup.exe" download style={{ display: 'inline-block', padding: '16px 56px', background: '#2563eb', color: 'white', borderRadius: 10, fontSize: 17, fontWeight: 700, textDecoration: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.3)' }}>İndir</a>
+          <p style={{ color: '#94a3b8', fontSize: 12, marginTop: 16 }}>v0.1.2 • Otomatik güncelleme destekli</p>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, textAlign: 'center' as const }}>
           {[
             { icon: '🔑', title: 'Lisans Sistemi', desc: 'Aktivasyon anahtarı ile güvenli kullanım', color: '#2563eb' },
             { icon: '📡', title: 'Offline + Online', desc: 'İnternet olmadan da çalışır, bulut senkronizasyon', color: '#059669' },
-            { icon: '🔧', title: 'Kolay Kurulum', desc: 'Program Files\'e otomatik kurulum', color: '#7c3aed' },
+            { icon: '🔧', title: 'Kolay Kurulum', desc: 'Yönetici izni gerektirmeyen hızlı kurulum', color: '#7c3aed' },
           ].map((f, i) => (
             <div key={i} style={{ background: '#fafbfc', borderRadius: 14, padding: 24, border: '1px solid #f1f5f9' }}>
               <div style={{ width: 44, height: 44, borderRadius: 10, background: f.color + '15', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 12, margin: '0 auto 12px' }}>{f.icon}</div>

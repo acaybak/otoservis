@@ -49,6 +49,16 @@ contextBridge.exposeInMainWorld('otoservis', {
     return () => ipcRenderer.removeListener('sync:status', handler);
   },
 
+  // Auto-update
+  updateStatus: () => ipcRenderer.invoke('update:status'),
+  updateCheck: () => ipcRenderer.invoke('update:check'),
+  updateInstall: () => ipcRenderer.invoke('update:install'),
+  onUpdateStatus: (callback) => {
+    const handler = (_event, status) => callback(status);
+    ipcRenderer.on('update:status', handler);
+    return () => ipcRenderer.removeListener('update:status', handler);
+  },
+
   // Plate search
   searchPlate: (plate) => ipcRenderer.invoke('search:plate', plate),
 

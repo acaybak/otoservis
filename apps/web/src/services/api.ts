@@ -28,8 +28,10 @@ async function request<T>(method: string, path: string, body?: any, tenantId?: s
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: 'Sunucu hatası' }));
-    throw new Error(err.message || `HTTP ${res.status}`);
+    // API hata gövdesi: { success: false, error: { code, message } }
+    const err = await res.json().catch(() => null) as any;
+    const msg = err?.error?.message || err?.message || `Sunucu hatası (${res.status})`;
+    throw new Error(msg);
   }
 
   return res.json();

@@ -2,21 +2,29 @@ name: Keep API Alive
 
 on:
   schedule:
-    # Her 10 dakikada bir (Render 15 dk hareketsizlikte uyur)
-    - cron: '*/10 * * * *'
+    # Render free instance 15 dk hareketsizlikte uyur. GitHub cron gecikmeli
+    # çalışabildiği için iki farklı dakikadan çift tetikleme kullanılıyor.
+    - cron: '*/5 * * * *'
+    - cron: '2-59/5 * * * *'
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping API health endpoint
+      - name: Ping API health endpoint (retry while cold-starting)
         run: |
           echo "Pinging OtoServis API..."
-          response=$(curl -sS -w "\nHTTP_CODE:%{http_code}" --max-time 60 https://otoservis-api.onrender.com/api/v1/health || true)
-          echo "$response"
-          if echo "$response" | grep -q "HTTP_CODE:200"; then
-            echo "API is alive"
-          else
-            echo "API ping completed (cold start may be in progress)"
-          fi
+          for i in 1 2 3; do
+            code=$(curl -sS -o /tmp/health.json -w "%{http_code}" --max-time 90 https://otoservis-api.onrender.com/api/v1/health || echo "000")
+            echo "attempt $i -> HTTP $code"
+            cat /tmp/health.json 2>/dev/null || true
+            echo
+            if [ "$code" = "200" ]; then
+              echo "API is alive"
+              exit 0
+            fi
+            # Soğuk başlatma sürerken bekle ve tekrar dene
+            sleep 30
+          done
+          echo "API ping failed after retries (cold start may still be in progress)"

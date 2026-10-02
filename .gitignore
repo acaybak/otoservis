@@ -8,6 +8,9 @@ build/
 .turbo/
 apps/desktop/release/
 
+# Desktop app icon assets must be committed (electron-builder reads apps/desktop/build)
+!apps/desktop/build/
+
 # Environment
 .env
 .env.local
