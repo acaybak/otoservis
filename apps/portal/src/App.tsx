@@ -4,6 +4,20 @@ import { BrowserRouter, Routes, Route, Link, useNavigate, useParams } from 'reac
 const API_BASE = import.meta.env.VITE_API_URL || 'https://otoservis-api.onrender.com/api/v1';
 
 // ============================================================================
+// Responsive (Mobile)
+// ============================================================================
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState<boolean>(() => window.innerWidth < breakpoint);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener('resize', onResize);
+    onResize();
+    return () => window.removeEventListener('resize', onResize);
+  }, [breakpoint]);
+  return isMobile;
+}
+
+// ============================================================================
 // Styles - Professional Clean Design
 // ============================================================================
 const S = {
@@ -54,7 +68,7 @@ const S = {
   }) as React.CSSProperties,
   contentMain: { padding: '2rem', maxWidth: '960px', margin: '0 auto' } as React.CSSProperties,
   card: { background: 'white', borderRadius: '12px', padding: '1.5rem', marginBottom: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' } as React.CSSProperties,
-  statGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.25rem' } as React.CSSProperties,
+  statGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1.25rem' } as React.CSSProperties,
   statCard: (color: string) => ({ background: 'white', borderRadius: '10px', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', borderLeft: `3px solid ${color}` }) as React.CSSProperties,
   statLabel: { fontSize: '0.75rem', color: '#64748b', marginBottom: '0.35rem', fontWeight: '500' } as React.CSSProperties,
   statValue: (color: string) => ({ fontSize: '1.4rem', fontWeight: '700', color }) as React.CSSProperties,
@@ -107,46 +121,56 @@ function HomePage() {
 
   const shopName = tenantInfo?.name || tenantSlug || 'OtoServis';
   const shopPhone = tenantInfo?.phone || '';
+  const shopWebsite = tenantInfo?.website || '';
   const primaryColor = tenantInfo?.primaryColor || '#2563eb';
+  const isMobile = useIsMobile();
 
   return (
     <div style={S.page}>
       {/* Header */}
-      <header style={S.header(primaryColor)}>
-        <Link to="/" style={S.logo}>
-          <div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={S.logoImg} /></div>
-          <span>{shopName}</span>
+      <header style={{ ...S.header(primaryColor), padding: isMobile ? '0.75rem 1rem' : '1rem 2rem', gap: '0.5rem' }}>
+        <Link to="/" style={{ ...S.logo, minWidth: 0 }}>
+          <div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={{ ...S.logoImg, height: isMobile ? '26px' : '32px' }} /></div>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shopName}</span>
         </Link>
-        <div style={S.headerRight}>
+        <div style={{ ...S.headerRight, gap: isMobile ? '0.5rem' : '1rem', flexShrink: 0 }}>
           {tenantSlug && (
             <Link
               to={`/${tenantSlug}/appointment`}
               style={{
-                padding: '0.4rem 1rem',
+                padding: isMobile ? '0.35rem 0.65rem' : '0.4rem 1rem',
                 background: 'rgba(255,255,255,0.15)',
                 border: '1px solid rgba(255,255,255,0.3)',
                 borderRadius: '8px',
                 color: 'white',
                 textDecoration: 'none',
-                fontSize: '0.85rem',
+                fontSize: isMobile ? '0.8rem' : '0.85rem',
                 fontWeight: '600',
+                whiteSpace: 'nowrap',
               }}
             >
               📅 Randevu
             </Link>
           )}
           {shopPhone && (
-            <span style={S.headerPhone}>📞 {shopPhone}</span>
+            isMobile
+              ? <a href={`tel:${shopPhone}`} title={shopPhone} style={{ ...S.headerPhone, fontSize: '1.05rem' }}>📞</a>
+              : <span style={S.headerPhone}>📞 {shopPhone}</span>
+          )}
+          {shopWebsite && (
+            <a href={shopWebsite} target="_blank" rel="noopener noreferrer" title="Web Sitesi" style={{ ...S.headerPhone, color: 'rgba(255,255,255,0.9)', textDecoration: 'none' }}>
+              🌐{isMobile ? '' : ' Web Sitesi'}
+            </a>
           )}
         </div>
       </header>
 
       {/* Hero + Search */}
-      <div style={S.hero}>
-        <h1 style={S.heroTitle}>Aracınızın Bakım Geçmişini Sorgulayın</h1>
-        <p style={S.heroSub}>Plakanızı girerek tüm bakım, onarım ve servis geçmişinizi görüntüleyin.</p>
+      <div style={{ ...S.hero, padding: isMobile ? '2.5rem 1rem' : '4rem 2rem' }}>
+        <h1 style={{ ...S.heroTitle, fontSize: isMobile ? '1.6rem' : '2.25rem' }}>Aracınızın Bakım Geçmişini Sorgulayın</h1>
+        <p style={{ ...S.heroSub, fontSize: isMobile ? '0.95rem' : '1.1rem' }}>Plakanızı girerek tüm bakım, onarım ve servis geçmişinizi görüntüleyin.</p>
 
-        <div style={S.searchCard}>
+        <div style={{ ...S.searchCard, padding: isMobile ? '1.25rem' : '1.75rem' }}>
           <label style={S.searchLabel}>Plaka Numarası</label>
           <input
             style={S.searchInput}
@@ -178,7 +202,7 @@ function HomePage() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                padding: '0.75rem 1.75rem',
+                padding: isMobile ? '0.7rem 1.25rem' : '0.75rem 1.75rem',
                 background: 'rgba(255,255,255,0.15)',
                 border: '2px solid rgba(255,255,255,0.3)',
                 borderRadius: '12px',
@@ -197,7 +221,7 @@ function HomePage() {
       </div>
 
       {/* Features */}
-      <div style={S.features}>
+      <div style={{ ...S.features, padding: isMobile ? '2rem 1rem' : '3rem 2rem' }}>
         <div style={S.featureCard}>
           <div style={S.featureIcon}>📋</div>
           <div style={S.featureTitle}>Detaylı Bakım Geçmişi</div>
@@ -216,8 +240,13 @@ function HomePage() {
       </div>
 
       {/* Footer */}
-      <footer style={S.footer}>
+      <footer style={{ ...S.footer, padding: isMobile ? '1.25rem 1rem' : '1.5rem 2rem' }}>
         <div style={{ fontWeight: 600, color: '#64748b', marginBottom: '0.25rem' }}>{shopName}</div>
+        {shopWebsite && (
+          <div style={{ marginBottom: '0.25rem' }}>
+            <a href={shopWebsite} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', textDecoration: 'none' }}>🌐 {shopWebsite.replace(/^https?:\/\//, '')}</a>
+          </div>
+        )}
         <div>© 2026 • OtoServisApp ile güçlendirilmiştir</div>
       </footer>
     </div>
@@ -260,6 +289,8 @@ function VehicleHistoryPage() {
   const primaryColor = tenantInfo?.primaryColor || '#2563eb';
   const shopName = tenantInfo?.name || tenantSlug || 'OtoServis';
   const shopPhone = tenantInfo?.phone || '';
+  const shopWebsite = tenantInfo?.website || '';
+  const isMobile = useIsMobile();
 
   if (loading) return (
     <div style={S.contentPage}>
@@ -276,7 +307,7 @@ function VehicleHistoryPage() {
         <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
       </header>
       <div style={{ ...S.contentMain, textAlign: 'center' }}>
-        <div style={{ ...S.card, maxWidth: '450px', margin: '3rem auto', padding: '2.5rem' }}>
+        <div style={{ ...S.card, maxWidth: '450px', margin: isMobile ? '2rem auto' : '3rem auto', padding: isMobile ? '1.75rem' : '2.5rem' }}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
           <div style={{ color: '#dc2626', fontSize: '1.1rem', marginBottom: '1rem' }}>{error}</div>
           <Link to="/" style={{ color: primaryColor, textDecoration: 'none', fontWeight: '600' }}>← Ana sayfaya dön</Link>
@@ -310,17 +341,24 @@ function VehicleHistoryPage() {
 
   return (
     <div style={S.contentPage}>
-      <header style={S.contentHeader(primaryColor)}>
-        <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          {shopPhone && <span style={S.headerPhone}>📞 {shopPhone}</span>}
-          <button onClick={handlePrint} style={S.printBtn}>🖨️ Yazdır</button>
+      <header style={{ ...S.contentHeader(primaryColor), padding: isMobile ? '0.75rem 1rem' : '1rem 2rem', gap: '0.5rem' }}>
+        <Link to="/" style={{ ...S.logo, color: 'white', minWidth: 0 }}><div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={{ ...S.logoImg, height: isMobile ? '26px' : '32px' }} /></div><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shopName}</span></Link>
+        <div style={{ display: 'flex', gap: isMobile ? '0.6rem' : '0.75rem', alignItems: 'center', flexShrink: 0 }}>
+          {shopPhone && (isMobile
+            ? <a href={`tel:${shopPhone}`} title={shopPhone} style={{ ...S.headerPhone, fontSize: '1.05rem' }}>📞</a>
+            : <span style={S.headerPhone}>📞 {shopPhone}</span>)}
+          {shopWebsite && (
+            <a href={shopWebsite} target="_blank" rel="noopener noreferrer" title="Web Sitesi" style={{ ...S.headerPhone, color: 'rgba(255,255,255,0.9)', textDecoration: 'none' }}>
+              🌐{isMobile ? '' : ' Web Sitesi'}
+            </a>
+          )}
+          <button onClick={handlePrint} style={{ ...S.printBtn, padding: isMobile ? '0.5rem 0.7rem' : '0.5rem 1.25rem' }}>{isMobile ? '🖨️' : '🖨️ Yazdır'}</button>
         </div>
       </header>
 
-      <main style={S.contentMain}>
+      <main style={{ ...S.contentMain, padding: isMobile ? '1.25rem 1rem' : '2rem' }}>
         {/* Vehicle Info */}
-        <div style={S.card}>
+        <div style={{ ...S.card, padding: isMobile ? '1.1rem' : '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
               <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.2rem', fontWeight: '500' }}>Araç Bilgileri</div>
@@ -362,7 +400,7 @@ function VehicleHistoryPage() {
 
         {/* Maintenance Schedule */}
         {maintenanceSchedule.length > 0 && (
-          <div style={S.card}>
+          <div style={{ ...S.card, padding: isMobile ? '1.1rem' : '1.5rem' }}>
             <h2 style={{ fontSize: '1rem', fontWeight: '600', color: '#1e293b', marginBottom: '1rem' }}>📅 Bakım Takvimi</h2>
             <div style={{ display: 'grid', gap: '0.5rem' }}>
               {maintenanceSchedule.map((item: any, idx: number) => {
@@ -391,7 +429,7 @@ function VehicleHistoryPage() {
 
         {/* Maintenance Records */}
         {maintenanceRecords.length > 0 && (
-          <div style={S.card}>
+          <div style={{ ...S.card, padding: isMobile ? '1.1rem' : '1.5rem' }}>
             <h2 style={{ fontSize: '1rem', fontWeight: '600', color: '#1e293b', marginBottom: '1rem' }}>🔧 Bakım Kayıtları</h2>
             <div style={{ overflowX: 'auto' }}>
               <table style={S.table}>
@@ -415,7 +453,7 @@ function VehicleHistoryPage() {
 
         {/* Service Orders */}
         {serviceOrders.length > 0 && (
-          <div style={S.card}>
+          <div style={{ ...S.card, padding: isMobile ? '1.1rem' : '1.5rem' }}>
             <h2 style={{ fontSize: '1rem', fontWeight: '600', color: '#1e293b', marginBottom: '1rem' }}>📝 İş Emri Kayıtları</h2>
             <div style={{ display: 'grid', gap: '0.5rem' }}>
               {serviceOrders.map((o: any) => (
@@ -476,6 +514,7 @@ function AppointmentPage() {
 
   const primaryColor = tenantInfo?.primaryColor || '#2563eb';
   const shopName = tenantInfo?.name || tenantSlug || 'OtoServis';
+  const isMobile = useIsMobile();
 
   const handleSubmit = async () => {
     setError(''); setLoading(true);
@@ -494,7 +533,7 @@ function AppointmentPage() {
         <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
       </header>
       <div style={{ ...S.contentMain, textAlign: 'center' }}>
-        <div style={{ ...S.card, maxWidth: '450px', margin: '3rem auto', padding: '2.5rem' }}>
+        <div style={{ ...S.card, maxWidth: '450px', margin: isMobile ? '2rem auto' : '3rem auto', padding: isMobile ? '1.75rem' : '2.5rem' }}>
           <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✅</div>
           <h2 style={{ fontSize: '1.4rem', fontWeight: '700', color: '#1e293b', marginBottom: '0.5rem' }}>Randevunuz Oluşturuldu!</h2>
           <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>{success.message}</p>
@@ -514,7 +553,7 @@ function AppointmentPage() {
       <header style={S.contentHeader(primaryColor)}>
         <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
       </header>
-      <main style={S.contentMain}>
+      <main style={{ ...S.contentMain, padding: isMobile ? '1.25rem 1rem' : '2rem' }}>
         <div style={{ maxWidth: '550px', margin: '0 auto' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', marginBottom: '0.35rem', textAlign: 'center' }}>Online Randevu Al</h1>
           <p style={{ color: '#64748b', textAlign: 'center', marginBottom: '1.5rem' }}>Birkaç adımda randevunuzu oluşturun</p>
@@ -524,7 +563,7 @@ function AppointmentPage() {
             {[1, 2, 3].map(s => <div key={s} style={{ width: '50px', height: '4px', borderRadius: '2px', background: step >= s ? primaryColor : '#e2e8f0' }} />)}
           </div>
 
-          <div style={S.card}>
+          <div style={{ ...S.card, padding: isMobile ? '1.1rem' : '1.5rem' }}>
             {error && <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '0.65rem', marginBottom: '1rem', color: '#dc2626', textAlign: 'center', fontSize: '0.9rem' }}>{error}</div>}
 
             {step === 1 && (
@@ -552,7 +591,7 @@ function AppointmentPage() {
                   <label style={{ display: 'block', fontSize: '0.8rem', color: '#475569', marginBottom: '0.2rem', fontWeight: '500' }}>Plaka *</label>
                   <input style={{ ...S.searchInput, fontSize: '0.95rem' }} value={formData.plate} onChange={e => setFormData({ ...formData, plate: e.target.value.toUpperCase() })} placeholder="34ABC123" />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem', marginBottom: '0.85rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.85rem', marginBottom: '0.85rem' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.8rem', color: '#475569', marginBottom: '0.2rem', fontWeight: '500' }}>Marka</label>
                     <input style={{ ...S.searchInput, fontSize: '0.95rem' }} value={formData.vehicleBrand} onChange={e => setFormData({ ...formData, vehicleBrand: e.target.value })} placeholder="Volkswagen" />
@@ -569,7 +608,7 @@ function AppointmentPage() {
                 {formData.date && (
                   <div style={{ marginBottom: '0.85rem' }}>
                     <label style={{ display: 'block', fontSize: '0.8rem', color: '#475569', marginBottom: '0.4rem', fontWeight: '500' }}>Saat *</label>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))', gap: '0.4rem' }}>
                       {availableSlots.length === 0 ? (
                         <div style={{ gridColumn: '1/-1', color: '#94a3b8', textAlign: 'center', padding: '0.75rem', fontSize: '0.85rem' }}>Bu tarih için uygun saat yok.</div>
                       ) : availableSlots.map(slot => (

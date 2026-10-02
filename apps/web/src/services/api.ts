@@ -1,5 +1,8 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'https://otoservis-api.onrender.com/api/v1';
 
+// Müşteri portalı (randevu + araç geçmişi linkleri buradan üretilir)
+export const PORTAL_URL = (import.meta.env.VITE_PORTAL_URL as string) || 'https://portal.otoservisapp.com';
+
 let accessToken: string | null = null;
 
 export function setToken(token: string | null) {
@@ -58,6 +61,9 @@ export const authApi = {
 export const tenantApi = {
   setup: (data: { name: string; slug: string; timezone?: string }) =>
     api.post<any>('/tenants/setup', data),
+  getMe: () => api.get<any>('/tenants/me'),
+  updateMe: (data: { name?: string; phone?: string; email?: string; address?: string; city?: string; website?: string }) =>
+    api.patch<any>('/tenants/me', data),
 };
 
 // Customers

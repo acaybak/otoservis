@@ -88,6 +88,49 @@ export class TenantsService {
     return this.toResponse(updated);
   }
 
+  async findMe(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+
+    if (!tenant) {
+      throw new NotFoundException('Servis bulunamadı.');
+    }
+
+    return this.toProfile(tenant);
+  }
+
+  async updateMe(
+    tenantId: string,
+    data: {
+      name?: string;
+      phone?: string | null;
+      email?: string | null;
+      address?: string | null;
+      city?: string | null;
+      website?: string | null;
+    },
+  ) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+
+    if (!tenant) {
+      throw new NotFoundException('Servis bulunamadı.');
+    }
+
+    const updated = await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.phone !== undefined && { phone: data.phone || null }),
+        ...(data.email !== undefined && { email: data.email || null }),
+        ...(data.address !== undefined && { address: data.address || null }),
+        ...(data.city !== undefined && { city: data.city || null }),
+        ...(data.website !== undefined && { website: data.website || null }),
+      },
+    });
+
+    this.logger.log(`Tenant profile updated: ${updated.name} (${updated.id})`);
+    return this.toProfile(updated);
+  }
+
   async setup(data: {
     tenantName: string;
     tenantSlug: string;
@@ -176,6 +219,36 @@ export class TenantsService {
       name: tenant.name,
       slug: tenant.slug,
       status: tenant.status,
+      createdAt: tenant.createdAt.toISOString(),
+      updatedAt: tenant.updatedAt.toISOString(),
+    };
+  }
+
+  private toProfile(tenant: {
+    id: string;
+    name: string;
+    slug: string;
+    status: string;
+    phone: string | null;
+    email: string | null;
+    address: string | null;
+    city: string | null;
+    taxNumber: string | null;
+    website: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }) {
+    return {
+      id: tenant.id,
+      name: tenant.name,
+      slug: tenant.slug,
+      status: tenant.status,
+      phone: tenant.phone,
+      email: tenant.email,
+      address: tenant.address,
+      city: tenant.city,
+      taxNumber: tenant.taxNumber,
+      website: tenant.website,
       createdAt: tenant.createdAt.toISOString(),
       updatedAt: tenant.updatedAt.toISOString(),
     };

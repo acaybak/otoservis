@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { authApi, setToken, getToken, customerApi, vehicleApi, serviceOrderApi, accountingApi, reportingApi, adminApi, licenseApi } from './services/api';
+import { authApi, setToken, getToken, customerApi, vehicleApi, serviceOrderApi, accountingApi, reportingApi, adminApi, licenseApi, tenantApi, PORTAL_URL } from './services/api';
 
 // ============ TOAST NOTIFICATION ============
 interface Toast { id: number; message: string; type: 'success' | 'error' | 'info' }
@@ -16,10 +16,10 @@ function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ addToast }}>
       {children}
-      <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 'calc(100vw - 40px)' }}>
         {toasts.map(t => {
           const c = colors[t.type];
-          return <div key={t.id} style={{ background: c.bg, border: `1px solid ${c.border}`, color: c.text, padding: '14px 20px', borderRadius: 10, fontSize: 14, fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', animation: 'slideIn 0.3s ease', maxWidth: 360 }}>{t.type === 'success' ? '✓ ' : t.type === 'error' ? '✕ ' : 'ℹ '}{t.message}</div>;
+          return <div key={t.id} style={{ background: c.bg, border: `1px solid ${c.border}`, color: c.text, padding: '14px 20px', borderRadius: 10, fontSize: 14, fontWeight: 600, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', animation: 'slideIn 0.3s ease', maxWidth: 'calc(100vw - 40px)' }}>{t.type === 'success' ? '✓ ' : t.type === 'error' ? '✕ ' : 'ℹ '}{t.message}</div>;
         })}
       </div>
     </ToastContext.Provider>
@@ -27,11 +27,23 @@ function ToastProvider({ children }: { children: React.ReactNode }) {
 }
 function useToast() { return useContext(ToastContext); }
 
+// ============ RESPONSIVE (MOBILE) ============
+function useIsMobile(breakpoint = 900) {
+  const [isMobile, setIsMobile] = useState<boolean>(() => window.innerWidth < breakpoint);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener('resize', onResize);
+    onResize();
+    return () => window.removeEventListener('resize', onResize);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 // ============ STYLES ============
 const S = {
   page: { minHeight: '100vh', background: '#f1f5f9' } as React.CSSProperties,
-  loginWrap: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' } as React.CSSProperties,
-  loginCard: { background: 'white', borderRadius: 16, padding: 40, width: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' } as React.CSSProperties,
+  loginWrap: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' } as React.CSSProperties,
+  loginCard: { background: 'white', borderRadius: 16, padding: 'clamp(22px, 6vw, 40px)', width: '100%', maxWidth: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' } as React.CSSProperties,
   loginTitle: { fontSize: 28, fontWeight: 800, color: '#0f172a', marginBottom: 8, textAlign: 'center' as const } as React.CSSProperties,
   loginSub: { color: '#64748b', textAlign: 'center' as const, marginBottom: 32 } as React.CSSProperties,
   input: { width: '100%', padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 15, marginBottom: 16, outline: 'none' } as React.CSSProperties,
@@ -47,25 +59,25 @@ const S = {
   navItem: { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', color: '#94a3b8', textDecoration: 'none', fontSize: 14, fontWeight: 500, transition: 'all 0.2s', borderLeft: '3px solid transparent' } as React.CSSProperties,
   navItemActive: { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', color: 'white', textDecoration: 'none', fontSize: 14, fontWeight: 600, background: '#1e293b', borderLeft: '3px solid #2563eb' } as React.CSSProperties,
   main: { flex: 1, marginLeft: 240, padding: 32 } as React.CSSProperties,
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 } as React.CSSProperties,
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32, gap: 12, flexWrap: 'wrap' as const } as React.CSSProperties,
   pageTitle: { fontSize: 24, fontWeight: 700, color: '#0f172a' } as React.CSSProperties,
   card: { background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.08)', marginBottom: 20 } as React.CSSProperties,
-  statGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16, marginBottom: 24 } as React.CSSProperties,
+  statGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16, marginBottom: 24 } as React.CSSProperties,
   statCard: { background: 'white', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' } as React.CSSProperties,
   statLabel: { fontSize: 13, color: '#64748b', marginBottom: 4 } as React.CSSProperties,
-  statValue: { fontSize: 28, fontWeight: 700, color: '#0f172a' } as React.CSSProperties,
+  statValue: { fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 700, color: '#0f172a' } as React.CSSProperties,
   table: { width: '100%', borderCollapse: 'collapse' as const, fontSize: 14 } as React.CSSProperties,
   th: { textAlign: 'left' as const, padding: '12px 16px', borderBottom: '2px solid #e2e8f0', color: '#64748b', fontWeight: 600, fontSize: 12, textTransform: 'uppercase' as const } as React.CSSProperties,
   td: { padding: '12px 16px', borderBottom: '1px solid #f1f5f9' } as React.CSSProperties,
   badge: (color: string) => ({ display: 'inline-block', padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: color === 'green' ? '#f0fdf4' : color === 'red' ? '#fef2f2' : color === 'yellow' ? '#fefce8' : '#f0f9ff', color: color === 'green' ? '#16a34a' : color === 'red' ? '#dc2626' : color === 'yellow' ? '#ca8a04' : '#2563eb' }) as React.CSSProperties,
-  modal: { position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 } as React.CSSProperties,
-  modalContent: { background: 'white', borderRadius: 16, padding: 32, width: 500, maxHeight: '80vh', overflowY: 'auto' as const } as React.CSSProperties,
+  modal: { position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 1000 } as React.CSSProperties,
+  modalContent: { background: 'white', borderRadius: 16, padding: 32, width: 500, maxWidth: '94vw', maxHeight: '80vh', overflowY: 'auto' as const } as React.CSSProperties,
   modalTitle: { fontSize: 20, fontWeight: 700, marginBottom: 20 } as React.CSSProperties,
   formGroup: { marginBottom: 16 } as React.CSSProperties,
   label: { display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 6 } as React.CSSProperties,
   select: { width: '100%', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, outline: 'none' } as React.CSSProperties,
   toolbar: { display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' as const } as React.CSSProperties,
-  searchInput: { padding: '10px 16px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, width: 280, outline: 'none' } as React.CSSProperties,
+  searchInput: { padding: '10px 16px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, width: 280, maxWidth: '100%', outline: 'none' } as React.CSSProperties,
   empty: { textAlign: 'center' as const, padding: 40, color: '#94a3b8' } as React.CSSProperties,
 };
 
@@ -217,20 +229,20 @@ function RegisterPage({ onRegister, onSwitch }: { onRegister: (data: any) => Pro
 
   return (
     <div style={S.loginWrap}>
-      <div style={{ ...S.loginCard, width: 500 }}>
+      <div style={{ ...S.loginCard, maxWidth: 500 }}>
         <div style={S.loginTitle}>Hesap Oluştur</div>
         <div style={S.loginSub}>Servisinizi buluta taşıyın</div>
         {error && <div style={S.error}>{error}</div>}
         <form onSubmit={handleSubmit}>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8, marginTop: 4 }}>Firma Bilgileri</div>
           <input style={S.input} placeholder="Firma Adı *" value={tenantName} onChange={e => setTenantName(e.target.value)} required />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
             <input style={S.input} placeholder="Telefon" value={phone} onChange={e => setPhone(e.target.value)} />
             <input style={S.input} placeholder="Şehir" value={city} onChange={e => setCity(e.target.value)} />
           </div>
           <input style={S.input} placeholder="Adres" value={address} onChange={e => setAddress(e.target.value)} />
           <div style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8, marginTop: 12 }}>Hesap Bilgileri</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
             <input style={S.input} placeholder="Ad *" value={firstName} onChange={e => setFirstName(e.target.value)} required />
             <input style={S.input} placeholder="Soyad *" value={lastName} onChange={e => setLastName(e.target.value)} required />
           </div>
@@ -252,6 +264,9 @@ function RegisterPage({ onRegister, onSwitch }: { onRegister: (data: any) => Pro
 // ============ LAYOUT ============
 function Layout({ user, onLogout, children }: { user: User; onLogout: () => void; children: React.ReactNode }) {
   const location = useLocation();
+  const isMobile = useIsMobile();
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
   const navItems = [
     { path: '/', icon: '📊', label: 'Dashboard' },
     { path: '/customers', icon: '👥', label: 'Müşteriler' },
@@ -264,23 +279,35 @@ function Layout({ user, onLogout, children }: { user: User; onLogout: () => void
 
   return (
     <div style={S.layout}>
-      <aside style={S.sidebar}>
-        <div style={S.sidebarLogo}>OtoServis</div>
-        <nav>
-          {navItems.map(item => (
-            <Link key={item.path} to={item.path} style={location.pathname === item.path ? S.navItemActive : S.navItem}>
-              <span>{item.icon}</span>
-              <span>{item.label}</span>
-            </Link>
-          ))}
-        </nav>
-        <div style={{ padding: '20px', marginTop: 'auto', borderTop: '1px solid #1e293b', position: 'absolute', bottom: 0, width: 240 }}>
-          <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 4 }}>{user.firstName} {user.lastName}</div>
-          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>{user.email}</div>
-          <button onClick={onLogout} style={{ ...S.btnDanger, width: '100%', fontSize: 13 }}>Çıkış Yap</button>
+      {isMobile && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 60, background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', zIndex: 130 }}>
+          <button onClick={() => setMenuOpen(true)} style={{ border: 'none', background: '#f1f5f9', borderRadius: 10, width: 42, height: 42, fontSize: 20, cursor: 'pointer' }}>☰</button>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>OtoServis</div>
+          <div style={{ width: 42 }} />
         </div>
-      </aside>
-      <main style={S.main}>{children}</main>
+      )}
+      {(!isMobile || menuOpen) && (
+        <>
+          {isMobile && <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 125 }} />}
+          <aside style={{ ...S.sidebar, left: 0, zIndex: 130, boxShadow: isMobile ? '0 0 40px rgba(0,0,0,0.35)' : 'none' }}>
+            <div style={S.sidebarLogo}>OtoServis</div>
+            <nav>
+              {navItems.map(item => (
+                <Link key={item.path} to={item.path} style={location.pathname === item.path ? S.navItemActive : S.navItem} onClick={() => setMenuOpen(false)}>
+                  <span>{item.icon}</span>
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </nav>
+            <div style={{ padding: '20px', marginTop: 'auto', borderTop: '1px solid #1e293b', position: 'absolute', bottom: 0, width: 240 }}>
+              <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 4 }}>{user.firstName} {user.lastName}</div>
+              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>{user.email}</div>
+              <button onClick={onLogout} style={{ ...S.btnDanger, width: '100%', fontSize: 13 }}>Çıkış Yap</button>
+            </div>
+          </aside>
+        </>
+      )}
+      <main style={isMobile ? { ...S.main, marginLeft: 0, padding: '80px 16px 32px' } : S.main}>{children}</main>
     </div>
   );
 }
@@ -508,11 +535,11 @@ function VehiclesPage({ tenantId }: { tenantId: string }) {
           <div style={S.modalContent} onClick={e => e.stopPropagation()}>
             <div style={S.modalTitle}>Yeni Araç</div>
             <div style={S.formGroup}><label style={S.label}>Plaka</label><input style={S.input} value={form.plate} onChange={e => setForm({ ...form, plate: e.target.value })} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
               <div style={S.formGroup}><label style={S.label}>Marka</label><input style={S.input} value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} /></div>
               <div style={S.formGroup}><label style={S.label}>Model</label><input style={S.input} value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} /></div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
               <div style={S.formGroup}><label style={S.label}>Yıl</label><input style={S.input} type="number" value={form.year} onChange={e => setForm({ ...form, year: e.target.value })} /></div>
               <div style={S.formGroup}><label style={S.label}>Renk</label><input style={S.input} value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} /></div>
             </div>
@@ -625,7 +652,7 @@ function ServiceOrdersPage({ tenantId }: { tenantId: string }) {
               </select>
             </div>
             <div style={S.formGroup}><label style={S.label}>Açıklama</label><input style={S.input} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
               <div style={S.formGroup}><label style={S.label}>Toplam Tutar</label><input style={S.input} type="number" value={form.totalAmount} onChange={e => setForm({ ...form, totalAmount: e.target.value })} /></div>
               <div style={S.formGroup}><label style={S.label}>İşçilik</label><input style={S.input} type="number" value={form.laborAmount} onChange={e => setForm({ ...form, laborAmount: e.target.value })} /></div>
               <div style={S.formGroup}><label style={S.label}>Parça</label><input style={S.input} type="number" value={form.partsAmount} onChange={e => setForm({ ...form, partsAmount: e.target.value })} /></div>
@@ -778,16 +805,116 @@ function FinancialPage({ tenantId }: { tenantId: string }) {
 
 // ============ SETTINGS PAGE ============
 function SettingsPage({ user }: { user: User }) {
+  const { addToast } = useToast();
+  const [profile, setProfile] = useState<any>(null);
+  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', city: '', website: '' });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    tenantApi.getMe()
+      .then((t: any) => {
+        setProfile(t);
+        setForm({ name: t.name || '', phone: t.phone || '', email: t.email || '', address: t.address || '', city: t.city || '', website: t.website || '' });
+      })
+      .catch((e: any) => addToast(e.message || 'Firma bilgileri yüklenemedi', 'error'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const setField = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const t = await tenantApi.updateMe(form);
+      setProfile(t);
+      setForm(prev => ({ ...prev, website: t.website || '' }));
+      addToast('Firma bilgileri kaydedildi', 'success');
+    } catch (e: any) {
+      addToast(e.message || 'Kaydedilemedi', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCopy = async (text: string) => {
+    try { await navigator.clipboard.writeText(text); addToast('Link kopyalandı', 'success'); }
+    catch { addToast('Link kopyalanamadı', 'error'); }
+  };
+
+  const slug = profile?.slug || '';
+  const links = slug ? [
+    { icon: '📅', title: 'Online Randevu Linki', desc: 'Müşterileriniz bu link üzerinden online randevu alabilir.', url: `${PORTAL_URL}/${slug}/appointment` },
+    { icon: '🚗', title: 'Araç Sorgu Linki', desc: 'Müşterileriniz plaka girerek araç bakım geçmişini görüntüleyebilir.', url: `${PORTAL_URL}/${slug}` },
+  ] : [];
+
   return (
     <div>
       <div style={S.header}><h1 style={S.pageTitle}>Ayarlar</h1></div>
+
       <div style={S.card}>
         <h3 style={{ marginBottom: 16, fontWeight: 600 }}>Firma Bilgileri</h3>
+        {loading ? <div style={S.empty}>Yükleniyor...</div> : (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+              <div style={S.formGroup}>
+                <label style={S.label}>Firma Adı</label>
+                <input style={{ ...S.input, marginBottom: 0 }} value={form.name} onChange={e => setField('name', e.target.value)} placeholder="Oto Servis Adı" />
+              </div>
+              <div style={S.formGroup}>
+                <label style={S.label}>Telefon</label>
+                <input style={{ ...S.input, marginBottom: 0 }} value={form.phone} onChange={e => setField('phone', e.target.value)} placeholder="0555 123 45 67" />
+              </div>
+              <div style={S.formGroup}>
+                <label style={S.label}>E-posta</label>
+                <input style={{ ...S.input, marginBottom: 0 }} value={form.email} onChange={e => setField('email', e.target.value)} placeholder="firma@email.com" />
+              </div>
+              <div style={S.formGroup}>
+                <label style={S.label}>Şehir</label>
+                <input style={{ ...S.input, marginBottom: 0 }} value={form.city} onChange={e => setField('city', e.target.value)} placeholder="İzmir" />
+              </div>
+              <div style={S.formGroup}>
+                <label style={S.label}>Web Sitesi</label>
+                <input style={{ ...S.input, marginBottom: 0 }} value={form.website} onChange={e => setField('website', e.target.value)} placeholder="www.siteniz.com" />
+              </div>
+              <div style={S.formGroup}>
+                <label style={S.label}>Adres</label>
+                <input style={{ ...S.input, marginBottom: 0 }} value={form.address} onChange={e => setField('address', e.target.value)} placeholder="Mahalle, sokak, no..." />
+              </div>
+            </div>
+            <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <button onClick={handleSave} disabled={saving} style={{ ...S.btnPrimary, width: 'auto', padding: '12px 28px', opacity: saving ? 0.7 : 1 }}>{saving ? 'Kaydediliyor...' : 'Kaydet'}</button>
+              <span style={{ fontSize: 13, color: '#64748b' }}>Web sitesi adresiniz, müşteri portalındaki firma sayfanızda görünür.</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div style={S.card}>
+        <h3 style={{ marginBottom: 6, fontWeight: 600 }}>Müşteri Linkleriniz</h3>
+        <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>Bu linkleri müşterilerinizle SMS, WhatsApp veya sosyal medya üzerinden paylaşabilirsiniz.</p>
+        {loading ? <div style={S.empty}>Yükleniyor...</div> : links.length === 0 ? (
+          <div style={S.empty}>Link oluşturulamadı — firma bilgileri yüklenemedi.</div>
+        ) : links.map(l => (
+          <div key={l.title} style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{l.icon} {l.title}</div>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>{l.desc}</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <code style={{ flex: '1 1 320px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 14px', fontSize: 13, wordBreak: 'break-all' }}>{l.url}</code>
+              <button onClick={() => handleCopy(l.url)} style={S.btnSecondary}>📋 Kopyala</button>
+              <a href={l.url} target="_blank" rel="noreferrer" style={{ ...S.btnSuccess, textDecoration: 'none', display: 'inline-block' }}>Aç ↗</a>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={S.card}>
+        <h3 style={{ marginBottom: 16, fontWeight: 600 }}>Hesap Bilgileri</h3>
         <div style={{ display: 'grid', gap: 12 }}>
           <div><strong>E-posta:</strong> {user.email}</div>
           <div><strong>Ad Soyad:</strong> {user.firstName} {user.lastName}</div>
           <div><strong>Rol:</strong> {user.roles?.map((r: any) => r.name).join(', ') || 'Admin'}</div>
-          <div><strong>Tenant ID:</strong> {user.tenantId}</div>
+          {slug && <div><strong>Firma Kodu:</strong> {slug}</div>}
         </div>
       </div>
     </div>
@@ -796,17 +923,18 @@ function SettingsPage({ user }: { user: User }) {
 
 // ============ DOWNLOAD PAGE ============
 function DownloadPage({ onBack }: { onBack: () => void }) {
+  const isMobile = useIsMobile();
   return (
     <div style={{ minHeight: '100vh', background: '#ffffff' }}>
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 48px', maxWidth: 1280, margin: '0 auto', borderBottom: '1px solid #f1f5f9' }}>
-        <img src="/logo.png" alt="OtoServis" style={{ height: 40, cursor: 'pointer' }} onClick={onBack} />
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: isMobile ? '12px 16px' : '16px 48px', maxWidth: 1280, margin: '0 auto', borderBottom: '1px solid #f1f5f9' }}>
+        <img src="/logo.png" alt="OtoServis" style={{ height: isMobile ? 32 : 40, cursor: 'pointer' }} onClick={onBack} />
         <button onClick={onBack} style={{ padding: '9px 18px', background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>← Geri</button>
       </nav>
-      <div style={{ maxWidth: 680, margin: '0 auto', padding: '80px 40px', textAlign: 'center' as const }}>
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: isMobile ? '40px 16px' : '80px 40px', textAlign: 'center' as const }}>
         <div style={{ display: 'inline-block', padding: '6px 16px', background: '#eff6ff', color: '#2563eb', borderRadius: 20, fontSize: 13, fontWeight: 600, marginBottom: 24 }}>Desktop Uygulaması</div>
-        <h1 style={{ fontSize: 44, fontWeight: 800, color: '#0f172a', marginBottom: 16, letterSpacing: -0.5 }}>OtoServis Desktop</h1>
-        <p style={{ fontSize: 18, color: '#64748b', marginBottom: 48, lineHeight: 1.7 }}>Windows için masaüstü uygulamasını indirin.<br />Yönetici izni gerekmeden birkaç dakikada kurulur.</p>
-        <div style={{ background: '#fafbfc', borderRadius: 20, padding: 40, marginBottom: 48, border: '1px solid #f1f5f9' }}>
+        <h1 style={{ fontSize: isMobile ? 30 : 44, fontWeight: 800, color: '#0f172a', marginBottom: 16, letterSpacing: -0.5 }}>OtoServis Desktop</h1>
+        <p style={{ fontSize: isMobile ? 15 : 18, color: '#64748b', marginBottom: isMobile ? 28 : 48, lineHeight: 1.7 }}>Windows için masaüstü uygulamasını indirin.<br />Yönetici izni gerekmeden birkaç dakikada kurulur.</p>
+        <div style={{ background: '#fafbfc', borderRadius: 20, padding: isMobile ? 20 : 40, marginBottom: 48, border: '1px solid #f1f5f9' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 28 }}>
             <div style={{ width: 56, height: 56, borderRadius: 14, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>🪟</div>
             <div style={{ textAlign: 'left' as const }}>
@@ -817,7 +945,7 @@ function DownloadPage({ onBack }: { onBack: () => void }) {
           <a href="https://github.com/acaybak/otoservis/releases/latest/download/OtoServis-Setup.exe" download style={{ display: 'inline-block', padding: '16px 56px', background: '#2563eb', color: 'white', borderRadius: 10, fontSize: 17, fontWeight: 700, textDecoration: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.3)' }}>İndir</a>
           <p style={{ color: '#94a3b8', fontSize: 12, marginTop: 16 }}>v0.1.2 • Otomatik güncelleme destekli</p>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, textAlign: 'center' as const }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, textAlign: 'center' as const }}>
           {[
             { icon: '🔑', title: 'Lisans Sistemi', desc: 'Aktivasyon anahtarı ile güvenli kullanım', color: '#2563eb' },
             { icon: '📡', title: 'Offline + Online', desc: 'İnternet olmadan da çalışır, bulut senkronizasyon', color: '#059669' },
@@ -846,6 +974,7 @@ function DownloadPage({ onBack }: { onBack: () => void }) {
 
 // ============ PRICING PAGE ============
 function PricingPage({ onBack, onGetStarted }: { onBack: () => void; onGetStarted: () => void }) {
+  const isMobile = useIsMobile();
   const plans = [
     {
       name: 'Başlangıç',
@@ -872,18 +1001,18 @@ function PricingPage({ onBack, onGetStarted }: { onBack: () => void; onGetStarte
 
   return (
     <div style={{ minHeight: '100vh', background: '#ffffff' }}>
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 48px', maxWidth: 1280, margin: '0 auto', borderBottom: '1px solid #f1f5f9' }}>
-        <img src="/logo.png" alt="OtoServis" style={{ height: 40, cursor: 'pointer' }} onClick={onBack} />
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: isMobile ? '12px 16px' : '16px 48px', maxWidth: 1280, margin: '0 auto', borderBottom: '1px solid #f1f5f9' }}>
+        <img src="/logo.png" alt="OtoServis" style={{ height: isMobile ? 32 : 40, cursor: 'pointer' }} onClick={onBack} />
         <button onClick={onBack} style={{ padding: '9px 18px', background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>← Geri</button>
       </nav>
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '80px 48px' }}>
-        <div style={{ textAlign: 'center' as const, marginBottom: 64 }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '40px 16px' : '80px 48px' }}>
+        <div style={{ textAlign: 'center' as const, marginBottom: isMobile ? 40 : 64 }}>
           <div style={{ display: 'inline-block', padding: '6px 16px', background: '#eff6ff', color: '#2563eb', borderRadius: 20, fontSize: 13, fontWeight: 600, marginBottom: 20 }}>Fiyatlandırma</div>
-          <h1 style={{ fontSize: 48, fontWeight: 800, color: '#0f172a', marginBottom: 16, letterSpacing: -0.5 }}>İhtiyacınıza uygun plan</h1>
-          <p style={{ fontSize: 18, color: '#64748b', maxWidth: 500, margin: '0 auto' }}>Tüm planlar 7 gün ücretsiz deneme içerir. Kredi kartı gerekmez.</p>
+          <h1 style={{ fontSize: isMobile ? 30 : 48, fontWeight: 800, color: '#0f172a', marginBottom: 16, letterSpacing: -0.5 }}>İhtiyacınıza uygun plan</h1>
+          <p style={{ fontSize: isMobile ? 15 : 18, color: '#64748b', maxWidth: 500, margin: '0 auto' }}>Tüm planlar 7 gün ücretsiz deneme içerir. Kredi kartı gerekmez.</p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, alignItems: 'stretch' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24, alignItems: 'stretch' }}>
           {plans.map((plan, i) => (
             <div key={i} style={{
               background: plan.popular ? '#ffffff' : '#fafbfc',
@@ -937,9 +1066,9 @@ function PricingPage({ onBack, onGetStarted }: { onBack: () => void; onGetStarte
         </div>
 
         {/* FAQ */}
-        <div style={{ marginTop: 80, textAlign: 'center' as const }}>
-          <h2 style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', marginBottom: 32 }}>Sıkça Sorulan Sorular</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, maxWidth: 800, margin: '0 auto', textAlign: 'left' as const }}>
+        <div style={{ marginTop: isMobile ? 48 : 80, textAlign: 'center' as const }}>
+          <h2 style={{ fontSize: isMobile ? 24 : 28, fontWeight: 800, color: '#0f172a', marginBottom: 32 }}>Sıkça Sorulan Sorular</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, maxWidth: 800, margin: '0 auto', textAlign: 'left' as const }}>
             {[
               { q: 'Ücretsiz deneme süresi ne kadar?', a: 'Tüm planlar 7 gün ücretsiz deneme içerir. Kredi kartı gerekmez.' },
               { q: 'Yıllık ödeme zorunlu mu?', a: 'Hayır, aylık ödeme de yapabilirsiniz. Yıllık ödemede 2 ay bedava.' },
@@ -963,6 +1092,7 @@ function PricingPage({ onBack, onGetStarted }: { onBack: () => void; onGetStarte
 
 // ============ LANDING PAGE ============
 function LandingPage({ onGetStarted, onLogin }: { onGetStarted: () => void; onLogin: () => void }) {
+  const isMobile = useIsMobile();
   const [showDownload, setShowDownload] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
 
@@ -972,30 +1102,34 @@ function LandingPage({ onGetStarted, onLogin }: { onGetStarted: () => void; onLo
   return (
     <div style={{ minHeight: '100vh', background: '#ffffff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
       {/* Nav */}
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 48px', maxWidth: 1280, margin: '0 auto', borderBottom: '1px solid #f1f5f9' }}>
-        <img src="/logo.png" alt="OtoServis" style={{ height: 40, cursor: 'pointer' }} />
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button onClick={() => setShowPricing(true)} style={{ padding: '9px 18px', background: 'transparent', color: '#475569', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Fiyatlar</button>
-          <button onClick={() => setShowDownload(true)} style={{ padding: '9px 18px', background: 'transparent', color: '#475569', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>İndir</button>
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: isMobile ? '12px 16px' : '16px 48px', maxWidth: 1280, margin: '0 auto', borderBottom: '1px solid #f1f5f9' }}>
+        <img src="/logo.png" alt="OtoServis" style={{ height: isMobile ? 32 : 40, cursor: 'pointer' }} />
+        <div style={{ display: 'flex', gap: isMobile ? 8 : 12, alignItems: 'center' }}>
+          {!isMobile && (
+            <>
+              <button onClick={() => setShowPricing(true)} style={{ padding: '9px 18px', background: 'transparent', color: '#475569', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Fiyatlar</button>
+              <button onClick={() => setShowDownload(true)} style={{ padding: '9px 18px', background: 'transparent', color: '#475569', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>İndir</button>
+            </>
+          )}
           <button onClick={onLogin} style={{ padding: '9px 18px', background: '#f8fafc', color: '#334155', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Giriş Yap</button>
           <button onClick={onGetStarted} style={{ padding: '9px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Ücretsiz Dene</button>
         </div>
       </nav>
 
       {/* Hero */}
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '100px 48px 80px', textAlign: 'center' as const }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '48px 16px 40px' : '100px 48px 80px', textAlign: 'center' as const }}>
         <div style={{ display: 'inline-block', padding: '6px 16px', background: '#eff6ff', color: '#2563eb', borderRadius: 20, fontSize: 13, fontWeight: 600, marginBottom: 24 }}>Oto Servis Yönetim Platformu</div>
-        <h1 style={{ fontSize: 64, fontWeight: 800, color: '#0f172a', lineHeight: 1.1, marginBottom: 24, letterSpacing: -1 }}>
+        <h1 style={{ fontSize: isMobile ? 34 : 64, fontWeight: 800, color: '#0f172a', lineHeight: 1.15, marginBottom: 24, letterSpacing: isMobile ? -0.5 : -1 }}>
           Servisinizi <span style={{ color: '#2563eb' }}>Buluta</span> Taşıyın
         </h1>
-        <p style={{ fontSize: 20, color: '#64748b', maxWidth: 580, margin: '0 auto 48px', lineHeight: 1.7 }}>Müşteri yönetimi, servis siparişleri, stok takibi ve ön muhasebe. Hepsi tek platformda, tek fiyatla.</p>
-        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginBottom: 100 }}>
+        <p style={{ fontSize: isMobile ? 16 : 20, color: '#64748b', maxWidth: 580, margin: isMobile ? '0 auto 32px' : '0 auto 48px', lineHeight: 1.7 }}>Müşteri yönetimi, servis siparişleri, stok takibi ve ön muhasebe. Hepsi tek platformda, tek fiyatla.</p>
+        <div style={{ display: 'flex', gap: isMobile ? 12 : 16, justifyContent: 'center', flexWrap: 'wrap' as const, marginBottom: isMobile ? 48 : 100 }}>
           <button onClick={onGetStarted} style={{ padding: '16px 36px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 10, fontSize: 17, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.3)' }}>Hemen Başla →</button>
           <button onClick={onLogin} style={{ padding: '16px 36px', background: 'white', color: '#334155', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 17, fontWeight: 600, cursor: 'pointer' }}>Demo İzle</button>
         </div>
 
         {/* Features */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, maxWidth: 1000, margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 24, maxWidth: 1000, margin: '0 auto' }}>
           {[
             { icon: '👥', title: 'Müşteri Yönetimi', desc: 'Müşteri bilgileri, araç geçmişi ve iletişim tek yerde', color: '#2563eb' },
             { icon: '🔧', title: 'Servis Siparişleri', desc: 'İş emirleri, parça takibi ve işçilik yönetimi', color: '#7c3aed' },
@@ -1014,8 +1148,8 @@ function LandingPage({ onGetStarted, onLogin }: { onGetStarted: () => void; onLo
       </div>
 
       {/* Stats Bar */}
-      <div style={{ background: '#f8fafc', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9', padding: '48px 48px' }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 32, textAlign: 'center' as const }}>
+      <div style={{ background: '#f8fafc', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9', padding: isMobile ? '32px 16px' : '48px 48px' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: isMobile ? 20 : 32, textAlign: 'center' as const }}>
           {[
             { val: '7', label: 'Gün Ücretsiz Deneme' },
             { val: '%99.9', label: 'Çalışma Süresi' },
@@ -1031,9 +1165,9 @@ function LandingPage({ onGetStarted, onLogin }: { onGetStarted: () => void; onLo
       </div>
 
       {/* CTA */}
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '80px 48px', textAlign: 'center' as const }}>
-        <h2 style={{ fontSize: 36, fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>Hemen başlayın</h2>
-        <p style={{ fontSize: 18, color: '#64748b', marginBottom: 36, maxWidth: 500, margin: '0 auto 36px' }}>7 gün ücretsiz deneme. Kredi kartı gerekmez.</p>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '48px 16px' : '80px 48px', textAlign: 'center' as const }}>
+        <h2 style={{ fontSize: isMobile ? 26 : 36, fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>Hemen başlayın</h2>
+        <p style={{ fontSize: isMobile ? 16 : 18, color: '#64748b', marginBottom: 36, maxWidth: 500, margin: '0 auto 36px' }}>7 gün ücretsiz deneme. Kredi kartı gerekmez.</p>
         <button onClick={onGetStarted} style={{ padding: '16px 48px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 10, fontSize: 17, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.3)' }}>Ücretsiz Hesap Oluştur →</button>
       </div>
 
@@ -1056,11 +1190,11 @@ const AdminStyles = {
   sidebarNav: { flex: 1, padding: '16px 12px' } as React.CSSProperties,
   navItem: (active: boolean) => ({ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 8, background: active ? '#2563eb' : 'transparent', color: active ? 'white' : '#94a3b8', fontSize: 14, fontWeight: active ? 600 : 500, cursor: 'pointer', marginBottom: 4, transition: 'all 0.2s', border: 'none', width: '100%', textAlign: 'left' as const }),
   main: { flex: 1, marginLeft: 260, padding: '24px 32px' } as React.CSSProperties,
-  pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 } as React.CSSProperties,
+  pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, gap: 12, flexWrap: 'wrap' as const } as React.CSSProperties,
   pageTitle: { fontSize: 24, fontWeight: 700, color: '#0f172a', margin: 0 } as React.CSSProperties,
   statCard: (color: string) => ({ background: 'white', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.08)', borderLeft: `4px solid ${color}` } as React.CSSProperties),
   statLabel: { fontSize: 13, color: '#64748b', marginBottom: 4 } as React.CSSProperties,
-  statValue: { fontSize: 28, fontWeight: 700, color: '#0f172a' } as React.CSSProperties,
+  statValue: { fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 700, color: '#0f172a' } as React.CSSProperties,
   card: { background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.08)', marginBottom: 20 } as React.CSSProperties,
   table: { width: '100%', borderCollapse: 'collapse' as const, fontSize: 14 },
   th: { textAlign: 'left' as const, padding: '12px 16px', borderBottom: '2px solid #e2e8f0', color: '#64748b', fontWeight: 600, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
@@ -1088,7 +1222,7 @@ const AdminStyles = {
   input: { width: '100%', padding: '10px 14px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' as const } as React.CSSProperties,
   select: { padding: '10px 14px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, outline: 'none' } as React.CSSProperties,
   label: { display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 6 } as React.CSSProperties,
-  modal: { position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  modal: { position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 1000 },
   modalContent: { background: 'white', borderRadius: 16, padding: 32, width: 600, maxWidth: '90vw', maxHeight: '85vh', overflowY: 'auto' as const, boxShadow: '0 25px 50px rgba(0,0,0,0.25)' } as React.CSSProperties,
 };
 
@@ -1110,6 +1244,8 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
   const [showCreateKeys, setShowCreateKeys] = useState(false);
   const [keyForm, setKeyForm] = useState({ count: 5, planType: 'STANDARD', maxUsers: 3, duration: 365, note: '' });
   const [keysLoading, setKeysLoading] = useState(false);
+  const isMobile = useIsMobile();
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
 
   useEffect(() => {
     Promise.all([adminApi.getStats(), adminApi.getTenants()])
@@ -1199,39 +1335,51 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
 
   return (
     <div style={AdminStyles.container}>
+      {/* Mobil üst bar */}
+      {isMobile && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 56, background: 'linear-gradient(90deg, #0f172a 0%, #1e293b 100%)', color: 'white', display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', zIndex: 130 }}>
+          <button onClick={() => setAdminMenuOpen(true)} aria-label="Menü" style={{ width: 40, height: 40, borderRadius: 10, border: 'none', background: 'rgba(255,255,255,0.12)', color: 'white', fontSize: 20, cursor: 'pointer' }}>☰</button>
+          <span style={{ fontSize: 16, fontWeight: 700 }}>Süper Admin</span>
+        </div>
+      )}
       {/* Sidebar */}
-      <div style={AdminStyles.sidebar}>
-        <div style={AdminStyles.sidebarHeader}>
-          <div style={AdminStyles.sidebarLogo}>OtoServis</div>
-          <div style={AdminStyles.sidebarSub}>Süper Admin Paneli</div>
-        </div>
-        <div style={AdminStyles.sidebarNav}>
-          <button style={AdminStyles.navItem(adminView === 'dashboard')} onClick={() => setAdminView('dashboard')}>
-            <span>📊</span> Dashboard
-          </button>
-          <button style={AdminStyles.navItem(adminView === 'tenants')} onClick={() => setAdminView('tenants')}>
-            <span>🏢</span> Servisler
-          </button>
-          <button style={AdminStyles.navItem(adminView === 'licenses')} onClick={() => { setAdminView('licenses'); loadLicenses(); }}>
-            <span>🔑</span> Lisanslar
-          </button>
-        </div>
-        <div style={{ padding: '16px 12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-          <button style={AdminStyles.navItem(false)} onClick={onBack}>
-            <span>←</span> Panele Dön
-          </button>
-        </div>
-      </div>
+      {(!isMobile || adminMenuOpen) && (
+        <>
+          {isMobile && <div onClick={() => setAdminMenuOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 125 }} />}
+          <div style={{ ...AdminStyles.sidebar, zIndex: 130, boxShadow: isMobile ? '0 0 40px rgba(0,0,0,0.4)' : 'none' }}>
+            <div style={AdminStyles.sidebarHeader}>
+              <div style={AdminStyles.sidebarLogo}>OtoServis</div>
+              <div style={AdminStyles.sidebarSub}>Süper Admin Paneli</div>
+            </div>
+            <div style={AdminStyles.sidebarNav}>
+              <button style={AdminStyles.navItem(adminView === 'dashboard')} onClick={() => { setAdminView('dashboard'); setAdminMenuOpen(false); }}>
+                <span>📊</span> Dashboard
+              </button>
+              <button style={AdminStyles.navItem(adminView === 'tenants')} onClick={() => { setAdminView('tenants'); setAdminMenuOpen(false); }}>
+                <span>🏢</span> Servisler
+              </button>
+              <button style={AdminStyles.navItem(adminView === 'licenses')} onClick={() => { setAdminView('licenses'); loadLicenses(); setAdminMenuOpen(false); }}>
+                <span>🔑</span> Lisanslar
+              </button>
+            </div>
+            <div style={{ padding: '16px 12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <button style={AdminStyles.navItem(false)} onClick={onBack}>
+                <span>←</span> Panele Dön
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Main Content */}
-      <div style={AdminStyles.main}>
+      <div style={isMobile ? { ...AdminStyles.main, marginLeft: 0, padding: '72px 16px 24px' } : AdminStyles.main}>
         {/* Dashboard View */}
         {adminView === 'dashboard' && (
           <>
             <div style={AdminStyles.pageHeader}>
               <h1 style={AdminStyles.pageTitle}>Dashboard</h1>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 16, marginBottom: 24 }}>
               <div style={AdminStyles.statCard('#2563eb')}>
                 <div style={AdminStyles.statLabel}>Toplam Servis</div>
                 <div style={AdminStyles.statValue}>{stats?.tenantCount || 0}</div>
@@ -1344,7 +1492,7 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
             {showCreateKeys && (
               <div style={{ ...AdminStyles.card, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                 <h4 style={{ margin: '0 0 16px', fontWeight: 600 }}>Yeni Lisans Anahtarı Oluştur</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
                   <div><label style={AdminStyles.label}>Adet</label><input style={AdminStyles.input} type="number" value={keyForm.count} onChange={e => setKeyForm({ ...keyForm, count: parseInt(e.target.value) || 1 })} /></div>
                   <div><label style={AdminStyles.label}>Plan</label><select style={{ ...AdminStyles.select, width: '100%' }} value={keyForm.planType} onChange={e => setKeyForm({ ...keyForm, planType: e.target.value })}><option value="STANDARD">Standard</option><option value="PROFESSIONAL">Professional</option><option value="ENTERPRISE">Enterprise</option></select></div>
                   <div><label style={AdminStyles.label}>Max Kullanıcı</label><input style={AdminStyles.input} type="number" value={keyForm.maxUsers} onChange={e => setKeyForm({ ...keyForm, maxUsers: parseInt(e.target.value) || 1 })} /></div>
@@ -1435,7 +1583,7 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{selectedTenant.name}</h2>
               <button style={AdminStyles.btnSecondary} onClick={() => setSelectedTenant(null)}>✕</button>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid #e2e8f0', paddingBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid #e2e8f0', paddingBottom: 8, flexWrap: 'wrap' as const }}>
               <button style={{ ...AdminStyles.btnSecondary, background: activeTab === 'overview' ? '#2563eb' : 'transparent', color: activeTab === 'overview' ? 'white' : '#475569', border: 'none' }} onClick={() => handleTabChange('overview')}>Genel Bakış</button>
               <button style={{ ...AdminStyles.btnSecondary, background: activeTab === 'customers' ? '#2563eb' : 'transparent', color: activeTab === 'customers' ? 'white' : '#475569', border: 'none' }} onClick={() => handleTabChange('customers')}>Müşteriler</button>
               <button style={{ ...AdminStyles.btnSecondary, background: activeTab === 'vehicles' ? '#2563eb' : 'transparent', color: activeTab === 'vehicles' ? 'white' : '#475569', border: 'none' }} onClick={() => handleTabChange('vehicles')}>Araçlar</button>
@@ -1448,7 +1596,7 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                 {/* Contact Info Section */}
                 <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: 16, marginBottom: 20 }}>
                   <h4 style={{ margin: '0 0 12px', color: '#0369a1', fontSize: 14 }}>📞 İletişim Bilgileri</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
                     <div>
                       <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Telefon</div>
                       <div style={{ fontSize: 14, fontWeight: 600 }}>{selectedTenant.phone || <span style={{ color: '#94a3b8', fontWeight: 400 }}>Belirtilmemiş</span>}</div>
@@ -1461,7 +1609,7 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                       <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Web Sitesi</div>
                       <div style={{ fontSize: 14, fontWeight: 600 }}>{selectedTenant.website || <span style={{ color: '#94a3b8', fontWeight: 400 }}>Belirtilmemiş</span>}</div>
                     </div>
-                    <div style={{ gridColumn: 'span 3' }}>
+                    <div style={{ gridColumn: '1 / -1' }}>
                       <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Adres</div>
                       <div style={{ fontSize: 14, fontWeight: 600 }}>{selectedTenant.address || <span style={{ color: '#94a3b8', fontWeight: 400 }}>Belirtilmemiş</span>}</div>
                     </div>
@@ -1475,7 +1623,7 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 20 }}>
                   <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8 }}><strong>Slug:</strong> {selectedTenant.slug}</div>
                   <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8 }}>
                     <strong>Durum:</strong>{' '}
@@ -1488,7 +1636,7 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                   <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8 }}><strong>Kayıt:</strong> {new Date(selectedTenant.createdAt).toLocaleDateString('tr-TR')}</div>
                   <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8 }}><strong>ID:</strong> <span style={{ fontSize: 11, fontFamily: 'monospace' }}>{selectedTenant.id}</span></div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
                   <div style={AdminStyles.statCard('#8b5cf6')}><div style={AdminStyles.statLabel}>Kullanıcı</div><div style={{ ...AdminStyles.statValue, fontSize: 24 }}>{selectedTenant.stats?.userCount || 0}</div></div>
                   <div style={AdminStyles.statCard('#f59e0b')}><div style={AdminStyles.statLabel}>Müşteri</div><div style={{ ...AdminStyles.statValue, fontSize: 24 }}>{selectedTenant.stats?.customerCount || 0}</div></div>
                   <div style={AdminStyles.statCard('#ec4899')}><div style={AdminStyles.statLabel}>Araç</div><div style={{ ...AdminStyles.statValue, fontSize: 24 }}>{selectedTenant.stats?.vehicleCount || 0}</div></div>
@@ -1586,7 +1734,7 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                   <div style={{ background: '#f8fafc', borderRadius: 8, padding: 16, marginBottom: 16, border: '1px solid #e2e8f0' }}>
                     <h4 style={{ margin: '0 0 12px' }}>Yeni Kullanıcı</h4>
                     {addError && <div style={{ background: '#fef2f2', color: '#dc2626', padding: 10, borderRadius: 6, marginBottom: 12, fontSize: 13 }}>{addError}</div>}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
                       <input style={AdminStyles.input} placeholder="Ad" value={newUser.firstName} onChange={e => setNewUser({ ...newUser, firstName: e.target.value })} />
                       <input style={AdminStyles.input} placeholder="Soyad" value={newUser.lastName} onChange={e => setNewUser({ ...newUser, lastName: e.target.value })} />
                       <input style={AdminStyles.input} placeholder="E-posta" type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} />

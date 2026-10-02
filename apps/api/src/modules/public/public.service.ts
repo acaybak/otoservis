@@ -19,6 +19,11 @@ export class PublicService {
         id: true,
         name: true,
         slug: true,
+        phone: true,
+        email: true,
+        address: true,
+        city: true,
+        website: true,
       },
     });
 
@@ -45,8 +50,10 @@ export class PublicService {
       slug: tenant.slug || tenantSlug,
       logo: settingsMap.logo || null,
       primaryColor: settingsMap.primaryColor || '#3b82f6',
-      phone: settingsMap.phone || null,
-      address: settingsMap.address || null,
+      phone: settingsMap.phone || tenant.phone || null,
+      address: settingsMap.address || tenant.address || null,
+      city: tenant.city || null,
+      website: tenant.website || null,
     };
   }
 
@@ -60,7 +67,7 @@ export class PublicService {
           { slug: tenantSlug },
         ],
       },
-      select: { id: true, name: true },
+      select: { id: true, name: true, website: true, phone: true },
     });
 
     if (!tenant) return null;
@@ -183,6 +190,8 @@ export class PublicService {
       tenant: {
         id: tenant.id,
         name: tenant.name,
+        website: tenant.website || null,
+        phone: tenant.phone || null,
       },
       vehicle,
       maintenanceRecords,

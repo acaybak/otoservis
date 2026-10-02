@@ -13,7 +13,9 @@ import { TenantsService } from './tenants.service';
 import { Public } from '../../common/decorators/public.decorator';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { createTenantSchema, updateTenantSchema, tenantSetupSchema } from '@otoservis/validation';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { createTenantSchema, updateTenantSchema, tenantSetupSchema, updateTenantProfileSchema } from '@otoservis/validation';
+import type { JwtPayload } from '@otoservis/types';
 
 @Controller('tenants')
 @UseGuards(PermissionsGuard)
@@ -42,6 +44,20 @@ export class TenantsController {
     return this.tenantsService.findAll();
   }
 
+  // Current user's own tenant profile (any authenticated user)
+  @Get('me')
+  async findMe(@CurrentUser() user: JwtPayload) {
+    return this.tenantsService.findMe(user.tenantId);
+  }
+
+  // Current user updates own tenant profile (contact info + website)
+  @Patch('me')
+  async updateMe(@CurrentUser() user: JwtPayload, @Body() body: unknown) {
+    const data = updateTenantProfileSchema.parse(body);
+    return this.tenantsService.updateMe(user.tenantId, data);
+  }
+
+  @Permissions('tenant.manage')
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.tenantsService.findOne(id);
