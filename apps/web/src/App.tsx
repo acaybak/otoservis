@@ -1102,17 +1102,17 @@ function LandingPage({ onGetStarted, onLogin }: { onGetStarted: () => void; onLo
   return (
     <div style={{ minHeight: '100vh', background: '#ffffff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
       {/* Nav */}
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: isMobile ? '12px 16px' : '16px 48px', maxWidth: 1280, margin: '0 auto', borderBottom: '1px solid #f1f5f9' }}>
-        <img src="/logo.png" alt="OtoServis" style={{ height: isMobile ? 32 : 40, cursor: 'pointer' }} />
-        <div style={{ display: 'flex', gap: isMobile ? 8 : 12, alignItems: 'center' }}>
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' as const, gap: 8, padding: isMobile ? '12px 16px' : '16px 48px', maxWidth: 1280, margin: '0 auto', borderBottom: '1px solid #f1f5f9' }}>
+        <img src="/logo.png" alt="OtoServis" style={{ height: isMobile ? 28 : 40, cursor: 'pointer' }} />
+        <div style={{ display: 'flex', gap: isMobile ? 6 : 12, alignItems: 'center' }}>
           {!isMobile && (
             <>
               <button onClick={() => setShowPricing(true)} style={{ padding: '9px 18px', background: 'transparent', color: '#475569', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Fiyatlar</button>
               <button onClick={() => setShowDownload(true)} style={{ padding: '9px 18px', background: 'transparent', color: '#475569', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>İndir</button>
             </>
           )}
-          <button onClick={onLogin} style={{ padding: '9px 18px', background: '#f8fafc', color: '#334155', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Giriş Yap</button>
-          <button onClick={onGetStarted} style={{ padding: '9px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Ücretsiz Dene</button>
+          <button onClick={onLogin} style={{ padding: isMobile ? '8px 12px' : '9px 18px', background: '#f8fafc', color: '#334155', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: isMobile ? 13 : 14, fontWeight: 600, cursor: 'pointer' }}>Giriş Yap</button>
+          <button onClick={onGetStarted} style={{ padding: isMobile ? '8px 12px' : '9px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontSize: isMobile ? 13 : 14, fontWeight: 700, cursor: 'pointer' }}>Ücretsiz Dene</button>
         </div>
       </nav>
 
