@@ -5,6 +5,7 @@ import { APP_GUARD } from '@nestjs/core';
 
 import { PrismaModule } from './prisma/prisma.module';
 import { AuditModule } from './common/services/audit.module';
+import { SeedService } from './common/services/seed.service';
 import { AuthModule } from './modules/auth/auth.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { UsersModule } from './modules/users/users.module';
@@ -63,6 +64,7 @@ import { HealthModule } from './modules/health/health.module';
     HealthModule,
   ],
   providers: [
+    SeedService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
