@@ -66,14 +66,19 @@ export class PublicController {
     @Param('plate') plate: string,
     @Req() req: Request,
   ) {
-    // Extract tenant from subdomain or use path parameter
+    // Prefer the explicit path parameter; use subdomain only as fallback
+    // (subdomain routing for wildcard tenant domains, e.g. myshop.portal.example.com)
     const host = req.hostname || '';
     const subdomain = host.split('.')[0];
-    
-    // Try subdomain first, fall back to path parameter
-    const tenantIdentifier = subdomain && subdomain !== 'portal' && subdomain !== 'www' 
-      ? subdomain 
-      : tenantSlug;
+    const SYSTEM_SUBDOMAINS = ['localhost', 'www', 'portal', 'api', 'otoservis-api'];
+
+    const tenantIdentifier =
+      tenantSlug ||
+      (subdomain && !SYSTEM_SUBDOMAINS.includes(subdomain) ? subdomain : '');
+
+    if (!tenantIdentifier) {
+      throw new NotFoundException('Firma bulunamadı.');
+    }
 
     const normalized = normalizePlate(plate);
     const result = await this.publicService.getVehicleHistory(tenantIdentifier, normalized);

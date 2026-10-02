@@ -78,7 +78,7 @@ function HomePage() {
     const host = window.location.hostname;
     const parts = host.split('.');
     let slug = '';
-    if (parts.length > 2 && parts[0] !== 'localhost' && parts[0] !== 'www' && parts[0] !== 'portal-dist-opal') {
+    if (parts.length > 2 && parts[0] !== 'localhost' && parts[0] !== 'www' && parts[0] !== 'portal' && parts[0] !== 'portal-dist-opal') {
       slug = parts[0];
     }
     // Also check path-based slug
