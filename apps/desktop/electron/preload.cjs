@@ -22,6 +22,15 @@ contextBridge.exposeInMainWorld('otoservis', {
   logout: () => ipcRenderer.invoke('auth:logout'),
   currentUser: () => ipcRenderer.invoke('auth:current'),
 
+  // Tenant (firma) profile — Ayarlar: portal linkleri, firma bilgileri, logo
+  getTenantProfile: () => ipcRenderer.invoke('tenant:getProfile'),
+  updateTenantProfile: (data) => ipcRenderer.invoke('tenant:updateProfile', data),
+  copyText: (text) => ipcRenderer.invoke('app:copyText', text),
+  openExternal: (url) => ipcRenderer.invoke('app:openExternal', url),
+
+  // Lisans aktivasyonu (Ayarlar → Lisans Durumu ve ilk açılış ekranı)
+  licenseActivate: (key, tenantId) => ipcRenderer.invoke('license:activate', key, tenantId),
+
   // Local offline-first store
   list: (entity, opts) => ipcRenderer.invoke('store:list', entity, opts),
   get: (entity, id) => ipcRenderer.invoke('store:get', entity, id),

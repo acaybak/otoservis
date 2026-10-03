@@ -9,11 +9,14 @@ import {
   HttpCode,
   HttpStatus,
   ForbiddenException,
+  UseGuards,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { ConfigService } from '@nestjs/config';
+import { AdminEmailGuard } from '../../common/guards/admin-email.guard';
 
 @Controller('admin')
+@UseGuards(AdminEmailGuard)
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,

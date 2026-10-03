@@ -95,7 +95,9 @@ export class TenantsService {
       throw new NotFoundException('Servis bulunamadı.');
     }
 
-    return this.toProfile(tenant);
+    const logo = await this.getLogoSetting(tenantId);
+    const license = await this.getLicenseInfo(tenantId);
+    return this.toProfile(tenant, logo, license);
   }
 
   async updateMe(
@@ -107,6 +109,7 @@ export class TenantsService {
       address?: string | null;
       city?: string | null;
       website?: string | null;
+      logo?: string | null;
     },
   ) {
     const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
@@ -127,8 +130,82 @@ export class TenantsService {
       },
     });
 
+    // Logo, tenant_settings tablosunda 'logo' anahtarıyla saklanır (müşteri portalı buradan okur)
+    if (data.logo !== undefined) {
+      if (data.logo) {
+        await this.prisma.tenantSetting.upsert({
+          where: { tenantId_key: { tenantId, key: 'logo' } },
+          create: { tenantId, key: 'logo', value: data.logo },
+          update: { value: data.logo },
+        });
+      } else {
+        await this.prisma.tenantSetting.deleteMany({ where: { tenantId, key: 'logo' } });
+      }
+    }
+
+    const logo = await this.getLogoSetting(tenantId);
+    const license = await this.getLicenseInfo(tenantId);
     this.logger.log(`Tenant profile updated: ${updated.name} (${updated.id})`);
-    return this.toProfile(updated);
+    return this.toProfile(updated, logo, license);
+  }
+
+  // Tamirhane logosu tenant_settings tablosunda 'logo' anahtarıyla saklanır
+  private async getLogoSetting(tenantId: string): Promise<string | null> {
+    const row = await this.prisma.tenantSetting.findUnique({
+      where: { tenantId_key: { tenantId, key: 'logo' } },
+    });
+    if (!row || row.value == null) return null;
+    return typeof row.value === 'string' ? row.value : null;
+  }
+
+  // Lisans bilgisi: masaüstü Ayarlar sayfasında süre/plan/durum göstermek için profile eklenir
+  private async getLicenseInfo(tenantId: string) {
+    const empty = {
+      hasLicense: false,
+      status: 'NONE' as string,
+      planType: null as string | null,
+      maxUsers: null as number | null,
+      daysLeft: null as number | null,
+      activatedAt: null as string | null,
+      expiresAt: null as string | null,
+      licenseKey: null as string | null,
+    };
+
+    let license: any = null;
+    try {
+      license = await (this.prisma as any).license.findUnique({ where: { tenantId } });
+    } catch {
+      // Şema istemcisi lisans modellerini içermiyorsa profil yüklenmeye devam eder
+      return empty;
+    }
+    if (!license) return empty;
+
+    const now = new Date();
+    let status: string = license.status;
+    // Süresi geçmiş ACTIVE lisansları okuma sırasında EXPIRED'a çevir (lisans kontrolü ile aynı davranış)
+    if (status === 'ACTIVE' && license.expiresAt && new Date(license.expiresAt) < now) {
+      status = 'EXPIRED';
+      try {
+        await (this.prisma as any).license.update({ where: { id: license.id }, data: { status: 'EXPIRED' } });
+      } catch {
+        // Durum güncellenemese de güncel bilgi dönülür
+      }
+    }
+
+    const daysLeft = license.expiresAt
+      ? Math.max(0, Math.ceil((new Date(license.expiresAt).getTime() - now.getTime()) / 86400000))
+      : null;
+
+    return {
+      hasLicense: true,
+      status,
+      planType: license.planType || null,
+      maxUsers: typeof license.maxUsers === 'number' ? license.maxUsers : null,
+      daysLeft,
+      activatedAt: license.activatedAt ? new Date(license.activatedAt).toISOString() : null,
+      expiresAt: license.expiresAt ? new Date(license.expiresAt).toISOString() : null,
+      licenseKey: license.licenseKey || null,
+    };
   }
 
   async setup(data: {
@@ -224,20 +301,24 @@ export class TenantsService {
     };
   }
 
-  private toProfile(tenant: {
-    id: string;
-    name: string;
-    slug: string;
-    status: string;
-    phone: string | null;
-    email: string | null;
-    address: string | null;
-    city: string | null;
-    taxNumber: string | null;
-    website: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }) {
+  private toProfile(
+    tenant: {
+      id: string;
+      name: string;
+      slug: string;
+      status: string;
+      phone: string | null;
+      email: string | null;
+      address: string | null;
+      city: string | null;
+      taxNumber: string | null;
+      website: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    },
+    logo: string | null = null,
+    license: any = null,
+  ) {
     return {
       id: tenant.id,
       name: tenant.name,
@@ -249,6 +330,8 @@ export class TenantsService {
       city: tenant.city,
       taxNumber: tenant.taxNumber,
       website: tenant.website,
+      logo,
+      license,
       createdAt: tenant.createdAt.toISOString(),
       updatedAt: tenant.updatedAt.toISOString(),
     };

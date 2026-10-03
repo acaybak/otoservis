@@ -2,6 +2,10 @@ import React, { useState, useEffect, useCallback, createContext, useContext } fr
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import { authApi, setToken, getToken, customerApi, vehicleApi, serviceOrderApi, accountingApi, reportingApi, adminApi, licenseApi, tenantApi, PORTAL_URL, warmupApi } from './services/api';
 
+// Yönetim paneli (Lisans Yönetimi dahil) yalnızca bu e-postalara açıktır.
+// Sunucu tarafındaki ADMIN_EMAILS listesiyle (render.yaml) aynı tutulmalıdır.
+const ADMIN_EMAILS = ['acaybak@gmail.com', 'test2@otoservis.com'];
+
 // ============ TOAST NOTIFICATION ============
 interface Toast { id: number; message: string; type: 'success' | 'error' | 'info' }
 const ToastContext = createContext<{ addToast: (msg: string, type: 'success' | 'error' | 'info') => void }>({ addToast: () => {} });
@@ -285,7 +289,7 @@ function RegisterPage({ onRegister, onSwitch }: { onRegister: (data: any) => Pro
 }
 
 // ============ LAYOUT ============
-function Layout({ user, onLogout, children }: { user: User; onLogout: () => void; children: React.ReactNode }) {
+function Layout({ user, onLogout, onAdmin, children }: { user: User; onLogout: () => void; onAdmin?: () => void; children: React.ReactNode }) {
   const location = useLocation();
   const isMobile = useIsMobile();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -325,6 +329,9 @@ function Layout({ user, onLogout, children }: { user: User; onLogout: () => void
             <div style={{ padding: '20px', marginTop: 'auto', borderTop: '1px solid #1e293b', position: 'absolute', bottom: 0, width: 240 }}>
               <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 4 }}>{user.firstName} {user.lastName}</div>
               <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>{user.email}</div>
+              {onAdmin && (
+                <button onClick={onAdmin} style={{ ...S.btnSecondary, width: '100%', fontSize: 13, marginBottom: 8 }}>🛠 Yönetim Paneli</button>
+              )}
               <button onClick={onLogout} style={{ ...S.btnDanger, width: '100%', fontSize: 13 }}>Çıkış Yap</button>
             </div>
           </aside>
@@ -1269,6 +1276,7 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
   const [keysLoading, setKeysLoading] = useState(false);
   const isMobile = useIsMobile();
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [copiedLicenseKey, setCopiedLicenseKey] = useState('');
 
   useEffect(() => {
     Promise.all([adminApi.getStats(), adminApi.getTenants()])
@@ -1297,6 +1305,14 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
     setSelectedTenant(detail);
     setActiveTab('overview');
     setTenantData([]);
+  };
+
+  const handleCopyKey = async (key: string) => {
+    try {
+      await navigator.clipboard.writeText(key);
+      setCopiedLicenseKey(key);
+      setTimeout(() => setCopiedLicenseKey(''), 2000);
+    } catch { /* pano erişimi yoksa yoksay */ }
   };
 
   const handleTabChange = (tab: 'overview' | 'customers' | 'vehicles' | 'orders' | 'users') => {
@@ -1515,6 +1531,15 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
               <h1 style={AdminStyles.pageTitle}>Lisans Yönetimi</h1>
               <button style={AdminStyles.btnSuccess} onClick={() => setShowCreateKeys(true)}>+ Yeni Anahtar Oluştur</button>
             </div>
+            <div style={{ ...AdminStyles.card, background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+              <h4 style={{ margin: '0 0 8px', fontWeight: 700, color: '#1e40af', fontSize: 15 }}>Lisans Nasıl Verilir?</h4>
+              <ol style={{ margin: 0, paddingLeft: 20, color: '#1e3a8a', fontSize: 13, lineHeight: 1.8 }}>
+                <li>Aşağıdan <strong>yeni anahtar oluşturun</strong> (plan, kullanıcı sayısı ve süre seçin).</li>
+                <li>Oluşan anahtarı <strong>kopyalayıp müşteriye gönderin</strong> (WhatsApp / e-posta).</li>
+                <li>Müşteri, masaüstü programında <strong>Ayarlar → Lisans Durumu</strong> bölümünden anahtarı girip etkinleştirir.</li>
+                <li>Süre dolunca aynı şekilde <strong>yeni anahtar</strong> gönderin; mevcut bitiş tarihinden itibaren uzatılır.</li>
+              </ol>
+            </div>
             {showCreateKeys && (
               <div style={{ ...AdminStyles.card, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                 <h4 style={{ margin: '0 0 16px', fontWeight: 600 }}>Yeni Lisans Anahtarı Oluştur</h4>
@@ -1549,7 +1574,12 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                   <tbody>
                     {licenseKeys.map((k: any) => (
                       <tr key={k.id}>
-                        <td style={{ ...AdminStyles.td, fontFamily: 'monospace', fontWeight: 700, letterSpacing: 1 }}>{k.key}</td>
+                        <td style={{ ...AdminStyles.td, fontFamily: 'monospace', fontWeight: 700, letterSpacing: 1 }}>
+                          {k.key}
+                          <button onClick={() => handleCopyKey(k.key)} title="Anahtarı kopyala" style={{ marginLeft: 8, border: '1px solid #e2e8f0', background: copiedLicenseKey === k.key ? '#f0fdf4' : 'white', color: copiedLicenseKey === k.key ? '#16a34a' : '#475569', borderRadius: 6, padding: '2px 8px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+                            {copiedLicenseKey === k.key ? '✓ Kopyalandı' : '📋'}
+                          </button>
+                        </td>
                         <td style={AdminStyles.td}>{k.planType}</td>
                         <td style={AdminStyles.td}>{k.maxUsers}</td>
                         <td style={AdminStyles.td}>{k.duration} gün</td>
@@ -1907,14 +1937,17 @@ function AppInner() {
     return () => window.clearInterval(t);
   }, []);
 
+  // Admin panel erişimi yalnızca yönetici e-postalarına açıktır
+  const isAdminUser = !!user && ADMIN_EMAILS.includes((user.email || '').toLowerCase());
+
   // Admin panel - URL'den erişim: #admin veya /admin
   const isAdminUrl = window.location.hash === '#admin' || window.location.pathname === '/admin';
-  if (isAdminUrl && user) {
+  if (isAdminUrl && user && isAdminUser) {
     return <AdminPanel onBack={() => { window.location.hash = ''; window.location.pathname = '/'; }} />;
   }
 
   // Admin panel - buton ile erişim
-  if (showAdmin && user) {
+  if (showAdmin && user && isAdminUser) {
     return <AdminPanel onBack={() => setShowAdmin(false)} />;
   }
 
@@ -1950,7 +1983,7 @@ function AppInner() {
 
   return (
     <BrowserRouter>
-      <Layout user={user} onLogout={logout}>
+      <Layout user={user} onLogout={logout} onAdmin={isAdminUser ? () => setShowAdmin(true) : undefined}>
         <Routes>
           <Route path="/" element={<DashboardPage tenantId={user.tenantId} />} />
           <Route path="/customers" element={<CustomersPage tenantId={user.tenantId} />} />

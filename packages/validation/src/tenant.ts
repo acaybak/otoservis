@@ -43,6 +43,19 @@ export const updateTenantProfileSchema = z.object({
       (v) => v == null || /^https?:\/\/[^\s.]+\.[^\s]{2,}/i.test(v),
       'Geçerli bir web adresi giriniz (örn: www.site.com).',
     ),
+  // Logo: müşteri portalında görünen tamirhane logosu (istemci tarafında küçültülmüş data URL)
+  logo: z
+    .union([z.string().max(600000, 'Logo boyutu çok büyük. Lütfen daha küçük bir görsel seçin.'), z.literal(''), z.null()])
+    .optional()
+    .transform((v) => {
+      if (v == null) return v;
+      const trimmed = v.trim();
+      return trimmed === '' ? null : trimmed;
+    })
+    .refine(
+      (v) => v == null || /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/.test(v),
+      'Logo yalnızca PNG, JPEG veya WebP formatında olabilir.',
+    ),
 });
 
 export const tenantSetupSchema = z.object({

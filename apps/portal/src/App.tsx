@@ -132,7 +132,7 @@ function HomePage() {
       {/* Header */}
       <header style={{ ...S.header(primaryColor), padding: isMobile ? '0.75rem 1rem' : '1rem 2rem', gap: '0.5rem' }}>
         <Link to="/" style={{ ...S.logo, minWidth: 0 }}>
-          <div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={{ ...S.logoImg, height: isMobile ? '26px' : '32px' }} /></div>
+          <div style={S.logoBadge}><img src={tenantInfo?.logo || '/logo.png'} alt={shopName} style={{ ...S.logoImg, height: isMobile ? '26px' : '32px' }} /></div>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shopName}</span>
         </Link>
         <div style={{ ...S.headerRight, gap: isMobile ? '0.5rem' : '1rem', flexShrink: 0 }}>
@@ -297,7 +297,7 @@ function VehicleHistoryPage() {
   if (loading) return (
     <div style={S.contentPage}>
       <header style={S.contentHeader(primaryColor)}>
-        <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
+        <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src={tenantInfo?.logo || '/logo.png'} alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
       </header>
       <div style={{ textAlign: 'center', padding: '4rem', color: '#64748b' }}>Yükleniyor...</div>
     </div>
@@ -306,7 +306,7 @@ function VehicleHistoryPage() {
   if (error) return (
     <div style={S.contentPage}>
       <header style={S.contentHeader(primaryColor)}>
-        <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
+        <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src={tenantInfo?.logo || '/logo.png'} alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
       </header>
       <div style={{ ...S.contentMain, textAlign: 'center' }}>
         <div style={{ ...S.card, maxWidth: '450px', margin: isMobile ? '2rem auto' : '3rem auto', padding: isMobile ? '1.75rem' : '2.5rem' }}>
@@ -344,7 +344,7 @@ function VehicleHistoryPage() {
   return (
     <div style={S.contentPage}>
       <header style={{ ...S.contentHeader(primaryColor), padding: isMobile ? '0.75rem 1rem' : '1rem 2rem', gap: '0.5rem' }}>
-        <Link to="/" style={{ ...S.logo, color: 'white', minWidth: 0 }}><div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={{ ...S.logoImg, height: isMobile ? '26px' : '32px' }} /></div><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shopName}</span></Link>
+        <Link to="/" style={{ ...S.logo, color: 'white', minWidth: 0 }}><div style={S.logoBadge}><img src={tenantInfo?.logo || '/logo.png'} alt={shopName} style={{ ...S.logoImg, height: isMobile ? '26px' : '32px' }} /></div><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shopName}</span></Link>
         <div style={{ display: 'flex', gap: isMobile ? '0.6rem' : '0.75rem', alignItems: 'center', flexShrink: 0 }}>
           {shopPhone && (isMobile
             ? <a href={`tel:${shopPhone}`} title={shopPhone} style={{ ...S.headerPhone, fontSize: '1.05rem' }}>📞</a>
@@ -532,7 +532,7 @@ function AppointmentPage() {
   if (success) return (
     <div style={S.contentPage}>
       <header style={S.contentHeader(primaryColor)}>
-        <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
+        <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src={tenantInfo?.logo || '/logo.png'} alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
       </header>
       <div style={{ ...S.contentMain, textAlign: 'center' }}>
         <div style={{ ...S.card, maxWidth: '450px', margin: isMobile ? '2rem auto' : '3rem auto', padding: isMobile ? '1.75rem' : '2.5rem' }}>
@@ -553,7 +553,7 @@ function AppointmentPage() {
   return (
     <div style={S.contentPage}>
       <header style={S.contentHeader(primaryColor)}>
-        <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src="/logo.png" alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
+        <Link to="/" style={{ ...S.logo, color: 'white' }}><div style={S.logoBadge}><img src={tenantInfo?.logo || '/logo.png'} alt={shopName} style={S.logoImg} /></div><span>{shopName}</span></Link>
       </header>
       <main style={{ ...S.contentMain, padding: isMobile ? '1.25rem 1rem' : '2rem' }}>
         <div style={{ maxWidth: '550px', margin: '0 auto' }}>

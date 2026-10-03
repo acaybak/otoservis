@@ -9,9 +9,11 @@ import {
   HttpCode,
   HttpStatus,
   Headers,
+  UseGuards,
 } from '@nestjs/common';
 import { LicensesService } from './licenses.service';
 import { Public } from '../../common/decorators/public.decorator';
+import { AdminEmailGuard } from '../../common/guards/admin-email.guard';
 
 @Controller('licenses')
 export class LicensesController {
@@ -44,6 +46,7 @@ export class LicensesController {
 
   // ---- Admin endpoints ----
 
+  @UseGuards(AdminEmailGuard)
   @Post('keys')
   @HttpCode(HttpStatus.CREATED)
   async createKeys(
@@ -58,16 +61,19 @@ export class LicensesController {
     );
   }
 
+  @UseGuards(AdminEmailGuard)
   @Get('keys')
   async listKeys() {
     return this.licensesService.listKeys();
   }
 
+  @UseGuards(AdminEmailGuard)
   @Get()
   async listLicenses() {
     return this.licensesService.listLicenses();
   }
 
+  @UseGuards(AdminEmailGuard)
   @Patch(':id/status')
   @HttpCode(HttpStatus.OK)
   async updateStatus(@Param('id') id: string, @Body() body: { status: string }) {

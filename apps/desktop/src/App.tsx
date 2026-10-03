@@ -13,6 +13,11 @@ interface OtoservisBridge {
   login: (email: string, password: string) => Promise<{ user: User; offline: boolean }>;
   logout: () => Promise<{ success: boolean }>;
   currentUser: () => Promise<User | null>;
+  getTenantProfile: () => Promise<TenantProfile>;
+  updateTenantProfile: (data: Partial<TenantProfileForm> & { logo?: string }) => Promise<TenantProfile>;
+  licenseActivate: (key: string, tenantId: string) => Promise<{ id: string; planType: string; maxUsers: number; activatedAt: string | null; expiresAt: string | null; status: string }>;
+  copyText: (text: string) => Promise<{ success: boolean }>;
+  openExternal: (url: string) => Promise<{ success: boolean }>;
   list: (entity: string, opts?: { q?: string; page?: number; limit?: number }) => Promise<{ data: any[]; total: number }>;
   get: (entity: string, id: string) => Promise<any>;
   create: (entity: string, data: any) => Promise<any>;
@@ -64,6 +69,25 @@ interface OtoservisBridge {
 }
 
 interface User { id: string; email: string; firstName: string; lastName: string; tenantId: string; }
+interface TenantLicense {
+  hasLicense: boolean;
+  status: 'ACTIVE' | 'EXPIRED' | 'SUSPENDED' | 'NONE';
+  planType: string | null;
+  maxUsers: number | null;
+  daysLeft: number | null;
+  activatedAt: string | null;
+  expiresAt: string | null;
+  licenseKey: string | null;
+}
+interface TenantProfile {
+  id: string; name: string; slug: string; status: string;
+  phone: string | null; email: string | null; address: string | null; city: string | null;
+  website: string | null; logo: string | null;
+  license?: TenantLicense | null;
+}
+interface TenantProfileForm {
+  name: string; phone: string; email: string; address: string; city: string; website: string; logo?: string;
+}
 interface SyncStatus { online: boolean; syncing: boolean; lastSyncAt: string | null; lastError: string | null; pending: number; }
 interface UpdateStatus {
   status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error';
@@ -3727,17 +3751,108 @@ function VehicleHistoryPage() {
 // ============================================================================
 // Settings page
 // ============================================================================
+// ============================================================================
+// Ayarlar: firma profili, müşteri portalı linkleri ve destek
+// ============================================================================
+const PORTAL_URL = 'https://portal.otoservisapp.com';
+const SUPPORT_PHONE_DISPLAY = '0543 554 88 40';
+const SUPPORT_PHONE_RAW = '05435548840';
+const SUPPORT_EMAIL = 'acaybak@gmail.com';
+
+// Electron IPC hataları "Error invoking remote method 'x': Error: mesaj" biçiminde gelir
+const cleanIpcError = (err: any): string => {
+  const msg = err && err.message ? String(err.message) : String(err || '');
+  return msg.replace(/^Error invoking remote method '[^']*':\s*(Error:\s*)?/, '').trim() || 'Bilinmeyen hata';
+};
+
+// Logo dosyasını küçültüp data URL'e çevirir (sunucuda tenant_settings.logo olarak saklanır)
+const fileToLogoDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+      reject(new Error('Yalnızca PNG, JPEG veya WebP görsel seçebilirsiniz.'));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      reject(new Error('Görsel çok büyük (en fazla 5 MB).'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Görsel okunamadı.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Görsel açılamadı.'));
+      img.onload = () => {
+        const maxDim = 512;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          const scale = Math.min(maxDim / width, maxDim / height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Görsel işlenemedi.')); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        let dataUrl = canvas.toDataURL('image/png');
+        if (dataUrl.length > 500000) dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        if (dataUrl.length > 600000) { reject(new Error('Görsel boyutu kaydedilemeyecek kadar büyük.')); return; }
+        resolve(dataUrl);
+      };
+      img.src = String(reader.result || '');
+    };
+    reader.readAsDataURL(file);
+  });
+
 function SettingsPage() {
   const [serverUrl, setServerUrl] = useState('');
   const [deviceKey, setDeviceKey] = useState('');
   const [appInfo, setAppInfo] = useState<any>(null);
   const [saved, setSaved] = useState(false);
 
+  // Firma profili (portal linkleri + iletişim bilgileri + logo)
+  const [profile, setProfile] = useState<TenantProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState('');
+  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', city: '', website: '' });
+  const [logo, setLogo] = useState<string | null>(null);
+  const [logoChanged, setLogoChanged] = useState(false);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [copiedKey, setCopiedKey] = useState('');
+
+  // Lisans (Ayarlar → Lisans Durumu)
+  const [licenseKeyInput, setLicenseKeyInput] = useState('');
+  const [licenseBusy, setLicenseBusy] = useState(false);
+  const [licenseErr, setLicenseErr] = useState('');
+  const [licenseMsg, setLicenseMsg] = useState('');
+
+  const loadProfile = useCallback(async () => {
+    if (!bridge) return;
+    setProfileLoading(true);
+    setProfileError('');
+    try {
+      const p = await bridge.getTenantProfile();
+      setProfile(p);
+      setForm({ name: p.name || '', phone: p.phone || '', email: p.email || '', address: p.address || '', city: p.city || '', website: p.website || '' });
+      setLogo(p.logo || null);
+      setLogoChanged(false);
+    } catch (err: any) {
+      setProfileError(cleanIpcError(err));
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!bridge) return;
     bridge.getConfig().then((c) => { setServerUrl(c.serverUrl || ''); setDeviceKey(c.deviceKey || ''); });
     bridge.info().then(setAppInfo).catch(() => {});
-  }, []);
+    loadProfile();
+  }, [loadProfile]);
 
   const handleSave = async () => {
     if (!bridge) return;
@@ -3746,9 +3861,328 @@ function SettingsPage() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const setField = (key: 'name' | 'phone' | 'email' | 'address' | 'city' | 'website', value: string) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  const handleLogoPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setLogoBusy(true);
+    setProfileError('');
+    setProfileSuccess('');
+    try {
+      const dataUrl = await fileToLogoDataUrl(file);
+      setLogo(dataUrl);
+      setLogoChanged(true);
+    } catch (err: any) {
+      setProfileError(err.message || 'Görsel yüklenemedi.');
+    } finally {
+      setLogoBusy(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!bridge) return;
+    if (!form.name.trim()) {
+      setProfileSuccess('');
+      setProfileError('Firma adı zorunludur.');
+      return;
+    }
+    setSavingProfile(true);
+    setProfileError('');
+    setProfileSuccess('');
+    try {
+      const payload: any = {
+        name: form.name.trim(),
+        phone: form.phone,
+        email: form.email,
+        address: form.address,
+        city: form.city,
+        website: form.website,
+      };
+      if (logoChanged) payload.logo = logo || '';
+      const p = await bridge.updateTenantProfile(payload);
+      setProfile(p);
+      setForm({ name: p.name || '', phone: p.phone || '', email: p.email || '', address: p.address || '', city: p.city || '', website: p.website || '' });
+      setLogo(p.logo || null);
+      setLogoChanged(false);
+      setProfileSuccess('Firma bilgileri kaydedildi.');
+      setTimeout(() => setProfileSuccess(''), 4000);
+    } catch (err: any) {
+      setProfileError(cleanIpcError(err));
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleCopy = async (key: string, text: string) => {
+    if (!bridge) return;
+    await bridge.copyText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(''), 2000);
+  };
+
+  const handleActivateLicense = async () => {
+    if (!bridge || !profile) return;
+    const key = licenseKeyInput.trim().toUpperCase();
+    if (!key) {
+      setLicenseMsg('');
+      setLicenseErr('Lisans anahtarını girin.');
+      return;
+    }
+    setLicenseBusy(true);
+    setLicenseErr('');
+    setLicenseMsg('');
+    try {
+      const res = await bridge.licenseActivate(key, profile.id);
+      try {
+        localStorage.setItem('otoservis:license', JSON.stringify({ status: 'ACTIVE', planType: res?.planType, maxUsers: res?.maxUsers, expiresAt: res?.expiresAt }));
+      } catch { /* yoksay */ }
+      setLicenseKeyInput('');
+      setLicenseMsg('Lisans başarıyla etkinleştirildi.');
+      setTimeout(() => setLicenseMsg(''), 6000);
+      await loadProfile();
+    } catch (err: any) {
+      setLicenseErr(cleanIpcError(err));
+    } finally {
+      setLicenseBusy(false);
+    }
+  };
+
+  const slug = profile?.slug || '';
+  const links = slug ? [
+    { icon: '📅', title: 'Online Randevu Linki', desc: 'Müşterileriniz bu link üzerinden online randevu alabilir.', url: `${PORTAL_URL}/${slug}/appointment` },
+    { icon: '🚗', title: 'Araç Sorgu Linki', desc: 'Müşterileriniz plaka girerek araç bakım geçmişini görüntüleyebilir.', url: `${PORTAL_URL}/${slug}` },
+  ] : [];
+
+  // Lisans durumu
+  const lic = profile?.license || null;
+  const licActive = !!lic && lic.status === 'ACTIVE';
+  const licWarning = !!lic && lic.status === 'ACTIVE' && lic.daysLeft !== null && lic.daysLeft !== undefined && lic.daysLeft <= 30;
+  const showLicInput = !licActive || licWarning;
+
+  const copyBtn = (key: string, text: string) => (
+    <button onClick={() => handleCopy(key, text)} style={{ ...S.btnSecondary, padding: '0.4rem 0.8rem', fontSize: '0.82rem' }}>
+      {copiedKey === key ? '✓ Kopyalandı' : '📋 Kopyala'}
+    </button>
+  );
+
+  const errBox = (msg: string, retry: boolean) => (
+    <div style={{ background: '#fef2f2', color: '#dc2626', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.85rem', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+      <span>{msg}</span>
+      {retry && <button onClick={loadProfile} style={{ ...S.btnSecondary, padding: '0.3rem 0.7rem', fontSize: '0.8rem' }}>Tekrar Dene</button>}
+    </div>
+  );
+
   return (
     <Layout title="Ayarlar">
-      <div style={{ maxWidth: '640px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ maxWidth: '760px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {/* Lisans Durumu */}
+        <div style={S.card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem' }}>Lisans Durumu</h3>
+              <p style={{ fontSize: '0.82rem', color: '#64748b' }}>Yazılım lisansınızın durumunu görüntüleyin ve gerekirse yenileyin.</p>
+            </div>
+            {!profileLoading && profile && (
+              <span style={{ padding: '0.3rem 0.8rem', borderRadius: 999, fontSize: '0.78rem', fontWeight: 700, background: licActive ? (licWarning ? '#fff7ed' : '#f0fdf4') : lic?.status === 'EXPIRED' || lic?.status === 'SUSPENDED' ? '#fef2f2' : '#f1f5f9', color: licActive ? (licWarning ? '#c2410c' : '#16a34a') : lic?.status === 'EXPIRED' || lic?.status === 'SUSPENDED' ? '#dc2626' : '#64748b' }}>
+                {licActive ? (licWarning ? 'SÜRESİ YAKIN' : 'AKTİF') : lic?.status === 'EXPIRED' ? 'SÜRESİ DOLDU' : lic?.status === 'SUSPENDED' ? 'ASKIDA' : 'LİSANS YOK'}
+              </span>
+            )}
+          </div>
+          {profileLoading ? (
+            <div style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.75rem' }}>Yükleniyor...</div>
+          ) : (
+            <>
+              {licActive && (
+                <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: 2 }}>Plan</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{lic.planType || 'STANDART'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: 2 }}>Kullanıcı Hakkı</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{lic.maxUsers ?? '-'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: 2 }}>Kalan Süre</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 600, color: licWarning ? '#c2410c' : undefined }}>{lic.daysLeft === null ? 'Süresiz' : `${lic.daysLeft} gün`}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: 2 }}>Bitiş Tarihi</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>{lic.expiresAt ? new Date(lic.expiresAt).toLocaleDateString('tr-TR') : 'Süresiz'}</div>
+                  </div>
+                </div>
+              )}
+              {licActive && lic.licenseKey && (
+                <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Anahtar:</span>
+                  <code style={{ fontSize: '0.82rem', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.25rem 0.6rem', borderRadius: 6, letterSpacing: 1 }}>{lic.licenseKey}</code>
+                  {copyBtn('license', lic.licenseKey)}
+                </div>
+              )}
+              {licActive && licWarning && (
+                <div style={{ marginTop: '0.9rem', background: '#fff7ed', color: '#c2410c', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.85rem' }}>
+                  Lisansınızın bitmesine {lic.daysLeft} gün kaldı. Kesinti yaşamamak için aşağıdan yeni anahtarınızı girerek şimdiden yenileyebilirsiniz.
+                </div>
+              )}
+              {lic?.status === 'EXPIRED' && (
+                <div style={{ marginTop: '0.9rem', background: '#fef2f2', color: '#dc2626', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.85rem' }}>
+                  Lisans süreniz doldu. Aşağıdan yeni anahtarınızı girerek yenileyebilirsiniz.
+                </div>
+              )}
+              {lic?.status === 'SUSPENDED' && (
+                <div style={{ marginTop: '0.9rem', background: '#fef2f2', color: '#dc2626', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.85rem' }}>
+                  Lisansınız askıya alınmış durumda. Lütfen destek ile iletişime geçin: {SUPPORT_PHONE_DISPLAY} / {SUPPORT_EMAIL}
+                </div>
+              )}
+              {!licActive && lic?.status !== 'EXPIRED' && lic?.status !== 'SUSPENDED' && (
+                <div style={{ marginTop: '0.9rem', background: '#eff6ff', color: '#1e40af', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.85rem' }}>
+                  Şu anda deneme modundasınız. Bulut özelliklerini (müşteri portalı, online randevu) kullanmaya devam etmek için lisansınızı etkinleştirin.
+                </div>
+              )}
+              {showLicInput && (
+                <div style={{ marginTop: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#475569', marginBottom: '0.4rem' }}>{licActive ? 'Yenileme Anahtarı' : 'Lisans Anahtarı'}</label>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <input value={licenseKeyInput} onChange={(e) => setLicenseKeyInput(e.target.value.toUpperCase())} placeholder="XXXX-XXXX-XXXX-XXXX" maxLength={19} style={{ ...S.input, flex: 1, minWidth: 220, fontFamily: 'monospace', letterSpacing: 2 }} />
+                    <button onClick={handleActivateLicense} disabled={licenseBusy} style={{ ...S.btnPrimary, opacity: licenseBusy ? 0.7 : 1 }}>{licenseBusy ? 'Etkinleştiriliyor...' : licActive ? 'Yenile' : 'Etkinleştir'}</button>
+                  </div>
+                  <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '0.4rem' }}>Lisans anahtarınızı yazılım sağlayıcınızdan temin edebilirsiniz — {SUPPORT_PHONE_DISPLAY} / {SUPPORT_EMAIL}</p>
+                </div>
+              )}
+              {licenseErr && (<div style={{ marginTop: '0.75rem', background: '#fef2f2', color: '#dc2626', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.85rem' }}>{licenseErr}</div>)}
+              {licenseMsg && (<div style={{ marginTop: '0.75rem', background: '#f0fdf4', color: '#16a34a', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.85rem' }}>{licenseMsg}</div>)}
+            </>
+          )}
+        </div>
+        {/* Firma Bilgileri */}
+        <div style={S.card}>
+          <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.35rem' }}>Tamirhane Bilgileri</h3>
+          <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '1rem' }}>
+            Firma adınız, logonuz ve iletişim bilgileriniz müşteri portalında görünür.
+          </p>
+          {profileLoading ? (
+            <div style={{ color: '#64748b', fontSize: '0.9rem' }}>Yükleniyor...</div>
+          ) : !profile ? (
+            errBox(profileError || 'Firma bilgileri yüklenemedi.', true)
+          ) : (
+            <>
+              {profileError && errBox(profileError, false)}
+              {profileSuccess && (
+                <div style={{ background: '#f0fdf4', color: '#16a34a', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+                  ✓ {profileSuccess}
+                </div>
+              )}
+
+              {/* Logo */}
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                <div style={{ width: 88, height: 88, borderRadius: 10, border: '1px dashed #cbd5e1', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                  {logo
+                    ? <img src={logo} alt="Tamirhane logosu" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                    : <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Logo yok</span>}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <label style={{ ...S.btnSecondary, cursor: 'pointer', display: 'inline-block' }}>
+                      {logoBusy ? 'Yükleniyor...' : logo ? 'Logoyu Değiştir' : 'Logo Seç'}
+                      <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoPick} disabled={logoBusy} style={{ display: 'none' }} />
+                    </label>
+                    {logo && (
+                      <button onClick={() => { setLogo(null); setLogoChanged(true); }} style={S.btnSecondary}>Logoyu Kaldır</button>
+                    )}
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>PNG, JPEG veya WebP (otomatik olarak küçültülür).</span>
+                </div>
+              </div>
+
+              {/* İletişim bilgileri */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                <div>
+                  <label style={S.label}>Firma Adı *</label>
+                  <input style={S.input} value={form.name} onChange={(e) => setField('name', e.target.value)} placeholder="Oto Servis Adı" />
+                </div>
+                <div>
+                  <label style={S.label}>Telefon</label>
+                  <input style={S.input} value={form.phone} onChange={(e) => setField('phone', e.target.value)} placeholder="0555 123 45 67" />
+                </div>
+                <div>
+                  <label style={S.label}>E-posta</label>
+                  <input style={S.input} value={form.email} onChange={(e) => setField('email', e.target.value)} placeholder="firma@email.com" />
+                </div>
+                <div>
+                  <label style={S.label}>Şehir</label>
+                  <input style={S.input} value={form.city} onChange={(e) => setField('city', e.target.value)} placeholder="İzmir" />
+                </div>
+                <div>
+                  <label style={S.label}>Web Sitesi</label>
+                  <input style={S.input} value={form.website} onChange={(e) => setField('website', e.target.value)} placeholder="www.siteniz.com" />
+                </div>
+                <div>
+                  <label style={S.label}>Adres</label>
+                  <input style={S.input} value={form.address} onChange={(e) => setField('address', e.target.value)} placeholder="Mahalle, sokak, no..." />
+                </div>
+              </div>
+
+              <div style={{ marginTop: '1rem', display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button onClick={handleSaveProfile} disabled={savingProfile} style={{ ...S.btnPrimary, opacity: savingProfile ? 0.7 : 1 }}>
+                  {savingProfile ? 'Kaydediliyor...' : 'Kaydet'}
+                </button>
+                {slug && <span style={{ fontSize: '0.82rem', color: '#64748b' }}>Firma Kodu: <strong>{slug}</strong></span>}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Müşteri Portalı */}
+        <div style={S.card}>
+          <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.35rem' }}>Müşteri Portalı Bilgileriniz</h3>
+          <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '1rem' }}>
+            Bu linkleri müşterilerinizle SMS, WhatsApp veya sosyal medya üzerinden paylaşabilirsiniz.
+          </p>
+          {profileLoading ? (
+            <div style={{ color: '#64748b', fontSize: '0.9rem' }}>Yükleniyor...</div>
+          ) : links.length === 0 ? (
+            <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Link oluşturulamadı — firma bilgileri yüklenemedi.</div>
+          ) : links.map((l) => (
+            <div key={l.url} style={{ marginBottom: '1rem' }}>
+              <div style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 2 }}>{l.icon} {l.title}</div>
+              <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.5rem' }}>{l.desc}</div>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <code style={{ flex: '1 1 300px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '0.55rem 0.8rem', fontSize: '0.8rem', wordBreak: 'break-all' }}>{l.url}</code>
+                {copyBtn(l.url, l.url)}
+                <button onClick={() => bridge && bridge.openExternal(l.url)} style={{ ...S.btnSecondary, padding: '0.4rem 0.8rem', fontSize: '0.82rem' }}>Aç ↗</button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Destek */}
+        <div style={S.card}>
+          <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.35rem' }}>Destek</h3>
+          <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '1rem' }}>
+            Yazılım sağlayıcı desteği — soru, sorun ve önerileriniz için bize ulaşın.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', padding: '0.65rem 0', borderBottom: '1px solid #f1f5f9' }}>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Destek Telefonu</div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>📞 {SUPPORT_PHONE_DISPLAY}</div>
+            </div>
+            {copyBtn('phone', SUPPORT_PHONE_RAW)}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', padding: '0.65rem 0 0' }}>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Destek E-postası</div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>✉️ {SUPPORT_EMAIL}</div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {copyBtn('email', SUPPORT_EMAIL)}
+              <button onClick={() => bridge && bridge.openExternal(`mailto:${SUPPORT_EMAIL}?subject=OtoServis%20Destek`)} style={{ ...S.btnSecondary, padding: '0.4rem 0.8rem', fontSize: '0.82rem' }}>E-posta Gönder</button>
+            </div>
+          </div>
+        </div>
+
         <div style={S.card}>
           <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>Sunucu Bağlantısı</h3>
           <label style={S.label}>Sunucu Adresi</label>
@@ -4788,7 +5222,7 @@ function SuppliersPage() {
 // ============================================================================
 // License Activation Screen
 // ============================================================================
-function LicenseScreen({ onActivated, serverUrl }: { onActivated: () => void; serverUrl: string }) {
+function LicenseScreen({ onActivated }: { onActivated: () => void }) {
   const [licenseKey, setLicenseKey] = useState('');
   const [tenantId, setTenantId] = useState('');
   const [step, setStep] = useState<'input' | 'validating' | 'success' | 'error'>('input');
@@ -4805,24 +5239,20 @@ function LicenseScreen({ onActivated, serverUrl }: { onActivated: () => void; se
 
   const handleActivate = async () => {
     if (!licenseKey.trim() || !tenantId.trim()) return;
+    if (!bridge) return;
     setStep('validating');
     setMessage('');
     try {
-      // Activate with stored machine ID
-      const res = await fetch(`${serverUrl}/api/v1/licenses/activate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: licenseKey.trim(), tenantId: tenantId.trim(), machineId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Aktivasyon başarısız.');
-
+      // Aktivasyon ana süreçte yapılır; cihaz kimliği orada okunur (IPC)
+      const data = await bridge.licenseActivate(licenseKey.trim(), tenantId.trim());
       setLicenseInfo(data);
       setStep('success');
       // Store license info locally
-      localStorage.setItem('otoservis:license', JSON.stringify(data));
+      try {
+        localStorage.setItem('otoservis:license', JSON.stringify({ ...data, status: 'ACTIVE' }));
+      } catch { /* yoksay */ }
     } catch (e: any) {
-      setMessage(e.message || 'Bir hata oluştu.');
+      setMessage(cleanIpcError(e));
       setStep('error');
     }
   };
@@ -4883,6 +5313,9 @@ function LicenseScreen({ onActivated, serverUrl }: { onActivated: () => void; se
             >
               Deneme Modunda Devam Et
             </button>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.75rem', textAlign: 'center', lineHeight: 1.5 }}>
+              Yeni misiniz? "Deneme Modunda Devam Et" seçip giriş yapın; lisansınızı daha sonra <strong>Ayarlar → Lisans Durumu</strong> bölümünden etkinleştirebilirsiniz.
+            </p>
           </>
         )}
 
@@ -4929,7 +5362,6 @@ export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [booting, setBooting] = useState(true);
   const [hasServer, setHasServer] = useState<boolean | null>(null);
-  const [serverUrl, setServerUrl] = useState<string>('');
   const [hasLicense, setHasLicense] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -4937,7 +5369,6 @@ export function App() {
     (async () => {
       const cfg = await bridge.getConfig().catch(() => ({ serverUrl: null, deviceKey: null }));
       setHasServer(!!cfg.serverUrl);
-      setServerUrl(cfg.serverUrl || '');
       if (cfg.serverUrl) {
         // Check license
         const lic = localStorage.getItem('otoservis:license');
@@ -4997,7 +5428,7 @@ export function App() {
     );
   }
   if (hasServer === false) return <SetupScreen onDone={() => setHasServer(true)} />;
-  if (hasLicense === false) return <LicenseScreen serverUrl={serverUrl} onActivated={() => setHasLicense(true)} />;
+  if (hasLicense === false) return <LicenseScreen onActivated={() => setHasLicense(true)} />;
 
   return (
     <AuthContext.Provider value={{ user, setUser }}>

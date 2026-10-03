@@ -81,10 +81,14 @@ export class LicensesService {
   }
 
   // Public: Activate a license key for a tenant
+  // - İlk aktivasyon: boşta (AVAILABLE) anahtar ile lisans oluşturulur
+  // - Yeniden kurulum: aynı anahtar tekrar girilirse mevcut lisans döndürülür (cihaz güncellenir)
+  // - Yenileme/yükseltme: mevcut lisans varken yeni anahtar girilirse süre uzatılır
   async activateKey(key: string, tenantId: string, machineId: string) {
     const normalizedKey = key.toUpperCase().trim();
+    const prisma = this.prisma as any;
 
-    const licenseKey = await (this.prisma as any).licenseKey.findUnique({
+    const licenseKey = await prisma.licenseKey.findUnique({
       where: { key: normalizedKey },
     });
 
@@ -92,25 +96,87 @@ export class LicensesService {
       throw new NotFoundException('Geçersiz lisans anahtarı.');
     }
 
-    if (licenseKey.status === 'USED') {
-      throw new ConflictException('Bu lisans anahtarı zaten kullanılmış.');
+    if (licenseKey.status === 'EXPIRED') {
+      throw new BadRequestException('Bu lisans anahtarı süresi dolmuş.');
     }
 
-    // Check if tenant already has a license
-    const existingLicense = await (this.prisma as any).license.findUnique({
+    const existingLicense = await prisma.license.findUnique({
       where: { tenantId },
     });
 
-    if (existingLicense) {
-      throw new ConflictException('Bu hesap zaten bir lisansa sahip.');
+    const now = new Date();
+
+    // Kullanılmış anahtar: yalnızca aynı lisansın tekrar aktivasyonu (örn. yeniden kurulum) kabul edilir
+    if (licenseKey.status === 'USED') {
+      if (existingLicense && existingLicense.licenseKey === normalizedKey) {
+        const expired = existingLicense.expiresAt && new Date(existingLicense.expiresAt) < now;
+        const license = await prisma.license.update({
+          where: { id: existingLicense.id },
+          data: {
+            machineId,
+            ...(expired && existingLicense.status === 'ACTIVE' ? { status: 'EXPIRED' } : {}),
+          },
+        });
+        this.logger.log(`License re-activated for tenant ${tenantId} (${normalizedKey})`);
+        return {
+          id: license.id,
+          planType: license.planType,
+          maxUsers: license.maxUsers,
+          activatedAt: license.activatedAt,
+          expiresAt: license.expiresAt,
+          status: license.status,
+        };
+      }
+      throw new ConflictException('Bu lisans anahtarı zaten kullanılmış.');
     }
 
-    const now = new Date();
+    // Yenileme: yeni anahtar mevcut lisansın üzerine uygulanır, süre mevcut bitişten itibaren uzatılır
+    if (existingLicense) {
+      const base = existingLicense.expiresAt && new Date(existingLicense.expiresAt) > now
+        ? new Date(existingLicense.expiresAt)
+        : now;
+      const expiresAt = new Date(base);
+      expiresAt.setDate(expiresAt.getDate() + licenseKey.duration);
+
+      const license = await prisma.license.update({
+        where: { id: existingLicense.id },
+        data: {
+          licenseKey: normalizedKey,
+          planType: licenseKey.planType,
+          maxUsers: licenseKey.maxUsers,
+          status: 'ACTIVE',
+          activatedAt: existingLicense.activatedAt || now,
+          expiresAt,
+          machineId,
+        },
+      });
+
+      // Eski anahtarın bağlantısı çözülür (license_id tekildir), yeni anahtar işaretlenir
+      await prisma.licenseKey.updateMany({
+        where: { licenseId: license.id },
+        data: { licenseId: null },
+      });
+      await prisma.licenseKey.update({
+        where: { id: licenseKey.id },
+        data: { status: 'USED', tenantId, licenseId: license.id, activatedAt: now },
+      });
+
+      this.logger.log(`License renewed for tenant ${tenantId}: ${normalizedKey} until ${expiresAt.toISOString()}`);
+      return {
+        id: license.id,
+        planType: license.planType,
+        maxUsers: license.maxUsers,
+        activatedAt: license.activatedAt,
+        expiresAt: license.expiresAt,
+        status: license.status,
+      };
+    }
+
+    // İlk aktivasyon
     const expiresAt = new Date(now);
     expiresAt.setDate(expiresAt.getDate() + licenseKey.duration);
 
-    // Create the license
-    const license = await (this.prisma as any).license.create({
+    const license = await prisma.license.create({
       data: {
         tenantId,
         licenseKey: normalizedKey,
@@ -123,8 +189,7 @@ export class LicensesService {
       },
     });
 
-    // Update the key
-    await (this.prisma as any).licenseKey.update({
+    await prisma.licenseKey.update({
       where: { id: licenseKey.id },
       data: {
         status: 'USED',
@@ -133,6 +198,8 @@ export class LicensesService {
         activatedAt: now,
       },
     });
+
+    this.logger.log(`License activated for tenant ${tenantId}: ${normalizedKey} until ${expiresAt.toISOString()}`);
 
     return {
       id: license.id,

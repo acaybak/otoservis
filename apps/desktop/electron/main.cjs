@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell, clipboard } = require('electron');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
@@ -749,6 +749,83 @@ function handleLogout() {
 }
 
 // ============================================================================
+// Tenant (firma) profile — Ayarlar sayfası: portal linkleri, firma bilgileri, logo
+// ============================================================================
+function apiErrorMessage(res, fallback) {
+  return (res.data && res.data.error && res.data.error.message)
+    || (res.data && res.data.message)
+    || `${fallback} (HTTP ${res.status})`;
+}
+
+function friendlyNetworkError(err) {
+  const msg = err && err.message ? String(err.message) : 'Bağlantı hatası';
+  if (/fetch failed|abort|network|ENOTFOUND|ETIMEDOUT|EAI_AGAIN|socket hang up/i.test(msg)) {
+    return new Error('Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin.');
+  }
+  return err;
+}
+
+async function handleTenantGetProfile() {
+  const serverUrl = (getMeta('serverUrl') || '').replace(/\/+$/, '');
+  if (!serverUrl) throw new Error('Sunucu adresi ayarlanmamış.');
+  try {
+    const token = await ensureFreshToken();
+    if (!token) throw new Error('Oturum geçersiz. Lütfen tekrar giriş yapın.');
+    const res = await fetchJson(`${serverUrl}/api/v1/tenants/me`, { token, timeoutMs: 15000 });
+    if (!res.ok) throw new Error(apiErrorMessage(res, 'Firma bilgileri alınamadı.'));
+    return res.data;
+  } catch (err) {
+    throw friendlyNetworkError(err);
+  }
+}
+
+async function handleTenantUpdateProfile(data) {
+  const serverUrl = (getMeta('serverUrl') || '').replace(/\/+$/, '');
+  if (!serverUrl) throw new Error('Sunucu adresi ayarlanmamış.');
+  try {
+    const token = await ensureFreshToken();
+    if (!token) throw new Error('Oturum geçersiz. Lütfen tekrar giriş yapın.');
+    const res = await fetchJson(`${serverUrl}/api/v1/tenants/me`, {
+      method: 'PATCH',
+      token,
+      body: data,
+      timeoutMs: 30000, // logo yüklemesi için geniş zaman aşımı
+    });
+    if (!res.ok) throw new Error(apiErrorMessage(res, 'Firma bilgileri kaydedilemedi.'));
+    return res.data;
+  } catch (err) {
+    throw friendlyNetworkError(err);
+  }
+}
+
+// ============================================================================
+// Lisans aktivasyonu — Ayarlar ve ilk açılış ekranı
+// ============================================================================
+async function handleLicenseActivate(key, tenantId) {
+  const serverUrl = (getMeta('serverUrl') || '').replace(/\/+$/, '');
+  if (!serverUrl) throw new Error('Sunucu adresi ayarlanmamış.');
+  const normalizedKey = String(key || '').toUpperCase().trim();
+  const normalizedTenant = String(tenantId || '').trim();
+  if (!normalizedKey) throw new Error('Lisans anahtarını girin.');
+  if (!normalizedTenant) throw new Error('Firma bilgisi bulunamadı.');
+  try {
+    const res = await fetchJson(`${serverUrl}/api/v1/licenses/activate`, {
+      method: 'POST',
+      body: {
+        key: normalizedKey,
+        tenantId: normalizedTenant,
+        machineId: getMeta('deviceKey') || 'unknown',
+      },
+      timeoutMs: 20000,
+    });
+    if (!res.ok) throw new Error(apiErrorMessage(res, 'Lisans etkinleştirilemedi.'));
+    return res.data;
+  } catch (err) {
+    throw friendlyNetworkError(err);
+  }
+}
+
+// ============================================================================
 // Service order total recalculation helper
 // ============================================================================
 function updateServiceOrderTotal(d, serviceOrderId) {
@@ -844,6 +921,25 @@ function registerIpc() {
   ipcMain.handle('auth:current', () => {
     const u = getMeta('user');
     return u ? JSON.parse(u) : null;
+  });
+
+  // Tenant (firma) profile — Ayarlar sayfası
+  ipcMain.handle('tenant:getProfile', () => handleTenantGetProfile());
+  ipcMain.handle('tenant:updateProfile', (_e, data) => handleTenantUpdateProfile(data || {}));
+
+  // Lisans aktivasyonu — Ayarlar → Lisans Durumu ve ilk açılış ekranı
+  ipcMain.handle('license:activate', (_e, key, tenantId) => handleLicenseActivate(key, tenantId));
+
+  // Clipboard + dış linkler (portal linkleri, destek e-postası)
+  ipcMain.handle('app:copyText', (_e, text) => {
+    clipboard.writeText(String(text == null ? '' : text));
+    return { success: true };
+  });
+  ipcMain.handle('app:openExternal', (_e, url) => {
+    const target = typeof url === 'string' ? url : '';
+    if (!/^(https?:\/\/|mailto:)/i.test(target)) return { success: false };
+    shell.openExternal(target);
+    return { success: true };
   });
 
   ipcMain.handle('store:list', (_e, entity, opts) => handleList(entity, opts || {}));
