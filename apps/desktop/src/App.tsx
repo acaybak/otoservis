@@ -16,6 +16,10 @@ interface OtoservisBridge {
   getTenantProfile: () => Promise<TenantProfile>;
   updateTenantProfile: (data: Partial<TenantProfileForm> & { logo?: string }) => Promise<TenantProfile>;
   licenseActivate: (key: string, tenantId: string) => Promise<{ id: string; planType: string; maxUsers: number; activatedAt: string | null; expiresAt: string | null; status: string }>;
+  // Lisans/deneme doğrulama — deneme süresi dolunca lisans zorunlu olur
+  licenseCheck: () => Promise<LicenseCheckResult>;
+  trialAnchor: () => Promise<{ anchor: string | null }>;
+  trialMark: () => Promise<{ success: boolean }>;
   copyText: (text: string) => Promise<{ success: boolean }>;
   openExternal: (url: string) => Promise<{ success: boolean }>;
   list: (entity: string, opts?: { q?: string; page?: number; limit?: number }) => Promise<{ data: any[]; total: number }>;
@@ -27,6 +31,8 @@ interface OtoservisBridge {
   syncStatus: () => Promise<SyncStatus>;
   syncNow: () => Promise<SyncStatus>;
   onSyncStatus: (cb: (s: SyncStatus) => void) => () => void;
+  // Arka plan senkronu yeni veri çektiğinde açık sayfalar listeyi yeniler
+  onDataChanged: (cb: (info: { source?: string }) => void) => () => void;
   updateStatus: () => Promise<UpdateStatus>;
   updateCheck: () => Promise<UpdateStatus>;
   updateInstall: () => Promise<{ success: boolean }>;
@@ -69,6 +75,23 @@ interface OtoservisBridge {
 }
 
 interface User { id: string; email: string; firstName: string; lastName: string; tenantId: string; }
+interface TrialStatus {
+  endsAt: string | null;
+  daysLeft: number | null;
+  expired: boolean;
+}
+// POST /licenses/check yanıtı (ana süreçten; hasServer/hasTenant cihaz meta'sından gelir)
+interface LicenseCheckResult {
+  hasServer?: boolean;
+  hasTenant?: boolean;
+  tenantId?: string;
+  hasLicense?: boolean;
+  status?: string;
+  planType?: string | null;
+  expiresAt?: string | null;
+  trial?: TrialStatus | null;
+  error?: string;
+}
 interface TenantLicense {
   hasLicense: boolean;
   status: 'ACTIVE' | 'EXPIRED' | 'SUSPENDED' | 'NONE';
@@ -84,6 +107,7 @@ interface TenantProfile {
   phone: string | null; email: string | null; address: string | null; city: string | null;
   website: string | null; logo: string | null;
   license?: TenantLicense | null;
+  trial?: TrialStatus | null;
 }
 interface TenantProfileForm {
   name: string; phone: string; email: string; address: string; city: string; website: string; logo?: string;
@@ -124,7 +148,13 @@ const S = {
 // ============================================================================
 // Auth Context
 // ============================================================================
-const AuthContext = React.createContext<{ user: User | null; setUser: (u: User | null) => void }>({
+const AuthContext = React.createContext<{
+  user: User | null;
+  setUser: (u: User | null) => void;
+  // Giriş sonrası lisans/deneme doğrulaması; deneme bitmişse lisans ekranı
+  // zorunlu kılınır. Dönen değer lisansın uygun olup olmadığıdır.
+  recheckLicense?: () => Promise<boolean>;
+}>({
   user: null, setUser: () => {},
 });
 
@@ -349,7 +379,7 @@ function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { setUser } = React.useContext(AuthContext);
+  const { setUser, recheckLicense } = React.useContext(AuthContext);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -360,6 +390,11 @@ function LoginPage() {
     try {
       const res = await bridge.login(email, password);
       setUser(res.user);
+      // Girişten sonra lisans/deneme durumu sunucudan doğrulanır; deneme
+      // bitmişse uygulama lisans ekranına döner (zorunlu mod).
+      try {
+        await recheckLicense?.();
+      } catch { /* ağ hatası — yerel kayıtla devam */ }
       navigate('/');
     } catch (err: any) {
       setError(err.message || 'Giriş başarısız');
@@ -940,16 +975,18 @@ function DashboardPage() {
 
   useEffect(() => {
     if (!bridge) return;
-    bridge.stats().then(setStats).catch(() => {});
-    bridge.todayAppointments().then(setAppointments).catch(() => {});
-    bridge.activeOrders().then(setActiveOrders).catch(() => {});
-    bridge.recentMaintenance().then(setRecentMaint).catch(() => {});
-    bridge.revenue().then(setRevenue).catch(() => {});
-    const t = setInterval(() => {
+    const refreshAll = () => {
       bridge.stats().then(setStats).catch(() => {});
+      bridge.todayAppointments().then(setAppointments).catch(() => {});
       bridge.activeOrders().then(setActiveOrders).catch(() => {});
-    }, 30000); // 30 seconds instead of 10
-    return () => clearInterval(t);
+      bridge.recentMaintenance().then(setRecentMaint).catch(() => {});
+      bridge.revenue().then(setRevenue).catch(() => {});
+    };
+    refreshAll();
+    const t = setInterval(refreshAll, 30000); // 30 seconds instead of 10
+    // İnternetten alınan randevu arka planda çekildiğinde dashboard yenilensin
+    const unsubData = bridge.onDataChanged(refreshAll);
+    return () => { clearInterval(t); unsubData(); };
   }, []);
 
   const handlePlateSearch = () => {
@@ -1355,6 +1392,13 @@ function EntityPage({ defKey }: { defKey: string }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Arka plan senkronizasyonu (ör. internetten alınan randevu) yerel veritabanına
+  // yeni satır çekerken açık listeyi kendiliğinden yenile
+  useEffect(() => {
+    if (!bridge) return;
+    return bridge.onDataChanged(() => { load(); });
+  }, [load]);
+
   // For service orders & vehicles: load customer options (and vehicle options for service orders)
   useEffect(() => {
     if (!bridge) return;
@@ -1521,6 +1565,22 @@ function EntityFormModal({
         if (raw === '' || raw === undefined) continue;
         payload[f.key] = f.type === 'number' ? Number(raw) : raw;
       }
+      // Randevu: geçmiş tarih/saat seçilemez (yerel saat)
+      if (defKey === 'appointments' && payload.date) {
+        const today = new Date().toLocaleDateString('sv-SE');
+        const time = String(payload.time || (mode === 'edit' && row ? row.time : ''));
+        if (payload.date < today) {
+          setError('Geçmiş tarih için randevu oluşturulamaz. Bugün veya ileri bir tarih seçin.');
+          return;
+        }
+        if (payload.date === today && /^\d{1,2}:\d{2}$/.test(time)) {
+          const [h, m] = time.split(':').map(Number);
+          if (h * 60 + m < new Date().getHours() * 60 + new Date().getMinutes()) {
+            setError('Geçmiş saat için randevu oluşturulamaz. İleri bir saat seçin.');
+            return;
+          }
+        }
+      }
       if (mode === 'create') {
         await bridge.create(def.entity, payload);
       } else {
@@ -1569,6 +1629,7 @@ function EntityFormModal({
                       value={values[f.key]}
                       onChange={(e) => setField(f.key, f.uppercase ? e.target.value.toUpperCase() : e.target.value)}
                       required={f.required}
+                      min={f.type === 'date' ? new Date().toLocaleDateString('sv-SE') : undefined}
                     />
                   )}
                 </div>
@@ -4037,11 +4098,28 @@ function SettingsPage() {
                   Lisansınız askıya alınmış durumda. Lütfen destek ile iletişime geçin: {SUPPORT_PHONE_DISPLAY} / {SUPPORT_EMAIL}
                 </div>
               )}
-              {!licActive && lic?.status !== 'EXPIRED' && lic?.status !== 'SUSPENDED' && (
-                <div style={{ marginTop: '0.9rem', background: '#eff6ff', color: '#1e40af', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.85rem' }}>
-                  Şu anda deneme modundasınız. Bulut özelliklerini (müşteri portalı, online randevu) kullanmaya devam etmek için lisansınızı etkinleştirin.
-                </div>
-              )}
+              {!licActive && lic?.status !== 'EXPIRED' && lic?.status !== 'SUSPENDED' && (() => {
+                const trial = profile?.trial || null;
+                if (trial && trial.expired) {
+                  return (
+                    <div style={{ marginTop: '0.9rem', background: '#fef2f2', color: '#dc2626', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.85rem' }}>
+                      Deneme süreniz doldu. Devam etmek için aşağıdan lisans anahtarınızı etkinleştirin — {SUPPORT_PHONE_DISPLAY} / {SUPPORT_EMAIL}
+                    </div>
+                  );
+                }
+                if (trial) {
+                  return (
+                    <div style={{ marginTop: '0.9rem', background: '#eff6ff', color: '#1e40af', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.85rem' }}>
+                      Deneme süreniz{trial.daysLeft !== null && trial.daysLeft !== undefined ? ` ${trial.daysLeft} gün sonra` : ''} doluyor{trial.endsAt ? ` (${new Date(trial.endsAt).toLocaleDateString('tr-TR')})` : ''}. Bulut özelliklerini (müşteri portalı, online randevu) kesintisiz kullanmak için lisansınızı etkinleştirin.
+                    </div>
+                  );
+                }
+                return (
+                  <div style={{ marginTop: '0.9rem', background: '#eff6ff', color: '#1e40af', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.85rem' }}>
+                    Şu anda deneme modundasınız. Bulut özelliklerini (müşteri portalı, online randevu) kullanmaya devam etmek için lisansınızı etkinleştirin.
+                  </div>
+                );
+              })()}
               {showLicInput && (
                 <div style={{ marginTop: '1rem' }}>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#475569', marginBottom: '0.4rem' }}>{licActive ? 'Yenileme Anahtarı' : 'Lisans Anahtarı'}</label>
@@ -5222,9 +5300,27 @@ function SuppliersPage() {
 // ============================================================================
 // License Activation Screen
 // ============================================================================
-function LicenseScreen({ onActivated }: { onActivated: () => void }) {
+// Çevrimdışı deneme süresi: deneme çıpası kaydedildiğinde itibaren 7 gün.
+// Sunucuya ulaşılabildiğinde sunucudaki deneme bitişi geçerlidir.
+const TRIAL_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+
+function LicenseScreen({
+  onActivated,
+  forced = false,
+  blockReason = '',
+  blockDetail = '',
+  presetTenantId = '',
+}: {
+  onActivated: () => void;
+  // forced: deneme süresi doldu ya da lisans geçersiz — deneme modu kilitli,
+  // yalnızca geçerli lisans anahtarı ile devam edilebilir.
+  forced?: boolean;
+  blockReason?: string;
+  blockDetail?: string;
+  presetTenantId?: string;
+}) {
   const [licenseKey, setLicenseKey] = useState('');
-  const [tenantId, setTenantId] = useState('');
+  const [tenantId, setTenantId] = useState(presetTenantId);
   const [step, setStep] = useState<'input' | 'validating' | 'success' | 'error'>('input');
   const [message, setMessage] = useState('');
   const [licenseInfo, setLicenseInfo] = useState<any>(null);
@@ -5258,7 +5354,10 @@ function LicenseScreen({ onActivated }: { onActivated: () => void }) {
   };
 
   const handleSkip = () => {
-    // Allow using without license for now (trial mode)
+    // Deneme modu: ilk geçişte başlangıç çıpası kaydedilir (7 gün sonra lisans
+    // zorunlu olur). Çıpa Electron meta'sında tutulur — localStorage silinse
+    // bile kaybolmaz.
+    bridge?.trialMark().catch(() => { /* yoksay */ });
     localStorage.setItem('otoservis:license', JSON.stringify({ status: 'TRIAL', planType: 'TRIAL' }));
     onActivated();
   };
@@ -5267,10 +5366,17 @@ function LicenseScreen({ onActivated }: { onActivated: () => void }) {
     <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
       <div style={{ background: 'white', padding: '2.5rem', borderRadius: '16px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', width: '480px' }}>
         <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🔑</div>
+          <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>{forced ? '⛔' : '🔑'}</div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.25rem' }}>Lisans Aktivasyonu</h1>
-          <p style={{ color: '#64748b', fontSize: '0.9rem' }}>Programı kullanmak için lisans anahtarınızı girin</p>
+          <p style={{ color: '#64748b', fontSize: '0.9rem' }}>{forced ? 'Devam etmek için lisans anahtarınızı girin' : 'Programı kullanmak için lisans anahtarınızı girin'}</p>
         </div>
+
+        {forced && (
+          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', padding: '0.9rem 1rem', borderRadius: '10px', marginBottom: '1.25rem', fontSize: '0.88rem', lineHeight: 1.55 }}>
+            <strong style={{ display: 'block', marginBottom: '0.2rem' }}>{blockReason}</strong>
+            {blockDetail && <span>{blockDetail}</span>}
+          </div>
+        )}
 
         {step === 'input' && (
           <>
@@ -5307,15 +5413,25 @@ function LicenseScreen({ onActivated }: { onActivated: () => void }) {
             >
               Aktifleştir
             </button>
-            <button
-              onClick={handleSkip}
-              style={{ width: '100%', padding: '10px', background: 'transparent', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '0.85rem', cursor: 'pointer' }}
-            >
-              Deneme Modunda Devam Et
-            </button>
-            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.75rem', textAlign: 'center', lineHeight: 1.5 }}>
-              Yeni misiniz? "Deneme Modunda Devam Et" seçip giriş yapın; lisansınızı daha sonra <strong>Ayarlar → Lisans Durumu</strong> bölümünden etkinleştirebilirsiniz.
-            </p>
+            {!forced && (
+              <>
+                <button
+                  onClick={handleSkip}
+                  style={{ width: '100%', padding: '10px', background: 'transparent', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '0.85rem', cursor: 'pointer' }}
+                >
+                  Deneme Modunda Devam Et
+                </button>
+                <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.75rem', textAlign: 'center', lineHeight: 1.5 }}>
+                  Yeni misiniz? "Deneme Modunda Devam Et" ile <strong>7 gün ücretsiz</strong> deneyin; lisansınızı daha sonra <strong>Ayarlar → Lisans Durumu</strong> bölümünden etkinleştirebilirsiniz.
+                </p>
+              </>
+            )}
+            {forced && (
+              <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.75rem', textAlign: 'center', lineHeight: 1.6 }}>
+                Lisans anahtarınız yok mu? Yazılım sağlayıcınızla iletişime geçin:
+                <strong style={{ whiteSpace: 'nowrap' }}> {SUPPORT_PHONE_DISPLAY}</strong> / <strong>{SUPPORT_EMAIL}</strong>
+              </p>
+            )}
           </>
         )}
 
@@ -5362,7 +5478,88 @@ export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [booting, setBooting] = useState(true);
   const [hasServer, setHasServer] = useState<boolean | null>(null);
-  const [hasLicense, setHasLicense] = useState<boolean | null>(null);
+  // 'ok' → devam; 'needed' → lisans ekranı (deneme modu atlanabilir);
+  // 'blocked' → deneme bitti/lisans geçersiz, lisans zorunlu
+  const [licenseState, setLicenseState] = useState<'ok' | 'needed' | 'blocked'>('needed');
+  const [blockReason, setBlockReason] = useState<'trial' | 'expired' | 'suspended' | 'machine' | ''>('');
+  const [blockDetail, setBlockDetail] = useState('');
+  const [presetTenantId, setPresetTenantId] = useState('');
+
+  // Lisans/deneme doğrulaması. Sunucudan yanıt alınabiliyorsa sunucu kararı
+  // geçerlidir (deneme bitişi sunucuda saklanır); sunucuya ulaşılamazsa yerel
+  // kayıt ve deneme çıpasına (ilk deneme girişi + 7 gün) göre karar verilir.
+  const verifyLicense = useCallback(async (): Promise<boolean> => {
+    if (!bridge) return true;
+
+    const stored = (() => {
+      try { return JSON.parse(localStorage.getItem('otoservis:license') || 'null'); } catch { return null; }
+    })();
+
+    let check: LicenseCheckResult | null = null;
+    try {
+      check = await bridge.licenseCheck();
+    } catch {
+      check = null; // ağ hatası — sunucu bilgisine ulaşılamadı
+    }
+
+    const block = (reason: 'trial' | 'expired' | 'suspended' | 'machine', detail: string) => {
+      setBlockReason(reason);
+      setBlockDetail(detail);
+      setLicenseState('blocked');
+    };
+
+    if (check && check.hasServer && check.hasTenant) {
+      setPresetTenantId(check.tenantId || '');
+      if (check.status === 'ACTIVE') {
+        localStorage.setItem('otoservis:license', JSON.stringify({ status: 'ACTIVE', planType: check.planType, expiresAt: check.expiresAt }));
+        setLicenseState('ok');
+        return true;
+      }
+      if (check.status === 'EXPIRED') {
+        block('expired', 'Yeni lisans anahtarınızı girerek yenileyebilirsiniz.');
+        return false;
+      }
+      if (check.status === 'SUSPENDED') {
+        block('suspended', `Lütfen destek ile iletişime geçin: ${SUPPORT_PHONE_DISPLAY} / ${SUPPORT_EMAIL}`);
+        return false;
+      }
+      if (check.status === 'INVALID_MACHINE') {
+        block('machine', check.error || 'Bu lisans farklı bir cihaza bağlı.');
+        return false;
+      }
+      // Lisans yok (NONE): deneme süresi belirleyici
+      if (check.trial && check.trial.expired) {
+        block('trial', 'Devam etmek için lisansınızı etkinleştirin.');
+        return false;
+      }
+      // Deneme sürüyor ya da deneme kapsamı dışı (yönetici firmaları):
+      // daha önce seçim yapılmışsa uygulamaya devam
+      if (stored && (stored.status === 'TRIAL' || stored.status === 'ACTIVE')) {
+        setLicenseState('ok');
+        return true;
+      }
+      // Bu cihazda henüz seçim yok → lisans ekranı (deneme atlanabilir)
+      setLicenseState('needed');
+      return true;
+    }
+
+    // Sunucu doğrulaması yapılamadı (ağ hatası veya bu cihazda oturum yok):
+    // yerel kayıt ve deneme çıpası esas alınır.
+    if (stored && (stored.status === 'ACTIVE' || stored.status === 'TRIAL')) {
+      if (stored.status === 'TRIAL') {
+        let anchor: string | null = null;
+        try { anchor = (await bridge.trialAnchor()).anchor; } catch { /* yoksay */ }
+        if (anchor && Date.now() - new Date(anchor).getTime() >= TRIAL_DURATION_MS) {
+          block('trial', 'Devam etmek için lisansınızı etkinleştirin.');
+          return false;
+        }
+      }
+      setLicenseState('ok');
+      return true;
+    }
+    setLicenseState('needed');
+    return true;
+  }, []);
 
   useEffect(() => {
     if (!bridge) { setBooting(false); return; }
@@ -5370,26 +5567,19 @@ export function App() {
       const cfg = await bridge.getConfig().catch(() => ({ serverUrl: null, deviceKey: null }));
       setHasServer(!!cfg.serverUrl);
       if (cfg.serverUrl) {
-        // Check license
-        const lic = localStorage.getItem('otoservis:license');
-        if (lic) {
-          try {
-            const parsed = JSON.parse(lic);
-            if (parsed.status === 'ACTIVE' || parsed.status === 'TRIAL') {
-              setHasLicense(true);
-            } else {
-              setHasLicense(false);
-            }
-          } catch { setHasLicense(false); }
-        } else {
-          setHasLicense(false);
-        }
         const u = await bridge.currentUser().catch(() => null);
         if (u) setUser(u);
+        // Lisans/deneme durumu sunucudan doğrulanır; deneme bitmişse
+        // lisans ekranı zorunlu kılınır.
+        try {
+          await verifyLicense();
+        } catch {
+          setLicenseState('needed');
+        }
       }
       setBooting(false);
     })();
-  }, []);
+  }, [verifyLicense]);
 
   // Zoom shortcuts that work on every keyboard layout. The Electron menu's default
   // accelerators match physical key codes, which miss keys on e.g. the Turkish layout,
@@ -5428,10 +5618,25 @@ export function App() {
     );
   }
   if (hasServer === false) return <SetupScreen onDone={() => setHasServer(true)} />;
-  if (hasLicense === false) return <LicenseScreen onActivated={() => setHasLicense(true)} />;
+  if (licenseState === 'needed' || licenseState === 'blocked') {
+    const blockTitle =
+      blockReason === 'trial' ? 'Deneme süreniz doldu.' :
+      blockReason === 'expired' ? 'Lisans süreniz doldu.' :
+      blockReason === 'suspended' ? 'Lisansınız askıya alınmış.' :
+      'Lisans bu cihazla eşleşmiyor.';
+    return (
+      <LicenseScreen
+        forced={licenseState === 'blocked'}
+        blockReason={blockTitle}
+        blockDetail={blockDetail}
+        presetTenantId={presetTenantId}
+        onActivated={() => setLicenseState('ok')}
+      />
+    );
+  }
 
   return (
-    <AuthContext.Provider value={{ user, setUser }}>
+    <AuthContext.Provider value={{ user, setUser, recheckLicense: verifyLicense }}>
       <HashRouter>
         <Routes>
           <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />

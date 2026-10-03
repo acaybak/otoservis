@@ -82,6 +82,12 @@ export class SyncService {
   async pullChanges(tenantId: string, since?: string) {
     const sinceDate = since ? new Date(since) : new Date(0);
 
+    // serverTime sorgulardan ÖNCE alınır: sorgular ile zaman damgası arasında
+    // sunucuya yazılan satırlar (ör. portal randevusu) bir sonraki çekimde
+    // tekrar döner — upsert idempotent olduğu için bu güvenlidir. Ters sıra,
+    // yeni satırın kalıcı olarak kaçırılmasına yol açardı.
+    const serverTime = new Date().toISOString();
+
     const [customers, vehicleRows, appointments, products, serviceOrders] = await Promise.all([
       this.prisma.customer.findMany({ where: { tenantId, updatedAt: { gt: sinceDate } } }),
       this.prisma.vehicle.findMany({
@@ -113,7 +119,7 @@ export class SyncService {
     });
 
     return {
-      serverTime: new Date().toISOString(),
+      serverTime,
       entities: { customers, vehicles, appointments, products, serviceOrders },
     };
   }

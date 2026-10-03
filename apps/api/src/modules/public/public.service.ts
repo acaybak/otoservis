@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { assertFutureAppointmentSlot, istanbulNowParts } from '../../common/services/booking-time.helper';
 
 @Injectable()
 export class PublicService {
@@ -214,6 +215,14 @@ export class PublicService {
   // ==========================================================================
 
   async getAvailableSlots(tenantId: string, date: string) {
+    // Geçmiş tarih için slot listesi anlamsız; bugün içinse geçmiş saatler
+    // artık seçilemez (müşteri geçmiş saate randevu alamaz).
+    const dateStr = String(date || '').slice(0, 10);
+    const now = istanbulNowParts();
+    if (dateStr < now.date) {
+      return { date: dateStr, availableSlots: [], workHours: null, slotDuration: 0 };
+    }
+
     // Get working hours from settings (default 09:00 - 18:00)
     const settings = await (this.prisma as any).tenantSetting.findMany({
       where: { tenantId },
@@ -254,6 +263,8 @@ export class PublicService {
     const slots: string[] = [];
     for (let hour = workStart; hour < workEnd; hour++) {
       for (let min = 0; min < 60; min += slotDuration) {
+        // Bugünün geçmiş saatleri listelenmesin
+        if (dateStr === now.date && hour * 60 + min < now.minutes) continue;
         const timeStr = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
         if (!bookedTimes.includes(timeStr)) {
           slots.push(timeStr);
@@ -281,6 +292,10 @@ export class PublicService {
     serviceType?: string;
     notes?: string;
   }) {
+    // Geçmiş tarih/saat kontrolü (İstanbul saati) — istemci atlatılsa bile
+    // sunucu reddeder; slot listesi de geçmiş saatleri zaten göstermez.
+    assertFutureAppointmentSlot(data.date, data.time);
+
     // Find or create customer
     let customer = await (this.prisma as any).customer.findFirst({
       where: { tenantId, phone: data.customerPhone },

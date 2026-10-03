@@ -521,6 +521,16 @@ function AppointmentPage() {
   const handleSubmit = async () => {
     setError(''); setLoading(true);
     try {
+      // Geçmiş tarih/saat anında reddet (sunucu da İstanbul saatine göre doğrular;
+      // burada ayrıca yerel saat ile hızlı geri bildirim verilir)
+      const today = new Date().toLocaleDateString('sv-SE');
+      if (formData.date < today) throw new Error('Geçmiş tarih için randevu alınamaz. Lütfen bugün veya ileri bir tarih seçin.');
+      if (formData.date === today && formData.time) {
+        const [h, m] = formData.time.split(':').map(Number);
+        if (h * 60 + m < new Date().getHours() * 60 + new Date().getMinutes()) {
+          throw new Error('Geçmiş saat için randevu alınamaz. Lütfen ileri bir saat seçin.');
+        }
+      }
       const res = await fetch(`${API_BASE}/public/${tenantSlug}/appointments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || 'Randevu oluşturulamadı.'); }
       setSuccess(await res.json()); setStep(4);
@@ -605,7 +615,7 @@ function AppointmentPage() {
                 </div>
                 <div style={{ marginBottom: '0.85rem' }}>
                   <label style={{ display: 'block', fontSize: '0.8rem', color: '#475569', marginBottom: '0.2rem', fontWeight: '500' }}>Tarih *</label>
-                  <input style={{ ...S.searchInput, fontSize: '0.95rem' }} type="date" min={new Date().toISOString().split('T')[0]} value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value, time: '' })} />
+                  <input style={{ ...S.searchInput, fontSize: '0.95rem' }} type="date" min={new Date().toLocaleDateString('sv-SE')} value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value, time: '' })} />
                 </div>
                 {formData.date && (
                   <div style={{ marginBottom: '0.85rem' }}>

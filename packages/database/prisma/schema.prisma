@@ -24,6 +24,8 @@ model Tenant {
   city      String?
   taxNumber String?  @map("tax_number")
   website   String?
+  // Ücretsiz deneme bitişi (kayıt + 7 gün). Dolunca yeni kayıt ve bulut eşitleme kilitlenir.
+  trialEndsAt DateTime? @map("trial_ends_at")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -909,8 +911,8 @@ model License {
   tenantId     String    @unique @map("tenant_id")
   licenseKey   String    @unique @map("license_key")
   status       String    @default("ACTIVE") // ACTIVE, EXPIRED, SUSPENDED
-  planType     String    @default("STANDARD") // STANDARD, PROFESSIONAL, ENTERPRISE
-  maxUsers     Int       @default(3)
+  planType     String    @default("STANDARD") @map("plan_type") // STANDARD, PROFESSIONAL, ENTERPRISE
+  maxUsers     Int       @default(3) @map("max_users")
   activatedAt  DateTime? @map("activated_at")
   expiresAt    DateTime? @map("expires_at")
   machineId    String?   @map("machine_id")
@@ -926,8 +928,8 @@ model License {
 model LicenseKey {
   id         String    @id @default(uuid())
   key        String    @unique
-  planType   String    @default("STANDARD") // STANDARD, PROFESSIONAL, ENTERPRISE
-  maxUsers   Int       @default(3)
+  planType   String    @default("STANDARD") @map("plan_type") // STANDARD, PROFESSIONAL, ENTERPRISE
+  maxUsers   Int       @default(3) @map("max_users")
   duration   Int       @default(365) // days
   status     String    @default("AVAILABLE") // AVAILABLE, USED, EXPIRED
   tenantId   String?   @map("tenant_id")

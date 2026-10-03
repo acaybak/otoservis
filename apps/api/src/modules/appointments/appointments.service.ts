@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
+import { assertFutureAppointmentSlot } from '../../common/services/booking-time.helper';
 
 @Injectable()
 export class AppointmentsService {
@@ -57,6 +58,8 @@ export class AppointmentsService {
   }
 
   async create(tenantId: string, data: Record<string, unknown>, userId: string) {
+    // Geçmiş tarih/saatli randevu oluşturulamaz (İstanbul saati)
+    assertFutureAppointmentSlot(String(data.date), String(data.time));
     if (data.date) data.date = new Date(data.date as string);
     const appt = await this.prisma.appointment.create({
       data: { ...data, tenantId, status: 'PENDING' } as any,
@@ -76,6 +79,12 @@ export class AppointmentsService {
   async update(tenantId: string, id: string, data: Record<string, unknown>) {
     const existing = await this.prisma.appointment.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Randevu bulunamadı.');
+    // Tarih değiştiriliyorsa geçmiş tarihe/saate taşınamaz; saat gönderilmediyse
+    // mevcut saati kullan
+    if (data.date) {
+      const time = (data.time as string) || existing.time;
+      assertFutureAppointmentSlot(String(data.date), String(time));
+    }
     if (data.date) data.date = new Date(data.date as string);
     return this.prisma.appointment.update({ where: { id }, data });
   }

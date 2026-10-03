@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as crypto from 'crypto';
+import { buildTrialInfo } from '../../common/services/license-status.helper';
 
 @Injectable()
 export class LicensesService {
@@ -211,9 +212,17 @@ export class LicensesService {
     };
   }
 
-  // Public: Check license status for a tenant
+  // Public: Check license status for a tenant. Yanıtta deneme (trial) bilgisi de
+  // döner; masaüstü uygulama deneme bitince lisans ekranını zorunlu kılar.
   async checkLicense(tenantId: string, machineId?: string) {
-    const license = await (this.prisma as any).license.findUnique({
+    const prisma = this.prisma as any;
+
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { trialEndsAt: true },
+    });
+
+    const license = await prisma.license.findUnique({
       where: { tenantId },
     });
 
@@ -221,6 +230,7 @@ export class LicensesService {
       return {
         hasLicense: false,
         status: 'NONE',
+        trial: buildTrialInfo(tenant ? tenant.trialEndsAt : null, false),
       };
     }
 
@@ -232,6 +242,7 @@ export class LicensesService {
         planType: license.planType,
         maxUsers: license.maxUsers,
         expiresAt: license.expiresAt,
+        trial: buildTrialInfo(tenant ? tenant.trialEndsAt : null, license.status === 'ACTIVE'),
         error: 'Bu lisans farklı bir cihaza bağlı.',
       };
     }
@@ -240,7 +251,7 @@ export class LicensesService {
     const now = new Date();
     if (license.expiresAt && license.expiresAt < now) {
       // Update status to EXPIRED
-      await (this.prisma as any).license.update({
+      await prisma.license.update({
         where: { id: license.id },
         data: { status: 'EXPIRED' },
       });
@@ -250,6 +261,7 @@ export class LicensesService {
         planType: license.planType,
         maxUsers: license.maxUsers,
         expiresAt: license.expiresAt,
+        trial: buildTrialInfo(tenant ? tenant.trialEndsAt : null, false),
       };
     }
 
@@ -261,6 +273,7 @@ export class LicensesService {
       activatedAt: license.activatedAt,
       expiresAt: license.expiresAt,
       machineId: license.machineId,
+      trial: buildTrialInfo(tenant ? tenant.trialEndsAt : null, license.status === 'ACTIVE'),
     };
   }
 

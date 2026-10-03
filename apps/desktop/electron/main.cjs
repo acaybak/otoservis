@@ -408,9 +408,15 @@ async function syncNow() {
     );
     if (!pullRes.ok) throw new Error(`Pull başarısız (HTTP ${pullRes.status})`);
 
-    applyPulledEntities(pullRes.data && pullRes.data.entities ? pullRes.data.entities : {});
+    const pulledCount = applyPulledEntities(pullRes.data && pullRes.data.entities ? pullRes.data.entities : {});
     if (pullRes.data && pullRes.data.serverTime) {
       setMeta('lastPullAt', pullRes.data.serverTime);
+    }
+
+    // Arka plan senkronizasyonu yeni veri çektiyse arayüzü haberdar et;
+    // açık sayfalar (randevular, dashboard) listelerini kendiliğinden yeniler.
+    if (pulledCount > 0 && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('data:changed', { source: 'sync' });
     }
 
     syncState.online = true;
@@ -428,6 +434,16 @@ async function syncNow() {
 
 function applyPulledEntities(entities) {
   const d = getDb();
+  let changed = 0;
+
+  // Sunucudan gelen randevu tarihleri ISO timestamp olarak gelir
+  // ("2026-10-03T00:00:00.000Z"); yerel tablo ve sorgular YYYY-MM-DD
+  // beklediği için çekilen satırlarda normalize edilir. Normalize edilmezse
+  // bugünün randevuları sorgusu (substr karşılaştırması) eşleşmez.
+  const rowTransforms = {
+    appointments: (row) => ({ ...row, date: row.date ? String(row.date).slice(0, 10) : row.date }),
+  };
+
   const mapping = {
     customers: ENTITIES.customers.cols,
     vehicles: ENTITIES.vehicles.cols,
@@ -462,14 +478,17 @@ function applyPulledEntities(entities) {
        VALUES (${[...cols, 'dirty'].map(() => '?').join(', ')})`,
     );
 
-    for (const row of rows) {
+    for (const rawRow of rows) {
+      const row = rowTransforms[serverKey] ? rowTransforms[serverKey](rawRow) : rawRow;
       if (!row || !row.id) continue;
       const local = checkDirty.get(row.id);
       // Don't overwrite rows that still have unpushed local changes
       if (local && local.dirty) continue;
       upsert.run(...cols.map((c) => (row[c] === undefined ? null : row[c])), 0);
+      changed++;
     }
   }
+  return changed;
 }
 
 function scheduleSync() {
@@ -826,6 +845,45 @@ async function handleLicenseActivate(key, tenantId) {
 }
 
 // ============================================================================
+// Lisans/deneme durumu — açılışta ve oturum sonrasında doğrulama.
+// /licenses/check genel (public) bir uçtır; oturum anahtarı gerekmez, bu
+// yüzden süresi dolmuş oturumlarla da çalışır. Deneme bitince masaüstü
+// uygulama lisans ekranını zorunlu kılar.
+// ============================================================================
+async function handleLicenseCheck() {
+  const serverUrl = (getMeta('serverUrl') || '').replace(/\/+$/, '');
+  if (!serverUrl) return { hasServer: false, hasTenant: false };
+  const tenantId = getMeta('tenantId');
+  if (!tenantId) return { hasServer: true, hasTenant: false };
+  try {
+    const body = { tenantId };
+    const deviceKey = getMeta('deviceKey');
+    // Cihaz anahtarı yoksa machineId gönderilmez; sunucu cihaz doğrulamasını atlar
+    if (deviceKey) body.machineId = deviceKey;
+    const res = await fetchJson(`${serverUrl}/api/v1/licenses/check`, {
+      method: 'POST',
+      body,
+      timeoutMs: 15000,
+    });
+    if (!res.ok) throw new Error(apiErrorMessage(res, 'Lisans durumu alınamadı.'));
+    return { hasServer: true, hasTenant: true, tenantId, ...res.data };
+  } catch (err) {
+    throw friendlyNetworkError(err);
+  }
+}
+
+// Deneme çıpası: "Deneme Modunda Devam Et" ilk tıklandığında kaydedilir.
+// Çevrimdışı kalındığında deneme bitişi bu tarihten 7 gün sonra kabul edilir;
+// sunucuya ulaşılabildiğinde sunucudaki trialEndsAt bilgisi geçerlidir.
+function handleTrialAnchor() {
+  return { anchor: getMeta('trialAnchor') || null };
+}
+function handleTrialMark() {
+  if (!getMeta('trialAnchor')) setMeta('trialAnchor', new Date().toISOString());
+  return { success: true };
+}
+
+// ============================================================================
 // Service order total recalculation helper
 // ============================================================================
 function updateServiceOrderTotal(d, serviceOrderId) {
@@ -929,6 +987,11 @@ function registerIpc() {
 
   // Lisans aktivasyonu — Ayarlar → Lisans Durumu ve ilk açılış ekranı
   ipcMain.handle('license:activate', (_e, key, tenantId) => handleLicenseActivate(key, tenantId));
+
+  // Lisans/deneme durumu ve deneme başlangıç çıpası
+  ipcMain.handle('license:check', () => handleLicenseCheck());
+  ipcMain.handle('trial:anchor', () => handleTrialAnchor());
+  ipcMain.handle('trial:mark', () => handleTrialMark());
 
   // Clipboard + dış linkler (portal linkleri, destek e-postası)
   ipcMain.handle('app:copyText', (_e, text) => {
@@ -1292,12 +1355,15 @@ function registerIpc() {
   // ==========================================================================
   ipcMain.handle('dashboard:today-appointments', () => {
     const d = getDb();
-    const today = new Date().toISOString().split('T')[0];
+    // Yerel saatle bugün (toISOString UTC verir; gece 00:00-03:00 arası
+    // yanlış güne düşer). substr, geçmiş sürümlerden kalabilecek ISO
+    // tarihli satırları da kapsar.
+    const today = new Date().toLocaleDateString('sv-SE');
     return d.prepare(
       `SELECT a.*, v.plate as vehiclePlate
        FROM appointments a
        LEFT JOIN vehicles v ON v.id = a.vehicleId
-       WHERE a.date = ?
+       WHERE substr(a.date, 1, 10) = ?
        ORDER BY a.time ASC`,
     ).all(today);
   });

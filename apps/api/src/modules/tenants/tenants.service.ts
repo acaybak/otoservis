@@ -4,16 +4,25 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@otoservis/database';
 import { TenantResponse } from '@otoservis/types';
+import {
+  TRIAL_DAYS,
+  buildTrialInfo,
+  TrialInfo,
+} from '../../common/services/license-status.helper';
 
 @Injectable()
 export class TenantsService {
   private readonly logger = new Logger(TenantsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {}
 
   async create(data: { name: string; slug: string }): Promise<TenantResponse> {
     const existing = await this.prisma.tenant.findUnique({
@@ -29,6 +38,7 @@ export class TenantsService {
         name: data.name,
         slug: data.slug,
         status: 'ACTIVE',
+        trialEndsAt: this.trialEndsAtFor(),
       },
     });
 
@@ -97,7 +107,8 @@ export class TenantsService {
 
     const logo = await this.getLogoSetting(tenantId);
     const license = await this.getLicenseInfo(tenantId);
-    return this.toProfile(tenant, logo, license);
+    const trial = buildTrialInfo(tenant.trialEndsAt, license.status === 'ACTIVE');
+    return this.toProfile(tenant, logo, license, trial);
   }
 
   async updateMe(
@@ -145,8 +156,11 @@ export class TenantsService {
 
     const logo = await this.getLogoSetting(tenantId);
     const license = await this.getLicenseInfo(tenantId);
+    // getLicenseInfo süresi geçmiş lisansı zaten EXPIRED işaretlediği için
+    // status === 'ACTIVE' kontrolü yeterlidir
+    const trial = buildTrialInfo(updated.trialEndsAt, license.status === 'ACTIVE');
     this.logger.log(`Tenant profile updated: ${updated.name} (${updated.id})`);
-    return this.toProfile(updated, logo, license);
+    return this.toProfile(updated, logo, license, trial);
   }
 
   // Tamirhane logosu tenant_settings tablosunda 'logo' anahtarıyla saklanır
@@ -245,6 +259,8 @@ export class TenantsService {
           phone: data.phone || null,
           address: data.address || null,
           city: data.city || null,
+          // Yönetici (ADMIN_EMAILS) firmaları deneme kapsamı dışındadır
+          trialEndsAt: this.trialEndsAtFor(data.adminEmail),
         },
       });
 
@@ -283,6 +299,22 @@ export class TenantsService {
     };
   }
 
+  // Yeni firma için deneme bitişi: kayıt + 7 gün. Yönetici e-postaları
+  // (ADMIN_EMAILS) hariçtir; onlar lisanssız da kısıtlanmaz.
+  private trialEndsAtFor(adminEmail?: string): Date | null {
+    if (adminEmail) {
+      const raw = this.configService.get<string>('ADMIN_EMAILS') || '';
+      const admins = raw
+        .split(',')
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean);
+      if (admins.includes(adminEmail.toLowerCase())) return null;
+    }
+    const ends = new Date();
+    ends.setDate(ends.getDate() + TRIAL_DAYS);
+    return ends;
+  }
+
   private toResponse(tenant: {
     id: string;
     name: string;
@@ -313,11 +345,13 @@ export class TenantsService {
       city: string | null;
       taxNumber: string | null;
       website: string | null;
+      trialEndsAt: Date | null;
       createdAt: Date;
       updatedAt: Date;
     },
     logo: string | null = null,
     license: any = null,
+    trial: TrialInfo | null = null,
   ) {
     return {
       id: tenant.id,
@@ -332,6 +366,7 @@ export class TenantsService {
       website: tenant.website,
       logo,
       license,
+      trial,
       createdAt: tenant.createdAt.toISOString(),
       updatedAt: tenant.updatedAt.toISOString(),
     };

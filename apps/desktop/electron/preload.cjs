@@ -31,6 +31,11 @@ contextBridge.exposeInMainWorld('otoservis', {
   // Lisans aktivasyonu (Ayarlar → Lisans Durumu ve ilk açılış ekranı)
   licenseActivate: (key, tenantId) => ipcRenderer.invoke('license:activate', key, tenantId),
 
+  // Lisans/deneme durumu ve deneme başlangıç çıpası (deneme bitince lisans zorunlu)
+  licenseCheck: () => ipcRenderer.invoke('license:check'),
+  trialAnchor: () => ipcRenderer.invoke('trial:anchor'),
+  trialMark: () => ipcRenderer.invoke('trial:mark'),
+
   // Local offline-first store
   list: (entity, opts) => ipcRenderer.invoke('store:list', entity, opts),
   get: (entity, id) => ipcRenderer.invoke('store:get', entity, id),
@@ -56,6 +61,12 @@ contextBridge.exposeInMainWorld('otoservis', {
     const handler = (_event, status) => callback(status);
     ipcRenderer.on('sync:status', handler);
     return () => ipcRenderer.removeListener('sync:status', handler);
+  },
+  // Arka plan senkronu yeni veri çektiğinde açık sayfalar listeyi yeniler
+  onDataChanged: (callback) => {
+    const handler = (_event, info) => callback(info);
+    ipcRenderer.on('data:changed', handler);
+    return () => ipcRenderer.removeListener('data:changed', handler);
   },
 
   // Auto-update
