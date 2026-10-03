@@ -796,6 +796,42 @@ function PlateSearch() {
   );
 }
 
+// Lisans/deneme bitiş bilgisi — App'teki doğrulama buraya yazar; Layout içindeki
+// uyarı şeridi (ExpiryNotice) her sayfada görünür.
+const LicenseInfoContext = React.createContext<LicenseCheckResult | null>(null);
+
+// Bitişe yaklaşınca (lisans: son 14 gün, deneme: son 3 gün) tüm sayfaların üstünde
+// gösterilen uyarı şeridi. Kapatılırsa uygulama yeniden açılana kadar gizlenir.
+function ExpiryNotice() {
+  const info = React.useContext(LicenseInfoContext);
+  const [hidden, setHidden] = useState(() => {
+    try { return sessionStorage.getItem('otoservis:expiryDismissed') === '1'; } catch { return false; }
+  });
+  if (!info || hidden) return null;
+  const fmt = (iso: string) => new Date(iso).toLocaleDateString('tr-TR');
+  let msg = ''; let bg = '#fff7ed'; let color = '#c2410c'; let border = '#fdba74';
+  if (info.status === 'ACTIVE' && info.expiresAt) {
+    const days = Math.ceil((new Date(info.expiresAt).getTime() - Date.now()) / 86400000);
+    if (days > 14) return null;
+    msg = `⚠️ Lisansınızın süresi ${fmt(info.expiresAt)} tarihinde doluyor${days >= 0 ? ` — ${days} gün kaldı` : ''}. Yenilemek için: Ayarlar → Lisans Durumu`;
+  } else if (info.trial && !info.trial.expired && info.trial.endsAt && info.trial.daysLeft !== null && info.trial.daysLeft <= 3) {
+    msg = `⏳ Deneme süreniz ${fmt(info.trial.endsAt)} tarihinde doluyor — ${info.trial.daysLeft} gün kaldı. Süre bitince uygulamayı kullanmak için lisans etkinleştirmeniz gerekir.`;
+    bg = '#fef3c7'; color = '#92400e'; border = '#fcd34d';
+  } else {
+    return null;
+  }
+  const dismiss = () => {
+    setHidden(true);
+    try { sessionStorage.setItem('otoservis:expiryDismissed', '1'); } catch { /* yoksay */ }
+  };
+  return (
+    <div style={{ background: bg, color, borderBottom: `1px solid ${border}`, padding: '0.5rem 1.5rem', fontSize: '0.85rem', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+      <span>{msg}</span>
+      <button onClick={dismiss} title="Kapat" style={{ background: 'transparent', border: 'none', color, fontSize: '1rem', cursor: 'pointer', lineHeight: 1, padding: '0 0.25rem' }}>✕</button>
+    </div>
+  );
+}
+
 // ============================================================================
 // Layout
 // ============================================================================
@@ -926,6 +962,7 @@ function Layout({ children, title }: { children: React.ReactNode; title: string 
             <UpdateBanner />
           </div>
         </header>
+        <ExpiryNotice />
         <div style={{ padding: '1.25rem 1.5rem', flex: 1 }}>{children}</div>
       </main>
     </div>
@@ -4108,9 +4145,10 @@ function SettingsPage() {
                   );
                 }
                 if (trial) {
+                  const soon = trial.daysLeft !== null && trial.daysLeft !== undefined && trial.daysLeft <= 3;
                   return (
-                    <div style={{ marginTop: '0.9rem', background: '#eff6ff', color: '#1e40af', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.85rem' }}>
-                      Deneme süreniz{trial.daysLeft !== null && trial.daysLeft !== undefined ? ` ${trial.daysLeft} gün sonra` : ''} doluyor{trial.endsAt ? ` (${new Date(trial.endsAt).toLocaleDateString('tr-TR')})` : ''}. Bulut özelliklerini (müşteri portalı, online randevu) kesintisiz kullanmak için lisansınızı etkinleştirin.
+                    <div style={{ marginTop: '0.9rem', background: soon ? '#fff7ed' : '#eff6ff', color: soon ? '#c2410c' : '#1e40af', padding: '0.6rem 0.75rem', borderRadius: 8, fontSize: '0.85rem' }}>
+                      Deneme bitiş tarihiniz: <strong>{trial.endsAt ? new Date(trial.endsAt).toLocaleDateString('tr-TR') : '-'}</strong>{trial.daysLeft !== null && trial.daysLeft !== undefined ? ` — ${trial.daysLeft} gün kaldı` : ''}. Süre bitince uygulamayı kullanmaya devam etmek için lisans etkinleştirmeniz gerekir.
                     </div>
                   );
                 }
@@ -5484,6 +5522,7 @@ export function App() {
   const [blockReason, setBlockReason] = useState<'trial' | 'expired' | 'suspended' | 'machine' | ''>('');
   const [blockDetail, setBlockDetail] = useState('');
   const [presetTenantId, setPresetTenantId] = useState('');
+  const [licenseInfo, setLicenseInfo] = useState<LicenseCheckResult | null>(null);
 
   // Lisans/deneme doğrulaması. Sunucudan yanıt alınabiliyorsa sunucu kararı
   // geçerlidir (deneme bitişi sunucuda saklanır); sunucuya ulaşılamazsa yerel
@@ -5509,6 +5548,7 @@ export function App() {
     };
 
     if (check && check.hasServer && check.hasTenant) {
+      setLicenseInfo(check); // bitiş tarihi uyarı şeridi bu veriyi kullanır
       setPresetTenantId(check.tenantId || '');
       if (check.status === 'ACTIVE') {
         localStorage.setItem('otoservis:license', JSON.stringify({ status: 'ACTIVE', planType: check.planType, expiresAt: check.expiresAt }));
@@ -5630,13 +5670,14 @@ export function App() {
         blockReason={blockTitle}
         blockDetail={blockDetail}
         presetTenantId={presetTenantId}
-        onActivated={() => setLicenseState('ok')}
+        onActivated={() => { setLicenseState('ok'); verifyLicense(); }}
       />
     );
   }
 
   return (
     <AuthContext.Provider value={{ user, setUser, recheckLicense: verifyLicense }}>
+      <LicenseInfoContext.Provider value={licenseInfo}>
       <HashRouter>
         <Routes>
           <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
@@ -5663,6 +5704,7 @@ export function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </HashRouter>
+      </LicenseInfoContext.Provider>
     </AuthContext.Provider>
   );
 }
