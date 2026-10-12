@@ -11,6 +11,7 @@ export const createAppointmentSchema = z.object({
   duration: z.number().int().min(15).max(480).default(60),
   technicianId: z.string().uuid().optional(),
   notes: z.string().optional(),
+  status: z.enum(['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW']).default('PENDING'),
   source: z.enum(['DESKTOP', 'ONLINE']).default('DESKTOP'),
 });
 
@@ -25,6 +26,7 @@ export const updateAppointmentSchema = z.object({
   duration: z.number().int().min(15).max(480).optional(),
   technicianId: z.string().uuid().nullable().optional(),
   notes: z.string().nullable().optional(),
+  status: z.enum(['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW']).optional(),
 });
 
 export const changeAppointmentStatusSchema = z.object({

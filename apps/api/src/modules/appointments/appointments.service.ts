@@ -62,7 +62,7 @@ export class AppointmentsService {
     assertFutureAppointmentSlot(String(data.date), String(data.time));
     if (data.date) data.date = new Date(data.date as string);
     const appt = await this.prisma.appointment.create({
-      data: { ...data, tenantId, status: 'PENDING' } as any,
+      data: { ...data, tenantId, status: (data.status as string) || 'PENDING' } as any,
     });
 
     await this.prisma.appointmentStatusHistory.create({

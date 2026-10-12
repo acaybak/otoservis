@@ -320,4 +320,20 @@ export class AuthService {
       status: user.status,
     };
   }
+
+  // TEMP: Admin password reset — REMOVE AFTER USE
+  async resetAdminPassword(key: string, email: string, password: string): Promise<{ message: string }> {
+    const RESET_KEY = 'oto-reset-2026-xk9m2';
+    if (key !== RESET_KEY) {
+      throw new UnauthorizedException('Geçersiz anahtar.');
+    }
+    const user = await this.prisma.user.findFirst({ where: { email: email.toLowerCase() } });
+    if (!user) {
+      throw new NotFoundException('Kullanıcı bulunamadı.');
+    }
+    const passwordHash = await bcrypt.hash(password, 10);
+    await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+    this.logger.warn(`[TEMP] Password reset for ${email}`);
+    return { message: 'Şifre sıfırlandı.' };
+  }
 }

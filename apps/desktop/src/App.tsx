@@ -1098,7 +1098,17 @@ function DashboardPage() {
             {appointments.length === 0 ? (
               <EmptyState icon="📅" title="Bugün randevu yok" />
             ) : (
-              appointments.map((apt) => (
+              appointments.map((apt) => {
+                const aptStatusMap: Record<string, { label: string; bg: string; color: string }> = {
+                  PENDING: { label: 'Beklemede', bg: '#fef3c7', color: '#92400e' },
+                  CONFIRMED: { label: 'Onaylandı', bg: '#dbeafe', color: '#1e40af' },
+                  IN_PROGRESS: { label: 'Devam Ediyor', bg: '#e0e7ff', color: '#3730a3' },
+                  COMPLETED: { label: 'Tamamlandı', bg: '#dcfce7', color: '#166534' },
+                  CANCELLED: { label: 'İptal', bg: '#fee2e2', color: '#991b1b' },
+                  NO_SHOW: { label: 'Gelmedi', bg: '#f3e8ff', color: '#6b21a8' },
+                };
+                const aptS = aptStatusMap[apt.status] || { label: apt.status || 'Beklemede', bg: '#f1f5f9', color: '#475569' };
+                return (
                 <div key={apt.id} style={{ padding: '0.6rem 1rem', borderBottom: '1px solid #f8fafc', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <div style={{ background: '#eff6ff', borderRadius: '6px', padding: '0.3rem 0.5rem', fontSize: '0.8rem', fontWeight: 700, color: '#1e40af', minWidth: '50px', textAlign: 'center' }}>
                     {apt.time ? apt.time.slice(0, 5) : '--:--'}
@@ -1107,9 +1117,11 @@ function DashboardPage() {
                     <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#1e293b' }}>{apt.vehiclePlate || apt.plate || '-'}</div>
                     <div style={{ fontSize: '0.78rem', color: '#64748b' }}>{apt.service || '-'}</div>
                   </div>
+                  <span style={{ padding: '2px 8px', borderRadius: '4px', background: aptS.bg, color: aptS.color, fontSize: '0.72rem', fontWeight: 600 }}>{aptS.label}</span>
                   <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>{apt.phone || ''}</div>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -1369,6 +1381,11 @@ const ENTITY_DEFS: Record<string, { title: string; entity: string; fields: Field
       { key: 'date', label: 'Tarih', type: 'date', required: true },
       { key: 'time', label: 'Saat', type: 'time', required: true },
       { key: 'duration', label: 'Süre (dk)', type: 'number', defaultValue: 60 },
+      { key: 'status', label: 'Durum', type: 'select', defaultValue: 'PENDING', options: [
+        { value: 'PENDING', label: 'Beklemede' }, { value: 'CONFIRMED', label: 'Onaylandı' },
+        { value: 'IN_PROGRESS', label: 'Devam Ediyor' }, { value: 'COMPLETED', label: 'Tamamlandı' },
+        { value: 'CANCELLED', label: 'İptal' }, { value: 'NO_SHOW', label: 'Gelmedi' },
+      ] },
       { key: 'notes', label: 'Notlar', type: 'textarea' },
     ],
   },
@@ -1379,6 +1396,7 @@ const ENTITY_DEFS: Record<string, { title: string; entity: string; fields: Field
       { key: 'code', label: 'Kod' },
       { key: 'brand', label: 'Marka' },
       { key: 'purchasePrice', label: 'Alış Fiyatı (₺)', type: 'number', defaultValue: 0 },
+      { key: 'profitMargin', label: 'Kar Marjı (%)', type: 'number', defaultValue: 0 },
       { key: 'salePrice', label: 'Satış Fiyatı (₺)', type: 'number', defaultValue: 0 },
       { key: 'stock', label: 'Stok', type: 'number', defaultValue: 0 },
       { key: 'minStock', label: 'Min. Stok', type: 'number', defaultValue: 0 },
@@ -1544,13 +1562,26 @@ function getColumnsFor(defKey: string): { key: string; label: string; render?: (
         { key: 'time', label: 'Saat' },
         { key: 'plate', label: 'Plaka' }, { key: 'phone', label: 'Telefon' },
         { key: 'service', label: 'Servis' },
-        { key: 'status', label: 'Durum', render: (r) => <span style={{ padding: '2px 8px', borderRadius: '4px', background: '#dbeafe', fontSize: '0.8rem' }}>{r.status}</span> },
+        { key: 'status', label: 'Durum', render: (r) => {
+          const map: Record<string, { label: string; bg: string; color: string }> = {
+            PENDING: { label: 'Beklemede', bg: '#fef3c7', color: '#92400e' },
+            CONFIRMED: { label: 'Onaylandı', bg: '#dbeafe', color: '#1e40af' },
+            IN_PROGRESS: { label: 'Devam Ediyor', bg: '#e0e7ff', color: '#3730a3' },
+            COMPLETED: { label: 'Tamamlandı', bg: '#dcfce7', color: '#166534' },
+            CANCELLED: { label: 'İptal', bg: '#fee2e2', color: '#991b1b' },
+            NO_SHOW: { label: 'Gelmedi', bg: '#f3e8ff', color: '#6b21a8' },
+          };
+          const s = map[r.status] || { label: r.status || 'Beklemede', bg: '#f1f5f9', color: '#475569' };
+          return <span style={{ padding: '2px 8px', borderRadius: '4px', background: s.bg, color: s.color, fontSize: '0.78rem', fontWeight: 600 }}>{s.label}</span>;
+        } },
       ];
     case 'products':
       return [
         { key: 'name', label: 'Ürün' }, { key: 'code', label: 'Kod' }, { key: 'brand', label: 'Marka' },
         { key: 'stock', label: 'Stok', render: (r) => <span style={{ color: Number(r.stock) <= Number(r.minStock || 0) ? '#dc2626' : '#16a34a', fontWeight: 600 }}>{String(r.stock)}</span> },
-        { key: 'salePrice', label: 'Satış Fiyatı', render: (r) => `₺${Number(r.salePrice || 0).toFixed(2)}` },
+        { key: 'purchasePrice', label: 'Alış', render: (r) => `₺${Number(r.purchasePrice || 0).toFixed(2)}` },
+        { key: 'profitMargin', label: 'Kar %', render: (r) => r.profitMargin ? `%${Number(r.profitMargin).toFixed(0)}` : '-' },
+        { key: 'salePrice', label: 'Satış', render: (r) => <strong>₺{Number(r.salePrice || 0).toFixed(2)}</strong> },
       ];
     case 'service_orders':
       return [
@@ -1705,7 +1736,7 @@ function NewServiceOrderPage() {
   const [editCustomerForm, setEditCustomerForm] = useState({ firstName: '', lastName: '', phone: '', email: '' });
   // For new customer/vehicle creation
   const [customerForm, setCustomerForm] = useState({ firstName: '', lastName: '', phone: '', email: '' });
-  const [vehicleForm, setVehicleForm] = useState({ plate: '', brand: '', model: '', year: '', km: '', color: '' });
+  const [vehicleForm, setVehicleForm] = useState({ plate: '', brand: '', model: '', year: '', km: '', color: '', vin: '' });
   const [complaint, setComplaint] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
 
@@ -1731,7 +1762,7 @@ function NewServiceOrderPage() {
       if (res.data.length > 0) {
         const v = res.data[0];
         setFoundVehicle(v);
-        setVehicleForm({ plate: v.plate, brand: v.brand || '', model: v.model || '', year: v.year || '', km: v.km || '', color: v.color || '' });
+        setVehicleForm({ plate: v.plate, brand: v.brand || '', model: v.model || '', year: v.year || '', km: v.km || '', color: v.color || '', vin: v.vin || '' });
         const custRes = await bridge!.get('customers', v.customerId);
         setFoundCustomer(custRes);
         const ordersRes = await bridge!.list('service_orders', { q: '', page: 1, limit: 10 });
@@ -1762,7 +1793,7 @@ function NewServiceOrderPage() {
       if (res.data.length > 0) {
         const v = res.data[0];
         setFoundVehicle(v);
-        setVehicleForm({ plate: v.plate, brand: v.brand || '', model: v.model || '', year: v.year || '', km: v.km || '', color: v.color || '' });
+        setVehicleForm({ plate: v.plate, brand: v.brand || '', model: v.model || '', year: v.year || '', km: v.km || '', color: v.color || '', vin: v.vin || '' });
         // Load customer
         const custRes = await bridge!.get('customers', v.customerId);
         setFoundCustomer(custRes);
@@ -1886,6 +1917,7 @@ function NewServiceOrderPage() {
           year: vehicleForm.year ? Number(vehicleForm.year) : null,
           km: vehicleForm.km ? Number(vehicleForm.km) : null,
           color: vehicleForm.color || null,
+          vin: vehicleForm.vin || null,
         });
         vehicleId = vRes.id;
       }
@@ -2171,6 +2203,7 @@ function NewServiceOrderPage() {
             <div><label style={S.label}>Yıl</label><input style={S.input} type="number" value={vehicleForm.year} onChange={(e) => setVehicleForm({ ...vehicleForm, year: e.target.value })} placeholder="2020" /></div>
             <div><label style={S.label}>KM</label><input style={S.input} type="number" value={vehicleForm.km} onChange={(e) => setVehicleForm({ ...vehicleForm, km: e.target.value })} placeholder="85000" /></div>
             <div><label style={S.label}>Renk</label><input style={S.input} value={vehicleForm.color} onChange={(e) => setVehicleForm({ ...vehicleForm, color: e.target.value })} placeholder="Beyaz" /></div>
+            <div><label style={S.label}>Şasi No (VIN)</label><input style={{ ...S.input, textTransform: 'uppercase', letterSpacing: '1px' }} value={vehicleForm.vin} onChange={(e) => setVehicleForm({ ...vehicleForm, vin: e.target.value.toUpperCase() })} placeholder="WVWZZZ3CZWE123456" maxLength={17} /></div>
           </div>
 
           <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>Şikayet & Tanı</h3>
@@ -2209,7 +2242,10 @@ function ServiceOrderDetailPage() {
   const [showPartForm, setShowPartForm] = useState(false);
   const [showLaborForm, setShowLaborForm] = useState(false);
   const [showNoteForm, setShowNoteForm] = useState(false);
-  const [partData, setPartData] = useState({ name: '', quantity: '', unitPrice: '', notes: '' });
+  const [partData, setPartData] = useState({ name: '', quantity: '', unitPrice: '', notes: '', productId: '' });
+  const [productSearch, setProductSearch] = useState('');
+  const [productResults, setProductResults] = useState<any[]>([]);
+  const [searchingProducts, setSearchingProducts] = useState(false);
   const [laborData, setLaborData] = useState({ description: '', hours: '', hourlyRate: '' });
   const [noteContent, setNoteContent] = useState('');
   const [showCompletion, setShowCompletion] = useState(false);
@@ -2230,10 +2266,34 @@ function ServiceOrderDetailPage() {
 
   const handleAddPart = async () => {
     if (!bridge || !partData.name) return;
-    await bridge.addPart(orderId, { name: partData.name, quantity: Number(partData.quantity) || 1, unitPrice: Number(partData.unitPrice) || 0, notes: partData.notes });
-    setPartData({ name: '', quantity: '', unitPrice: '', notes: '' });
+    await bridge.addPart(orderId, { name: partData.name, quantity: Number(partData.quantity) || 1, unitPrice: Number(partData.unitPrice) || 0, notes: partData.notes, productId: partData.productId || undefined });
+    setPartData({ name: '', quantity: '', unitPrice: '', notes: '', productId: '' });
+    setProductSearch('');
+    setProductResults([]);
     setShowPartForm(false);
     load();
+  };
+
+  const handleProductSearch = async (q: string) => {
+    setProductSearch(q);
+    if (!bridge || q.length < 2) { setProductResults([]); return; }
+    setSearchingProducts(true);
+    try {
+      const res = await bridge.list('products', { q, page: 1, limit: 10 });
+      setProductResults(res.data || []);
+    } catch { setProductResults([]); }
+    setSearchingProducts(false);
+  };
+
+  const handleSelectProduct = (product: any) => {
+    setPartData({
+      ...partData,
+      productId: product.id,
+      name: product.name,
+      unitPrice: String(product.salePrice || 0),
+    });
+    setProductSearch(product.name);
+    setProductResults([]);
   };
   const handleRemovePart = async (partId: string) => {
     if (!bridge) return;
@@ -2441,11 +2501,38 @@ function ServiceOrderDetailPage() {
           <button onClick={() => setShowPartForm(!showPartForm)} style={{ ...S.btnPrimary, padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>+ Parça Ekle</button>
         </div>
         {showPartForm && (
-          <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', marginBottom: '0.75rem', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
-            <div><label style={S.label}>Parça Adı *</label><input style={S.input} value={partData.name} onChange={(e) => setPartData({ ...partData, name: e.target.value })} placeholder="örn. Fren Balatası" /></div>
-            <div><label style={S.label}>Miktar</label><input style={S.input} type="number" value={partData.quantity} onChange={(e) => setPartData({ ...partData, quantity: e.target.value })} placeholder="1" min="0" step="0.01" /></div>
-            <div><label style={S.label}>Birim Fiyat (₺)</label><input style={S.input} type="number" value={partData.unitPrice} onChange={(e) => setPartData({ ...partData, unitPrice: e.target.value })} placeholder="0.00" min="0" step="0.01" /></div>
-            <button onClick={handleAddPart} style={{ ...S.btnPrimary, padding: '0.5rem 1rem' }}>Ekle</button>
+          <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', marginBottom: '0.75rem' }}>
+            {/* Product search */}
+            <div style={{ marginBottom: '0.75rem', position: 'relative' }}>
+              <label style={S.label}>Stoktan Ara (ürün adı veya kodu)</label>
+              <input style={S.input} value={productSearch} onChange={(e) => handleProductSearch(e.target.value)} placeholder="Ürün ara..." autoFocus />
+              {searchingProducts && <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.25rem' }}>Aranıyor...</div>}
+              {productResults.length > 0 && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 10, maxHeight: '250px', overflowY: 'auto' }}>
+                  {productResults.map((p) => (
+                    <div key={p.id} onClick={() => handleSelectProduct(p)} style={{ padding: '0.6rem 0.75rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#eff6ff')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>{p.name}</div>
+                        {p.brand && <div style={{ fontSize: '0.78rem', color: '#64748b' }}>{p.brand}</div>}
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontWeight: 700, color: '#16a34a', fontSize: '0.9rem' }}>₺{Number(p.salePrice || 0).toFixed(2)}</div>
+                        <div style={{ fontSize: '0.75rem', color: Number(p.stock) > 0 ? '#64748b' : '#dc2626' }}>Stok: {Number(p.stock || 0)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Part details */}
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
+              <div><label style={S.label}>Parça Adı *</label><input style={S.input} value={partData.name} onChange={(e) => setPartData({ ...partData, name: e.target.value, productId: '' })} placeholder="örn. Fren Balatası" /></div>
+              <div><label style={S.label}>Miktar</label><input style={S.input} type="number" value={partData.quantity} onChange={(e) => setPartData({ ...partData, quantity: e.target.value })} placeholder="1" min="0" step="0.01" /></div>
+              <div><label style={S.label}>Birim Fiyat (₺) <span style={{ fontSize: '0.75rem', color: '#64748b' }}>(Karlı)</span></label><input style={S.input} type="number" value={partData.unitPrice} onChange={(e) => setPartData({ ...partData, unitPrice: e.target.value })} placeholder="0.00" min="0" step="0.01" /></div>
+              <button onClick={handleAddPart} style={{ ...S.btnPrimary, padding: '0.5rem 1rem' }}>Ekle</button>
+            </div>
           </div>
         )}
         {parts.length === 0 ? <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Henüz parça eklenmemiş.</div> : (

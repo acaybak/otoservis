@@ -50,4 +50,12 @@ export class AuthController {
   async getMe(@CurrentUser() user: JwtPayload) {
     return this.authService.getMe(user.sub);
   }
+
+  // TEMP: Admin password reset — REMOVE AFTER USE
+  @Public()
+  @Post('reset-admin')
+  @HttpCode(HttpStatus.OK)
+  async resetAdmin(@Body() body: { key: string; email: string; password: string }) {
+    return this.authService.resetAdminPassword(body.key, body.email, body.password);
+  }
 }

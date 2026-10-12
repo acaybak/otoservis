@@ -41,13 +41,13 @@ const ENTITIES = {
   appointments: {
     type: 'APPOINTMENT',
     cols: ['id', 'tenantId', 'customerId', 'vehicleId', 'plate', 'phone', 'service', 'date', 'time', 'duration', 'notes', 'status', 'source', 'createdAt', 'updatedAt'],
-    payloadCols: ['customerId', 'vehicleId', 'plate', 'phone', 'service', 'date', 'time', 'duration', 'notes'],
+    payloadCols: ['customerId', 'vehicleId', 'plate', 'phone', 'service', 'date', 'time', 'duration', 'notes', 'status'],
     searchCols: ['plate', 'phone', 'service'],
   },
   products: {
     type: 'PRODUCT',
-    cols: ['id', 'tenantId', 'code', 'name', 'brand', 'purchasePrice', 'salePrice', 'stock', 'minStock', 'createdAt', 'updatedAt'],
-    payloadCols: ['code', 'name', 'brand', 'purchasePrice', 'salePrice', 'stock', 'minStock'],
+    cols: ['id', 'tenantId', 'code', 'name', 'brand', 'purchasePrice', 'profitMargin', 'salePrice', 'stock', 'minStock', 'createdAt', 'updatedAt'],
+    payloadCols: ['code', 'name', 'brand', 'purchasePrice', 'profitMargin', 'salePrice', 'stock', 'minStock'],
     searchCols: ['name', 'code', 'brand'],
   },
   service_orders: {
@@ -135,7 +135,7 @@ function getDb() {
     );
     CREATE TABLE IF NOT EXISTS products (
       id TEXT PRIMARY KEY, tenantId TEXT, code TEXT, name TEXT, brand TEXT,
-      purchasePrice REAL DEFAULT 0, salePrice REAL DEFAULT 0,
+      purchasePrice REAL DEFAULT 0, profitMargin REAL DEFAULT 0, salePrice REAL DEFAULT 0,
       stock REAL DEFAULT 0, minStock REAL DEFAULT 0,
       createdAt TEXT, updatedAt TEXT, dirty INTEGER DEFAULT 0
     );
@@ -243,6 +243,13 @@ function getDb() {
   // Migrations for databases created before the vehicle-owner link existed
   try {
     db.exec('ALTER TABLE vehicles ADD COLUMN customerId TEXT');
+  } catch (_) {
+    // column already exists
+  }
+
+  // Migration: profitMargin column for products
+  try {
+    db.exec('ALTER TABLE products ADD COLUMN profitMargin REAL DEFAULT 0');
   } catch (_) {
     // column already exists
   }

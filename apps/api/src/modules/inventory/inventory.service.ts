@@ -72,6 +72,13 @@ export class InventoryService {
       if (existing) throw new ConflictException('Bu ürün kodu zaten kullanılıyor.');
     }
 
+    // Auto-calculate salePrice from purchasePrice + profitMargin if salePrice not explicitly provided
+    const purchasePrice = Number(data.purchasePrice || 0);
+    const profitMargin = Number(data.profitMargin || 0);
+    if (profitMargin > 0 && (!data.salePrice || Number(data.salePrice) === 0)) {
+      data.salePrice = Math.round(purchasePrice * (1 + profitMargin / 100) * 100) / 100;
+    }
+
     const product = await this.prisma.product.create({
       data: { ...data, tenantId } as any,
       include: { category: true, supplier: true },
@@ -87,6 +94,15 @@ export class InventoryService {
   async updateProduct(tenantId: string, id: string, data: Record<string, unknown>, userId: string) {
     const existing = await this.prisma.product.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Ürün bulunamadı.');
+
+    // Auto-recalculate salePrice when purchasePrice or profitMargin changes
+    const purchasePrice = data.purchasePrice !== undefined ? Number(data.purchasePrice) : Number(existing.purchasePrice);
+    const profitMargin = data.profitMargin !== undefined ? Number(data.profitMargin) : Number(existing.profitMargin);
+    if (data.profitMargin !== undefined || data.purchasePrice !== undefined) {
+      if (profitMargin > 0 && (!data.salePrice || Number(data.salePrice) === 0)) {
+        data.salePrice = Math.round(purchasePrice * (1 + profitMargin / 100) * 100) / 100;
+      }
+    }
 
     const updated = await this.prisma.product.update({
       where: { id }, data,

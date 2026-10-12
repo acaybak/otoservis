@@ -76,7 +76,7 @@ export class CustomersService {
     tenantId: string,
     data: {
       firstName: string;
-      lastName: string;
+      lastName?: string;
       phone?: string;
       email?: string;
       tcNo?: string;
@@ -91,7 +91,7 @@ export class CustomersService {
         data: {
           tenantId,
           firstName: data.firstName,
-          lastName: data.lastName,
+          lastName: data.lastName || null,
           phone: data.phone || null,
           email: data.email || null,
           tcNo: data.tcNo || null,

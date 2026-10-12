@@ -46,10 +46,10 @@ function useIsMobile(breakpoint = 900) {
 // ============ STYLES ============
 const S = {
   page: { minHeight: '100vh', background: '#f1f5f9' } as React.CSSProperties,
-  loginWrap: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' } as React.CSSProperties,
-  loginCard: { background: 'white', borderRadius: 16, padding: 'clamp(22px, 6vw, 40px)', width: '100%', maxWidth: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' } as React.CSSProperties,
-  loginTitle: { fontSize: 28, fontWeight: 800, color: '#0f172a', marginBottom: 8, textAlign: 'center' as const } as React.CSSProperties,
-  loginSub: { color: '#64748b', textAlign: 'center' as const, marginBottom: 32 } as React.CSSProperties,
+  loginWrap: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'linear-gradient(165deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)' } as React.CSSProperties,
+  loginCard: { background: 'white', borderRadius: 16, padding: 'clamp(24px, 6vw, 40px)', width: '100%', maxWidth: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.35)' } as React.CSSProperties,
+  loginTitle: { fontSize: 26, fontWeight: 800, color: '#0f172a', marginBottom: 6, textAlign: 'center' as const } as React.CSSProperties,
+  loginSub: { color: '#64748b', textAlign: 'center' as const, marginBottom: 28, fontSize: 14 } as React.CSSProperties,
   input: { width: '100%', padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 15, marginBottom: 16, outline: 'none' } as React.CSSProperties,
   btnPrimary: { width: '100%', padding: '14px 24px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: 'pointer' } as React.CSSProperties,
   btnSecondary: { padding: '8px 16px', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' } as React.CSSProperties,
@@ -158,8 +158,11 @@ function LoginPage({ onLogin, onSwitch }: { onLogin: (email: string, password: s
   return (
     <div style={S.loginWrap}>
       <div style={S.loginCard}>
-        <div style={S.loginTitle}>OtoServis</div>
-        <div style={S.loginSub}>Servis Yönetim Sistemi</div>
+        <div style={{ textAlign: 'center' as const, marginBottom: 24 }}>
+          <img src="/logo.png" alt="OtoServis" style={{ height: 44, marginBottom: 12 }} />
+          <div style={S.loginTitle}>OtoServis</div>
+          <div style={S.loginSub}>Servis Yönetim Sistemi</div>
+        </div>
         {error && <div style={S.error}>{error}</div>}
         <form onSubmit={handleSubmit}>
           <input style={S.input} placeholder="E-posta" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
@@ -256,8 +259,11 @@ function RegisterPage({ onRegister, onSwitch }: { onRegister: (data: any) => Pro
   return (
     <div style={S.loginWrap}>
       <div style={{ ...S.loginCard, maxWidth: 500 }}>
-        <div style={S.loginTitle}>Hesap Oluştur</div>
-        <div style={S.loginSub}>Servisinizi buluta taşıyın</div>
+        <div style={{ textAlign: 'center' as const, marginBottom: 24 }}>
+          <img src="/logo.png" alt="OtoServis" style={{ height: 44, marginBottom: 12 }} />
+          <div style={S.loginTitle}>Hesap Oluştur</div>
+          <div style={S.loginSub}>Servisinizi buluta taşıyın</div>
+        </div>
         {error && <div style={S.error}>{error}</div>}
         <form onSubmit={handleSubmit}>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8, marginTop: 4 }}>Firma Bilgileri</div>
@@ -1132,48 +1138,199 @@ function LandingPage({ onGetStarted, onLogin }: { onGetStarted: () => void; onLo
   return (
     <div style={{ minHeight: '100vh', background: '#ffffff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
       {/* Nav */}
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' as const, gap: 8, padding: isMobile ? '12px 16px' : '16px 48px', maxWidth: 1280, margin: '0 auto', borderBottom: '1px solid #f1f5f9' }}>
-        <img src="/logo.png" alt="OtoServis" style={{ height: isMobile ? 28 : 40, cursor: 'pointer' }} />
-        <div style={{ display: 'flex', gap: isMobile ? 6 : 12, alignItems: 'center' }}>
-          {!isMobile && (
-            <>
-              <button onClick={() => setShowPricing(true)} style={{ padding: '9px 18px', background: 'transparent', color: '#475569', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Fiyatlar</button>
-              <button onClick={() => setShowDownload(true)} style={{ padding: '9px 18px', background: 'transparent', color: '#475569', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>İndir</button>
-            </>
-          )}
-          <button onClick={onLogin} style={{ padding: isMobile ? '8px 12px' : '9px 18px', background: '#f8fafc', color: '#334155', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: isMobile ? 13 : 14, fontWeight: 600, cursor: 'pointer' }}>Giriş Yap</button>
-          <button onClick={onGetStarted} style={{ padding: isMobile ? '8px 12px' : '9px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontSize: isMobile ? 13 : 14, fontWeight: 700, cursor: 'pointer' }}>Ücretsiz Dene</button>
+      <nav style={{ position: 'fixed' as const, top: 0, left: 0, right: 0, zIndex: 50, background: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' as const, gap: 8, padding: isMobile ? '10px 16px' : '12px 48px', maxWidth: 1280, margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img src="/logo.png" alt="OtoServis" style={{ height: isMobile ? 28 : 34 }} />
+            <span style={{ color: 'white', fontSize: isMobile ? 16 : 18, fontWeight: 800, letterSpacing: -0.3 }}>OtoServis</span>
+          </div>
+          <div style={{ display: 'flex', gap: isMobile ? 6 : 10, alignItems: 'center' }}>
+            {!isMobile && (
+              <>
+                <button onClick={() => setShowPricing(true)} style={{ padding: '8px 16px', background: 'transparent', color: 'rgba(255,255,255,0.7)', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>Fiyatlar</button>
+                <button onClick={() => setShowDownload(true)} style={{ padding: '8px 16px', background: 'transparent', color: 'rgba(255,255,255,0.7)', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>İndir</button>
+              </>
+            )}
+            <button onClick={onLogin} style={{ padding: isMobile ? '7px 12px' : '8px 16px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, fontSize: isMobile ? 13 : 14, fontWeight: 500, cursor: 'pointer' }}>Giriş</button>
+            <button onClick={onGetStarted} style={{ padding: isMobile ? '7px 14px' : '8px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 6, fontSize: isMobile ? 13 : 14, fontWeight: 700, cursor: 'pointer' }}>Ücretsiz Dene</button>
+          </div>
         </div>
       </nav>
 
-      {/* Hero */}
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '48px 16px 40px' : '100px 48px 80px', textAlign: 'center' as const }}>
-        <div style={{ display: 'inline-block', padding: '6px 16px', background: '#eff6ff', color: '#2563eb', borderRadius: 20, fontSize: 13, fontWeight: 600, marginBottom: 24 }}>Oto Servis Yönetim Platformu</div>
-        <h1 style={{ fontSize: isMobile ? 34 : 64, fontWeight: 800, color: '#0f172a', lineHeight: 1.15, marginBottom: 24, letterSpacing: isMobile ? -0.5 : -1 }}>
-          Servisinizi <span style={{ color: '#2563eb' }}>Buluta</span> Taşıyın
-        </h1>
-        <p style={{ fontSize: isMobile ? 16 : 20, color: '#64748b', maxWidth: 580, margin: isMobile ? '0 auto 32px' : '0 auto 48px', lineHeight: 1.7 }}>Müşteri yönetimi, servis siparişleri, stok takibi ve ön muhasebe. Hepsi tek platformda, tek fiyatla.</p>
-        <div style={{ display: 'flex', gap: isMobile ? 12 : 16, justifyContent: 'center', flexWrap: 'wrap' as const, marginBottom: isMobile ? 48 : 100 }}>
-          <button onClick={onGetStarted} style={{ padding: '16px 36px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 10, fontSize: 17, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.3)' }}>Hemen Başla →</button>
-          <button onClick={onLogin} style={{ padding: '16px 36px', background: 'white', color: '#334155', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 17, fontWeight: 600, cursor: 'pointer' }}>Demo İzle</button>
+      {/* Hero - Dark automotive theme */}
+      <div style={{ background: 'linear-gradient(165deg, #0f172a 0%, #1e293b 40%, #0f172a 100%)', paddingTop: isMobile ? 80 : 100, paddingBottom: isMobile ? 60 : 100, position: 'relative' as const, overflow: 'hidden' }}>
+        {/* Subtle grid pattern */}
+        <div style={{ position: 'absolute' as const, inset: 0, backgroundImage: 'radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '32px 32px', pointerEvents: 'none' as const }} />
+        <div style={{ maxWidth: 1000, margin: '0 auto', padding: isMobile ? '40px 20px' : '60px 48px', textAlign: 'center' as const, position: 'relative' as const, zIndex: 1 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 18px', background: 'rgba(37,99,235,0.15)', border: '1px solid rgba(37,99,235,0.3)', color: '#60a5fa', borderRadius: 20, fontSize: 13, fontWeight: 600, marginBottom: 28 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} /> Türkiye'nin Oto Servis Yazılımı
+          </div>
+          <h1 style={{ fontSize: isMobile ? 32 : 56, fontWeight: 800, color: 'white', lineHeight: 1.15, marginBottom: 24, letterSpacing: -0.5 }}>
+            Servisinizi <span style={{ background: 'linear-gradient(135deg, #3b82f6, #60a5fa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Profesyonelce</span><br />Yönetin
+          </h1>
+          <p style={{ fontSize: isMobile ? 16 : 19, color: 'rgba(255,255,255,0.6)', maxWidth: 600, margin: '0 auto 40px', lineHeight: 1.7 }}>Plaka yazın, müşteri bilgileri gelsin. Servis kaydı açın, stoktan parça ekleyin, cari hesapları takip edin. <strong style={{ color: 'rgba(255,255,255,0.85)' }}>Hepsi tek yerde.</strong></p>
+          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' as const, marginBottom: 48 }}>
+            <button onClick={onGetStarted} style={{ padding: '15px 36px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 20px rgba(37,99,235,0.4)' }}>7 Gün Ücretsiz Başla →</button>
+            <button onClick={onLogin} style={{ padding: '15px 36px', background: 'rgba(255,255,255,0.06)', color: 'white', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, fontSize: 16, fontWeight: 600, cursor: 'pointer' }}>Demo İzle</button>
+          </div>
+          {/* Trust badges */}
+          <div style={{ display: 'flex', gap: isMobile ? 16 : 32, justifyContent: 'center', flexWrap: 'wrap' as const, opacity: 0.5 }}>
+            {['7 Gün Ücretsiz', 'Kredi Kartı Yok', 'Kurulum Yok', '7/24 Destek'].map((t, i) => (
+              <span key={i} style={{ color: 'white', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ color: '#22c55e' }}>✓</span>{t}</span>
+            ))}
+          </div>
         </div>
+      </div>
 
-        {/* Features */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 24, maxWidth: 1000, margin: '0 auto' }}>
+      {/* Features */}
+      <div style={{ background: '#f8fafc', padding: isMobile ? '48px 16px' : '72px 48px' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center' as const, marginBottom: isMobile ? 32 : 48 }}>
+            <h2 style={{ fontSize: isMobile ? 24 : 32, fontWeight: 800, color: '#0f172a', marginBottom: 12 }}>Servisiniz İçin Her Şey</h2>
+            <p style={{ fontSize: 15, color: '#64748b', maxWidth: 450, margin: '0 auto' }}>Tek yazılımda tüm iş akışınızı yönetin</p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+            {[
+              { icon: '👥', title: 'Müşteri Yönetimi', desc: 'Müşteri bilgileri, araç geçmişi ve iletişim tek yerde. Plaka yazın, her şey gelsin.', color: '#2563eb' },
+              { icon: '🔧', title: 'Servis Siparişleri', desc: 'İş emirleri, parça takibi ve işçilik yönetimi. Her servis kaydını detaylı takip edin.', color: '#7c3aed' },
+              { icon: '📦', title: 'Stok Yönetimi', desc: 'Parça stoklarınızı takip edin, kar marjı belirleyin, otomatik satış fiyatı.', color: '#059669' },
+              { icon: '💰', title: 'Ön Muhasebe', desc: 'Faturalar, ödemeler ve cari hesap takibi. Gelir-gider raporları.', color: '#d97706' },
+              { icon: '🚗', title: 'Araç & Plaka Takibi', desc: 'Plaka bazlı hızlı arama, araç bilgileri ve servis geçmişi.', color: '#dc2626' },
+              { icon: '📱', title: 'Desktop & Web', desc: 'Masaüstü uygulaması ile offline çalışın, web ile her yerden erişin.', color: '#0891b2' },
+            ].map((f, i) => (
+              <div key={i} style={{ background: 'white', borderRadius: 12, padding: '28px 24px', border: '1px solid #e2e8f0', transition: 'box-shadow 0.2s, transform 0.2s' }}>
+                <div style={{ width: 44, height: 44, borderRadius: 10, background: f.color + '12', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 14 }}>{f.icon}</div>
+                <h3 style={{ color: '#0f172a', fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{f.title}</h3>
+                <p style={{ color: '#64748b', fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* What is OtoServis? */}
+      <div style={{ background: '#f8fafc', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9', padding: isMobile ? '48px 16px' : '80px 48px' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' as const }}>
+          <div style={{ display: 'inline-block', padding: '6px 16px', background: '#eff6ff', color: '#2563eb', borderRadius: 20, fontSize: 13, fontWeight: 600, marginBottom: 20 }}>OtoServis Nedir?</div>
+          <h2 style={{ fontSize: isMobile ? 26 : 38, fontWeight: 800, color: '#0f172a', marginBottom: 20, lineHeight: 1.3 }}>Oto Servisler İçin Tam Kapsamlı Yönetim Yazılımı</h2>
+          <p style={{ fontSize: isMobile ? 15 : 17, color: '#475569', lineHeight: 1.8, maxWidth: 750, margin: '0 auto 24px' }}>
+            OtoServis, araç servislerinin günlük iş akışlarını dijitalleştirmek için tasarlanmış bulut tabanlı bir yönetim platformudur.
+            Müşteri kayıtlarından araç takibine, stok yönetiminden ön muhasebeye kadar tüm operasyonel süreçlerinizi tek bir yerden yönetin.
+            Hem masaüstü uygulaması hem de web arayüzü ile her yerden erişim sağlayın.
+          </p>
+          <p style={{ fontSize: isMobile ? 15 : 17, color: '#475569', lineHeight: 1.8, maxWidth: 750, margin: '0 auto' }}>
+            Plaka bazlı hızlı arama ile müşteri ve araç bilgilerine saniyeler içinde ulaşın. Servis kayıtlarını kolayca oluşturun,
+            parça ve işçilik takibi yapın, cari hesapları yönetin ve detaylı raporlarla işletmenizin performansını analiz edin.
+          </p>
+        </div>
+      </div>
+
+      {/* How it works */}
+      <div style={{ maxWidth: 1000, margin: '0 auto', padding: isMobile ? '48px 16px' : '80px 48px' }}>
+        <div style={{ textAlign: 'center' as const, marginBottom: isMobile ? 36 : 56 }}>
+          <div style={{ display: 'inline-block', padding: '6px 16px', background: '#f0fdf4', color: '#16a34a', borderRadius: 20, fontSize: 13, fontWeight: 600, marginBottom: 20 }}>Nasıl Çalışır?</div>
+          <h2 style={{ fontSize: isMobile ? 26 : 36, fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>Dakikalar İçinde Başlayın</h2>
+          <p style={{ fontSize: isMobile ? 15 : 17, color: '#64748b', maxWidth: 500, margin: '0 auto' }}>3 kolay adımda servisinizi dijitalleştirin</p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 32 }}>
           {[
-            { icon: '👥', title: 'Müşteri Yönetimi', desc: 'Müşteri bilgileri, araç geçmişi ve iletişim tek yerde', color: '#2563eb' },
-            { icon: '🔧', title: 'Servis Siparişleri', desc: 'İş emirleri, parça takibi ve işçilik yönetimi', color: '#7c3aed' },
-            { icon: '💰', title: 'Ön Muhasebe', desc: 'Faturalar, ödemeler ve cari hesap takibi', color: '#059669' },
-            { icon: '🚗', title: 'Araç Takibi', desc: 'Plaka bazlı tüm araç bilgileri ve geçmiş', color: '#dc2626' },
-            { icon: '📊', title: 'Raporlama', desc: 'Gelir-gider analizi ve performans metrikleri', color: '#d97706' },
-            { icon: '📱', title: 'Desktop & Web', desc: 'Her yerde erişim, offline destek', color: '#0891b2' },
-          ].map((f, i) => (
-            <div key={i} style={{ background: '#fafbfc', borderRadius: 16, padding: '32px 24px', textAlign: 'left' as const, border: '1px solid #f1f5f9', transition: 'box-shadow 0.2s' }}>
-              <div style={{ width: 48, height: 48, borderRadius: 12, background: f.color + '15', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, marginBottom: 16 }}>{f.icon}</div>
-              <h3 style={{ color: '#0f172a', fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{f.title}</h3>
-              <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
+            { step: '1', icon: '📝', title: 'Hesap Oluşturun', desc: '7 gün ücretsiz deneme için kaydolun. Kredi kartı gerekmez. Hesabınız anında aktif olur ve tüm özellikleri kullanabilirsiniz.' },
+            { step: '2', icon: '🚀', title: 'Verilerinizi Girin', desc: 'Müşterilerinizi, araçları ve mevcut stok bilgilerinizi sisteme ekleyin. Plaka ile hızlı arama yaparak kayıtları kolayca oluşturun.' },
+            { step: '3', icon: '✅', title: 'Yönetmeye Başlayın', desc: 'Servis kayıtları açın, parça ve işçilik ekleyin, stok takibi yapın, cari hesapları yönetin ve raporlarınızı inceleyin.' },
+          ].map((s, i) => (
+            <div key={i} style={{ textAlign: 'center' as const, padding: '24px 16px' }}>
+              <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, margin: '0 auto 16px', position: 'relative' as const }}>
+                {s.icon}
+                <div style={{ position: 'absolute' as const, top: -6, right: -6, width: 26, height: 26, borderRadius: '50%', background: '#2563eb', color: 'white', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{s.step}</div>
+              </div>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>{s.title}</h3>
+              <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.7 }}>{s.desc}</p>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Who can use it */}
+      <div style={{ background: '#0f172a', padding: isMobile ? '48px 16px' : '80px 48px' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center' as const, marginBottom: isMobile ? 36 : 56 }}>
+            <div style={{ display: 'inline-block', padding: '6px 16px', background: 'rgba(37,99,235,0.2)', color: '#60a5fa', borderRadius: 20, fontSize: 13, fontWeight: 600, marginBottom: 20 }}>Kimler Kullanabilir?</div>
+            <h2 style={{ fontSize: isMobile ? 26 : 36, fontWeight: 800, color: 'white', marginBottom: 16 }}>Her Ölçekten Servis İçin Uygun</h2>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
+            {[
+              { icon: '🔧', title: 'Oto Tamirhaneler', desc: 'Küçük ve büyük tamirhaneler için servis kaydı, parça takibi ve müşteri yönetimi.' },
+              { icon: '🎨', title: 'Oto Boya & Kaporta', desc: 'Hasar kayıtları, boya işlemleri, sigorta takibi ve müşteri bilgilendirme.' },
+              { icon: '🛞', title: 'Lastikçiler', desc: 'Lastik satışı, montaj kayıtları, stok takibi ve cari hesap yönetimi.' },
+              { icon: '⚡', title: 'Oto Elektrikçiler', desc: 'Elektrik arıza kayıtları, parça kullanımı ve işçilik takibi.' },
+              { icon: '🏎️', title: 'Detaylı Temizlik', desc: 'Yıkama kayıtları, paket satışları, randevu sistemi ve müşteri sadakati.' },
+              { icon: '🚐', title: 'Çoklu Şube Servisler', desc: 'Merkezi yönetim, şube bazlı raporlama ve ortak stok/müşteri havuzu.' },
+            ].map((item, i) => (
+              <div key={i} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: '24px 20px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ fontSize: 28, marginBottom: 12 }}>{item.icon}</div>
+                <h3 style={{ color: 'white', fontSize: 16, fontWeight: 700, marginBottom: 8 }}>{item.title}</h3>
+                <p style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.6, margin: 0 }}>{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Detailed Features */}
+      <div style={{ maxWidth: 1000, margin: '0 auto', padding: isMobile ? '48px 16px' : '80px 48px' }}>
+        <div style={{ textAlign: 'center' as const, marginBottom: isMobile ? 36 : 56 }}>
+          <div style={{ display: 'inline-block', padding: '6px 16px', background: '#fef3c7', color: '#d97706', borderRadius: 20, fontSize: 13, fontWeight: 600, marginBottom: 20 }}>Özellikler</div>
+          <h2 style={{ fontSize: isMobile ? 26 : 36, fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>Tüm İhtiyaçlarınız Tek Platformda</h2>
+          <p style={{ fontSize: isMobile ? 15 : 17, color: '#64748b', maxWidth: 550, margin: '0 auto' }}>İşletmenizin her yönünü yönetmek için güçlü araçlar</p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
+          {[
+            { icon: '👥', title: 'Müşteri Yönetimi', desc: 'Müşteri bilgilerini, iletişim detaylarını, araç geçmişini ve tüm etkileşimleri tek bir ekranda görüntüleyin. Cari hesap takibi ile borç-alacak durumlarını anlık olarak takip edin.', items: ['Müşteri kartı ve iletişim bilgileri', 'Araç sahiplik geçmişi', 'Cari hesap borç/alacak takibi', 'Telefon ve e-posta ile hızlı arama'] },
+            { icon: '🔧', title: 'Servis Kayıtları & İş Emirleri', desc: 'Plaka bazlı hızlı arama ile araç bulun, servis kaydı oluşturun. Müşteri şikayeti, ön tanı, yapılan işler ve kullanılan parçalar detaylı şekilde kaydedilir.', items: ['Plaka ile hızlı araç/müşteri bulma', 'İş emri durum takibi (Alındı → Tamir → Test → Teslim)', 'Parça ve işçilik ekleme (stoktan seçim)', 'Yazdırılabilir servis fişi'] },
+            { icon: '📦', title: 'Stok Yönetimi', desc: 'Ürün girişlerini yapın, kar marjı belirleyin ve satış fiyatını otomatik hesaplayın. Servis kaydına parça eklerken stoktan seçin, stok otomatik düşsün.', items: ['Ürün kartı (ad, kod, marka, alış/satış fiyatı)', 'Kar marjı (%) ile otomatik satış fiyatı hesaplama', 'Stok düşümü (servis kaydından parça eklenince otomatik)', 'Min. stok uyarısı'] },
+            { icon: '💰', title: 'Ön Muhasebe & Cari Hesaplar', desc: 'Gelir-gider kayıtları, faturalar, ödemeler ve cari hesap takibi. Hangi müşteriden ne kadar alacağınız var, anlık görün.', items: ['Cari hesap borç/alacak ekranı', 'Ödeme kayıtları (nakit, kart, havale)', 'Fatura oluşturma ve yönetimi', 'Günlük/haftalık/aylık gelir-gider raporu'] },
+            { icon: '📅', title: 'Randevu Sistemi', desc: 'Müşterileriniz online randevu alabilsin. Teknisyen bazlı takvim yönetimi, çakışan randevu kontrolü ve durum takibi.', items: ['Online randevu oluşturma', 'Teknisyen bazlı zaman planlama', 'Randevu durum yönetimi (Bekliyor → Onaylandı → Tamamlandı)', 'Müşteri portalı üzerinden randevu görüntüleme'] },
+            { icon: '📊', title: 'Raporlama & Dashboard', desc: 'Günlük ciro, en çok yapılan işler, stok durumu, müşteri istatistikleri ve daha fazlası. Anlık dashboard ile işletmenizin nabzını tutun.', items: ['Günlük ciro ve işlem sayısı', 'En çok kullanılan parçalar', 'Düşük stok uyarıları', 'Teknisyen performans raporu'] },
+          ].map((f, i) => (
+            <div key={i} style={{ background: '#fafbfc', borderRadius: 16, padding: '28px 24px', border: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>{f.icon}</div>
+                <h3 style={{ color: '#0f172a', fontSize: 17, fontWeight: 700, margin: 0 }}>{f.title}</h3>
+              </div>
+              <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.7, marginBottom: 14 }}>{f.desc}</p>
+              <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+                {f.items.map((item, j) => (
+                  <div key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0, marginTop: 1 }}>✓</div>
+                    <span style={{ color: '#475569', fontSize: 13 }}>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Why OtoServis */}
+      <div style={{ background: '#f8fafc', borderTop: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9', padding: isMobile ? '48px 16px' : '80px 48px' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' as const }}>
+          <h2 style={{ fontSize: isMobile ? 26 : 36, fontWeight: 800, color: '#0f172a', marginBottom: 40 }}>Neden OtoServis?</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 24 }}>
+            {[
+              { icon: '⚡', title: 'Hızlı & Kolay', desc: 'Plaka yazın, müşteri ve araç bilgileri otomatik gelsin. Servis kaydı 30 saniyede oluşur.' },
+              { icon: '☁️', title: 'Bulut Tabanlı', desc: 'Verileriniz güvenle bulutta saklanır. Her yerden, her cihazdan erişin.' },
+              { icon: '🖥️', title: 'Desktop + Web', desc: 'Windows masaüstü uygulaması ve web arayüzü. Offline çalışabilme desteği.' },
+              { icon: '🔒', title: 'Güvenli', desc: '256-bit SSL şifreleme, günlük yedekleme, çoklu kullanıcı yetkilendirme.' },
+              { icon: '💸', title: 'Uygun Fiyat', desc: 'Aylık düşük maliyetle tüm servisinizi dijitalleştirin. 7 gün ücretsiz deneme.' },
+              { icon: '🇹🇷', title: 'Türkçe Destek', desc: 'Tamamen Türkçe arayüz ve yerel destek ekibi. Sorunlarınıza hızlı çözüm.' },
+            ].map((item, i) => (
+              <div key={i} style={{ padding: '16px 12px' }}>
+                <div style={{ fontSize: 32, marginBottom: 10 }}>{item.icon}</div>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>{item.title}</h3>
+                <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>{item.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -1194,15 +1351,15 @@ function LandingPage({ onGetStarted, onLogin }: { onGetStarted: () => void; onLo
         </div>
       </div>
 
-      {/* CTA */}
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: isMobile ? '48px 16px' : '80px 48px', textAlign: 'center' as const }}>
-        <h2 style={{ fontSize: isMobile ? 26 : 36, fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>Hemen başlayın</h2>
-        <p style={{ fontSize: isMobile ? 16 : 18, color: '#64748b', marginBottom: 36, maxWidth: 500, margin: '0 auto 36px' }}>7 gün ücretsiz deneme. Kredi kartı gerekmez.</p>
-        <button onClick={onGetStarted} style={{ padding: '16px 48px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 10, fontSize: 17, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(37,99,235,0.3)' }}>Ücretsiz Hesap Oluştur →</button>
+      {/* CTA - Dark */}
+      <div style={{ background: 'linear-gradient(165deg, #0f172a 0%, #1e293b 100%)', padding: isMobile ? '56px 16px' : '80px 48px', textAlign: 'center' as const }}>
+        <h2 style={{ fontSize: isMobile ? 26 : 38, fontWeight: 800, color: 'white', marginBottom: 16 }}>Servisinizi Dijitalleştirin</h2>
+        <p style={{ fontSize: isMobile ? 15 : 17, color: 'rgba(255,255,255,0.6)', marginBottom: 36, maxWidth: 500, margin: '0 auto 36px' }}>7 gün ücretsiz deneme. Kredi kartı gerekmez. Kurulum yok.</p>
+        <button onClick={onGetStarted} style={{ padding: '16px 48px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 8, fontSize: 17, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 20px rgba(37,99,235,0.4)' }}>Ücretsiz Hesap Oluştur →</button>
       </div>
 
       {/* Footer */}
-      <div style={{ textAlign: 'center' as const, padding: '32px 20px', borderTop: '1px solid #f1f5f9', color: '#94a3b8', fontSize: 13 }}>
+      <div style={{ background: '#0f172a', textAlign: 'center' as const, padding: '28px 20px', color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>
         © 2026 OtoServis. Tüm hakları saklıdır.
       </div>
     </div>
