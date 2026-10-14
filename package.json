@@ -36,5 +36,9 @@
       "@prisma/client",
       "@prisma/engines"
     ]
+  },
+  "dependencies": {
+    "@neon/config": "^1.9.1",
+    "@neon/env": "^1.6.2"
   }
 }

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'https://otoservis-api.onrender.com/api/v1';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://otoservis-api-lsuv.onrender.com/api/v1';
 
 // Müşteri portalı (randevu + araç geçmişi linkleri buradan üretilir)
 export const PORTAL_URL = (import.meta.env.VITE_PORTAL_URL as string) || 'https://portal.otoservisapp.com';

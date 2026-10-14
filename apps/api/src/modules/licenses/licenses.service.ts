@@ -294,4 +294,82 @@ export class LicensesService {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  // Admin: Create a license directly for a specific tenant (no key needed)
+  async createLicenseForTenant(
+    tenantId: string,
+    planType: string,
+    maxUsers: number,
+    duration: number,
+  ) {
+    const prisma = this.prisma as any;
+
+    // Check if tenant exists
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) {
+      throw new NotFoundException('Firma bulunamadı.');
+    }
+
+    // Check if tenant already has an active license
+    const existingLicense = await prisma.license.findUnique({ where: { tenantId } });
+    if (existingLicense && existingLicense.status === 'ACTIVE') {
+      throw new ConflictException('Bu firmanın zaten aktif bir lisansı var. Süre uzatmak için extend endpointini kullanın.');
+    }
+
+    // Calculate expiration date
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + duration);
+
+    // Create license
+    const license = await prisma.license.create({
+      data: {
+        tenantId,
+        licenseKey: `ADMIN-${this.generateKey()}`,
+        status: 'ACTIVE',
+        planType,
+        maxUsers,
+        activatedAt: new Date(),
+        expiresAt,
+      },
+    });
+
+    this.logger.log(`License created directly for tenant ${tenant.name}: ${license.id}`);
+
+    return license;
+  }
+
+  // Admin: Extend license duration
+  async extendLicense(licenseId: string, additionalDays: number) {
+    const prisma = this.prisma as any;
+
+    const license = await prisma.license.findUnique({ where: { id: licenseId } });
+    if (!license) {
+      throw new NotFoundException('Lisans bulunamadı.');
+    }
+
+    // Calculate new expiration date
+    let newExpiresAt: Date;
+    if (license.expiresAt) {
+      // If license has an expiration date, extend from that date
+      newExpiresAt = new Date(license.expiresAt);
+      newExpiresAt.setDate(newExpiresAt.getDate() + additionalDays);
+    } else {
+      // If no expiration date, set from now
+      newExpiresAt = new Date();
+      newExpiresAt.setDate(newExpiresAt.getDate() + additionalDays);
+    }
+
+    // Update license
+    const updated = await prisma.license.update({
+      where: { id: licenseId },
+      data: {
+        expiresAt: newExpiresAt,
+        status: 'ACTIVE', // Ensure it's active
+      },
+    });
+
+    this.logger.log(`License ${licenseId} extended by ${additionalDays} days. New expiration: ${newExpiresAt.toISOString()}`);
+
+    return updated;
+  }
 }

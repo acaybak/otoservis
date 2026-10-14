@@ -79,4 +79,30 @@ export class LicensesController {
   async updateStatus(@Param('id') id: string, @Body() body: { status: string }) {
     return this.licensesService.updateLicenseStatus(id, body.status);
   }
+
+  // Admin: Create license directly for a tenant
+  @UseGuards(AdminEmailGuard)
+  @Post('create-for-tenant')
+  @HttpCode(HttpStatus.CREATED)
+  async createForTenant(
+    @Body() body: { tenantId: string; planType?: string; maxUsers?: number; duration?: number },
+  ) {
+    return this.licensesService.createLicenseForTenant(
+      body.tenantId,
+      body.planType || 'STANDARD',
+      body.maxUsers || 3,
+      body.duration || 365,
+    );
+  }
+
+  // Admin: Extend license duration
+  @UseGuards(AdminEmailGuard)
+  @Patch(':id/extend')
+  @HttpCode(HttpStatus.OK)
+  async extendLicense(
+    @Param('id') id: string,
+    @Body() body: { additionalDays: number },
+  ) {
+    return this.licensesService.extendLicense(id, body.additionalDays);
+  }
 }
