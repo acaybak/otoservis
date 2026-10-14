@@ -2068,6 +2068,66 @@ function EditRecordModal({ item, onSave, onClose }: { item: any; onSave: (data: 
   );
 }
 
+// ============ ADMIN LOGIN PAGE ============
+function AdminLoginPage({ onLogin }: { onLogin: (email: string, password: string) => Promise<void> }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { addToast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await onLogin(email, password);
+      addToast('Admin girişi başarılı!', 'success');
+    } catch (err: any) {
+      const msg = err?.response?.data?.error?.message || err.message || 'Giriş başarısız';
+      setError(msg);
+      addToast(msg, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' }}>
+      <div style={{ background: 'white', borderRadius: 20, padding: 'clamp(32px, 6vw, 48px)', width: '100%', maxWidth: 440, boxShadow: '0 24px 64px rgba(0,0,0,0.4)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🔐</div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>Admin Panel</h1>
+          <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>Sistem yönetimi için giriş yapın</p>
+        </div>
+
+        {error && <div style={{ background: '#fef2f2', color: '#dc2626', padding: 12, borderRadius: 10, marginBottom: 16, fontSize: 14, border: '1px solid #fecaca' }}>{error}</div>}
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 6 }}>E-posta</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="admin@example.com"
+              style={{ width: '100%', padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 15, outline: 'none', boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Şifre</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••••"
+              style={{ width: '100%', padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: 15, outline: 'none', boxSizing: 'border-box' }} />
+          </div>
+          <button type="submit" disabled={loading}
+            style={{ width: '100%', padding: '14px 24px', background: loading ? '#94a3b8' : '#2563eb', color: 'white', border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer' }}>
+            {loading ? 'Giriş yapılıyor...' : '🔓 Giriş Yap'}
+          </button>
+        </form>
+
+        <div style={{ marginTop: 24, padding: 16, background: '#f1f5f9', borderRadius: 10, fontSize: 13, color: '#64748b' }}>
+          <strong style={{ color: '#0f172a' }}>ℹ️ Not:</strong> Bu panel sadece yetkili yöneticiler içindir.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ============ MAIN APP ============
 export function App() {
   return (
@@ -2094,13 +2154,33 @@ function AppInner() {
     return () => window.clearInterval(t);
   }, []);
 
+  // Admin kullanıcı giriş yaptığında otomatik olarak admin panele yönlendir
+  useEffect(() => {
+    if (user && ADMIN_EMAILS.includes((user.email || '').toLowerCase())) {
+      setShowAdmin(true);
+    }
+  }, [user]);
+
   // Admin panel erişimi yalnızca yönetici e-postalarına açıktır
   const isAdminUser = !!user && ADMIN_EMAILS.includes((user.email || '').toLowerCase());
 
   // Admin panel - URL'den erişim: #admin veya /admin
   const isAdminUrl = window.location.hash === '#admin' || window.location.pathname === '/admin';
+  
+  // /admin URL'ine giriş yapılmamışsa, profesyonel admin giriş sayfası göster
+  if (isAdminUrl && !user && !loading) {
+    return <AdminLoginPage onLogin={login} />;
+  }
+  
+  // Admin giriş yapmışsa ve admin yetkisi varsa, admin paneli göster
   if (isAdminUrl && user && isAdminUser) {
     return <AdminPanel onBack={() => { window.location.hash = ''; window.location.pathname = '/'; }} />;
+  }
+  
+  // Admin URL'ine giriş yapmış ama admin yetkisi yoksa, ana sayfaya yönlendir
+  if (isAdminUrl && user && !isAdminUser) {
+    window.location.pathname = '/';
+    return <div style={{ ...S.loginWrap, color: 'white' }}>Yönlendiriliyor...</div>;
   }
 
   // Admin panel - buton ile erişim
