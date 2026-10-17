@@ -16,7 +16,7 @@ jobs:
         run: |
           echo "Pinging OtoServis API (backup workflow)..."
           for i in 1 2 3; do
-            code=$(curl -sS -o /tmp/health.json -w "%{http_code}" --max-time 90 https://otoservis-api.onrender.com/api/v1/health || echo "000")
+            code=$(curl -sS -o /tmp/health.json -w "%{http_code}" --max-time 90 https://otoservis-api-lsuv.onrender.com/api/v1/health || echo "000")
             echo "attempt $i -> HTTP $code"
             cat /tmp/health.json 2>/dev/null || true
             echo
