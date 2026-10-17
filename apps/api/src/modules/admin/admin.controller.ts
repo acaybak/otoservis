@@ -44,6 +44,13 @@ export class AdminController {
     return this.adminService.updateTenantStatus(id, body.status);
   }
 
+  @Patch('tenants/:id/trial')
+  @HttpCode(HttpStatus.OK)
+  async updateTrial(@Param('id') id: string, @Body() body: { trialEndsAt: string | null }) {
+    const trialDate = body.trialEndsAt ? new Date(body.trialEndsAt) : null;
+    return this.adminService.updateTenantTrial(id, trialDate);
+  }
+
   // Tenant içindeki verileri getir
   @Get('tenants/:tenantId/data/:dataType')
   async getTenantData(

@@ -122,6 +122,13 @@ export class AdminService {
     });
   }
 
+  async updateTenantTrial(id: string, trialEndsAt: Date | null) {
+    return this.prisma.tenant.update({
+      where: { id },
+      data: { trialEndsAt },
+    });
+  }
+
   // Tenant içindeki tüm verileri getir
   async getTenantData(tenantId: string, dataType: string) {
     switch (dataType) {
