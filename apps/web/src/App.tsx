@@ -1414,6 +1414,7 @@ const AdminStyles = {
 };
 
 function AdminPanel({ onBack }: { onBack: () => void }) {
+  const { addToast } = useToast();
   const [stats, setStats] = useState<any>(null);
   const [tenants, setTenants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1462,6 +1463,23 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
     setSelectedTenant(detail);
     setActiveTab('overview');
     setTenantData([]);
+  };
+
+  const handleCreateLicenseForTenant = async (tenantId: string) => {
+    const planType = prompt('Plan tipi (STANDARD/PROFESSIONAL/ENTERPRISE):', 'STANDARD');
+    if (!planType) return;
+    
+    const maxUsers = parseInt(prompt('Maksimum kullanıcı sayısı:', '3') || '3');
+    const duration = parseInt(prompt('Süre (gün):', '365') || '365');
+
+    try {
+      await licenseApi.createForTenant(tenantId, planType, maxUsers, duration);
+      addToast('Firma için lisans oluşturuldu!', 'success');
+      loadLicenses();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err.message || 'Lisans oluşturma hatası';
+      addToast(msg, 'error');
+    }
   };
 
   const handleCopyKey = async (key: string) => {
@@ -1672,7 +1690,12 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                       <td style={AdminStyles.td}>{t.stats.customerCount}</td>
                       <td style={AdminStyles.td}>{t.stats.vehicleCount}</td>
                       <td style={AdminStyles.td}>{t.stats.serviceOrderCount}</td>
-                      <td style={AdminStyles.td}><button style={AdminStyles.btnPrimary} onClick={() => handleViewDetail(t.id)}>Yönet</button></td>
+                      <td style={AdminStyles.td}>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button style={AdminStyles.btnPrimary} onClick={() => handleViewDetail(t.id)}>Yönet</button>
+                          <button style={{ ...AdminStyles.btnSuccess, fontSize: 11, padding: '6px 10px' }} onClick={() => handleCreateLicenseForTenant(t.id)}>🔑 Lisans Ver</button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1773,11 +1796,25 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                       <td style={AdminStyles.td}>{l.activatedAt ? new Date(l.activatedAt).toLocaleDateString('tr-TR') : '-'}</td>
                       <td style={AdminStyles.td}>{l.expiresAt ? new Date(l.expiresAt).toLocaleDateString('tr-TR') : 'Süresiz'}</td>
                       <td style={AdminStyles.td}>
-                        <select value={l.status} onChange={async (e) => { await licenseApi.updateStatus(l.id, e.target.value); loadLicenses(); }} style={{ ...AdminStyles.select, padding: '6px 10px', fontSize: 12 }}>
-                          <option value="ACTIVE">Aktif</option>
-                          <option value="SUSPENDED">Askıya Al</option>
-                          <option value="EXPIRED">Süresi Doldu</option>
-                        </select>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <select value={l.status} onChange={async (e) => { await licenseApi.updateStatus(l.id, e.target.value); loadLicenses(); }} style={{ ...AdminStyles.select, padding: '6px 10px', fontSize: 12 }}>
+                            <option value="ACTIVE">Aktif</option>
+                            <option value="SUSPENDED">Askıya Al</option>
+                            <option value="EXPIRED">Süresi Dolmuş</option>
+                          </select>
+                          <button style={{ ...AdminStyles.btnSuccess, fontSize: 11, padding: '6px 10px' }} onClick={async () => {
+                            const days = parseInt(prompt('Kaç gün uzatmak istiyorsunuz?', '30') || '30');
+                            if (days > 0) {
+                              try {
+                                await licenseApi.extend(l.id, days);
+                                addToast(`Lisans ${days} gün uzatıldı!`, 'success');
+                                loadLicenses();
+                              } catch (err: any) {
+                                addToast(err.message || 'Uzatma hatası', 'error');
+                              }
+                            }
+                          }}>⏰ Uzat</button>
+                        </div>
                       </td>
                     </tr>
                   ))}

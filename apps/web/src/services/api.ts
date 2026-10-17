@@ -177,4 +177,8 @@ export const licenseApi = {
   listKeys: () => api.get<any>('/licenses/keys'),
   listLicenses: () => api.get<any>('/licenses'),
   updateStatus: (id: string, status: string) => api.patch<any>(`/licenses/${id}/status`, { status }),
+  createForTenant: (tenantId: string, planType: string, maxUsers: number, duration: number) =>
+    api.post<any>('/licenses/create-for-tenant', { tenantId, planType, maxUsers, duration }),
+  extend: (id: string, additionalDays: number) =>
+    api.patch<any>(`/licenses/${id}/extend`, { additionalDays }),
 };
