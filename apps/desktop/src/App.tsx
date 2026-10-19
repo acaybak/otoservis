@@ -377,6 +377,7 @@ function SetupScreen({ onDone }: { onDone: () => void }) {
 function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { setUser, recheckLicense } = React.useContext(AuthContext);
@@ -418,7 +419,12 @@ function LoginPage() {
           </div>
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={S.label}>Şifre</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={S.input} />
+            <div style={{ position: 'relative' }}>
+              <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required style={{ ...S.input, paddingRight: '40px' }} />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: '#6b7280', padding: '4px' }} title={showPassword ? 'Şifreyi Gizle' : 'Şifreyi Göster'}>
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
           <button type="submit" disabled={loading} style={{ ...S.btnPrimary, width: '100%' }}>
             {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
