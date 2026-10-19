@@ -1951,6 +1951,65 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                     <button onClick={() => { navigator.clipboard.writeText(`https://portal.otoservisapp.com/${selectedTenant.slug}`); addToast('Portal linki kopyalandı!', 'success'); }} style={{ ...AdminStyles.btnSecondary, fontSize: 12, padding: '6px 12px' }}>📋 Portal Linkini Kopyala</button>
                   </div>
                 </div>
+                {/* Lisans ve Deneme Bilgileri */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginBottom: 20 }}>
+                  {/* Lisans Bilgisi */}
+                  <div style={{ background: selectedTenant.license ? '#f0fdf4' : '#fef2f2', border: `1px solid ${selectedTenant.license ? '#bbf7d0' : '#fecaca'}`, borderRadius: 8, padding: 16 }}>
+                    <h4 style={{ margin: '0 0 12px', color: selectedTenant.license ? '#15803d' : '#dc2626', fontSize: 14 }}>
+                      {selectedTenant.license ? '✅ Lisans Aktif' : '❌ Lisans Yok'}
+                    </h4>
+                    {selectedTenant.license ? (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 12, color: '#64748b' }}>Plan:</span>
+                          <span style={{ fontSize: 13, fontWeight: 600 }}>{selectedTenant.license.planType}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 12, color: '#64748b' }}>Durum:</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: selectedTenant.license.status === 'ACTIVE' ? '#16a34a' : '#dc2626' }}>{selectedTenant.license.status}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 12, color: '#64748b' }}>Bitiş:</span>
+                          <span style={{ fontSize: 13, fontWeight: 600 }}>{selectedTenant.license.expiresAt ? new Date(selectedTenant.license.expiresAt).toLocaleDateString('tr-TR') : 'Süresiz'}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 12, color: '#64748b' }}>Kalan Gün:</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: selectedTenant.license.daysLeft <= 0 ? '#dc2626' : selectedTenant.license.daysLeft <= 7 ? '#ea580c' : '#16a34a' }}>
+                            {selectedTenant.license.daysLeft !== null ? (selectedTenant.license.daysLeft <= 0 ? 'DOLMUŞ' : `${selectedTenant.license.daysLeft} gün`) : '∞'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 12, color: '#64748b' }}>Max Kullanıcı:</span>
+                          <span style={{ fontSize: 13, fontWeight: 600 }}>{selectedTenant.license.maxUsers}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ color: '#991b1b', fontSize: 13 }}>Bu firmanın henüz lisansı yok. "Lisans Ver" butonunu kullanarak lisans oluşturun.</div>
+                    )}
+                  </div>
+                  {/* Deneme Bilgisi */}
+                  <div style={{ background: selectedTenant.trial ? (selectedTenant.trial.expired ? '#fef2f2' : '#fefce8') : '#f0fdf4', border: `1px solid ${selectedTenant.trial ? (selectedTenant.trial.expired ? '#fecaca' : '#fde68a') : '#bbf7d0'}`, borderRadius: 8, padding: 16 }}>
+                    <h4 style={{ margin: '0 0 12px', color: selectedTenant.trial ? (selectedTenant.trial.expired ? '#dc2626' : '#ca8a04') : '#15803d', fontSize: 14 }}>
+                      {selectedTenant.trial ? (selectedTenant.trial.expired ? '⚠️ Deneme Süresi Doldu' : '📅 Deneme Süreci') : '✅ Sınırsız Erişim'}
+                    </h4>
+                    {selectedTenant.trial ? (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 12, color: '#64748b' }}>Bitiş:</span>
+                          <span style={{ fontSize: 13, fontWeight: 600 }}>{new Date(selectedTenant.trial.endsAt).toLocaleDateString('tr-TR')}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 12, color: '#64748b' }}>Kalan Gün:</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: selectedTenant.trial.expired ? '#dc2626' : '#ca8a04' }}>
+                            {selectedTenant.trial.daysLeft <= 0 ? 'DOLMUŞ' : `${selectedTenant.trial.daysLeft} gün`}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ color: '#15803d', fontSize: 13 }}>Admin hesabı — deneme süresi kısıtlaması yok, sınırsız erişim.</div>
+                    )}
+                  </div>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 20 }}>
                   <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8 }}><strong>Slug:</strong> {selectedTenant.slug}</div>
                   <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8 }}>
@@ -2077,16 +2136,25 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                 )}
                 {dataLoading ? <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Yükleniyor...</div> : tenantData.length === 0 ? <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Kullanıcı bulunamadı.</div> : (
                   <table style={AdminStyles.table}>
-                    <thead><tr><th style={AdminStyles.th}>Ad Soyad</th><th style={AdminStyles.th}>E-posta</th><th style={AdminStyles.th}>Durum</th><th style={AdminStyles.th}>Kayıt</th><th style={AdminStyles.th}>İşlem</th></tr></thead>
+                    <thead><tr><th style={AdminStyles.th}>Ad Soyad</th><th style={AdminStyles.th}>E-posta</th><th style={AdminStyles.th}>Telefon</th><th style={AdminStyles.th}>Durum</th><th style={AdminStyles.th}>Kayıt</th><th style={AdminStyles.th}>İşlem</th></tr></thead>
                     <tbody>
                       {tenantData.map((u: any) => (
                         <tr key={u.id}>
                           <td style={AdminStyles.td}>{u.firstName} {u.lastName}</td>
                           <td style={AdminStyles.td}>{u.email}</td>
+                          <td style={AdminStyles.td}>{u.phone || <span style={{ color: '#94a3b8' }}>-</span>}</td>
                           <td style={AdminStyles.td}><span style={AdminStyles.badge(u.status)}>{u.status}</span></td>
                           <td style={AdminStyles.td}>{new Date(u.createdAt).toLocaleDateString('tr-TR')}</td>
                           <td style={AdminStyles.td}>
-                            <div style={{ display: 'flex', gap: 6 }}>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              <button style={{ ...AdminStyles.btnSecondary, fontSize: 11, padding: '4px 8px' }} onClick={async () => {
+                                const newPwd = prompt(`${u.firstName} ${u.lastName} için yeni şifre belirleyin (min 6 karakter):`, '');
+                                if (!newPwd || newPwd.length < 6) { addToast('Şifre en az 6 karakter olmalı!', 'error'); return; }
+                                try {
+                                  await adminApi.resetUserPassword(u.id, newPwd);
+                                  addToast(`${u.email} için şifre sıfırlandı!`, 'success');
+                                } catch { addToast('Şifre sıfırlama hatası', 'error'); }
+                              }}>🔑 Şifre Sıfırla</button>
                               <button style={AdminStyles.btnSecondary} onClick={() => setEditItem({ ...u, _type: 'users' })}>Düzenle</button>
                               <button style={AdminStyles.btnDanger} onClick={() => handleDelete('users', u.id)}>Sil</button>
                             </div>

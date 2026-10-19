@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -75,11 +76,13 @@ export class AdminService {
             email: true,
             firstName: true,
             lastName: true,
+            phone: true,
             status: true,
             createdAt: true,
           },
           orderBy: { createdAt: 'desc' },
         },
+        license: true,
         _count: {
           select: {
             customers: true,
@@ -92,12 +95,39 @@ export class AdminService {
 
     if (!tenant) throw new NotFoundException('Tenant bulunamadı.');
 
+    // Lisans bilgilerini hesapla
+    const license = tenant.license ? {
+      id: tenant.license.id,
+      status: tenant.license.status,
+      planType: tenant.license.planType,
+      maxUsers: tenant.license.maxUsers,
+      expiresAt: tenant.license.expiresAt,
+      daysLeft: tenant.license.expiresAt
+        ? Math.ceil((new Date(tenant.license.expiresAt).getTime() - Date.now()) / 86400000)
+        : null,
+    } : null;
+
+    // Deneme bilgilerini hesapla
+    const trial = tenant.trialEndsAt ? {
+      endsAt: tenant.trialEndsAt.toISOString(),
+      daysLeft: Math.max(0, Math.ceil((tenant.trialEndsAt.getTime() - Date.now()) / 86400000)),
+      expired: tenant.trialEndsAt < new Date(),
+    } : null;
+
     return {
       id: tenant.id,
       name: tenant.name,
       slug: tenant.slug,
       status: tenant.status,
+      phone: tenant.phone,
+      email: tenant.email,
+      address: tenant.address,
+      city: tenant.city,
+      taxNumber: tenant.taxNumber,
+      website: tenant.website,
+      trialEndsAt: tenant.trialEndsAt,
       createdAt: tenant.createdAt.toISOString(),
+      updatedAt: tenant.updatedAt.toISOString(),
       stats: {
         userCount: tenant.users.length,
         customerCount: tenant._count.customers,
@@ -109,9 +139,12 @@ export class AdminService {
         email: u.email,
         firstName: u.firstName,
         lastName: u.lastName,
+        phone: u.phone,
         status: u.status,
         createdAt: u.createdAt.toISOString(),
       })),
+      license,
+      trial,
     };
   }
 
@@ -126,6 +159,18 @@ export class AdminService {
     return this.prisma.tenant.update({
       where: { id },
       data: { trialEndsAt },
+    });
+  }
+
+  // Kullanıcı şifresini sıfırla (admin-only)
+  async resetUserPassword(userId: string, newPassword: string) {
+    const user = await this.prisma.user.findFirst({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Kullanıcı bulunamadı.');
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+      select: { id: true, email: true, firstName: true, lastName: true },
     });
   }
 

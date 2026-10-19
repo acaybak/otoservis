@@ -163,6 +163,7 @@ export const adminApi = {
   updateTenantData: (tenantId: string, dataType: string, id: string, data: any) => api.patch<any>(`/admin/tenants/${tenantId}/data/${dataType}/${id}`, data),
   deleteTenantData: (tenantId: string, dataType: string, id: string) => api.delete<any>(`/admin/tenants/${tenantId}/data/${dataType}/${id}`),
   createTenantUser: (tenantId: string, data: { email: string; password: string; firstName: string; lastName: string }) => api.post<any>(`/admin/tenants/${tenantId}/users`, data),
+  resetUserPassword: (userId: string, newPassword: string) => api.post<any>(`/admin/users/${userId}/reset-password`, { newPassword }),
 };
 
 // License

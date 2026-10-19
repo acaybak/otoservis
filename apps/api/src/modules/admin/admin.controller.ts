@@ -90,4 +90,14 @@ export class AdminController {
   ) {
     return this.adminService.createTenantUser(tenantId, body);
   }
+
+  // Kullanıcı şifresini sıfırla
+  @Post('users/:userId/reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetUserPassword(
+    @Param('userId') userId: string,
+    @Body() body: { newPassword: string },
+  ) {
+    return this.adminService.resetUserPassword(userId, body.newPassword);
+  }
 }
