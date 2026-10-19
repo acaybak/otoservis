@@ -1688,6 +1688,16 @@ app.whenReady().then(() => {
   app.setAppUserModelId('com.otoservis.desktop');
   getDb(); // initialize local database
   repairServerUrl(); // fix installs that were configured against localhost
+  
+  // Migrate old API URL to new one
+  const oldUrl = 'https://otoservis-api.onrender.com';
+  const newUrl = 'https://otoservis-api-lsuv.onrender.com';
+  const currentUrl = getMeta('serverUrl');
+  if (currentUrl && currentUrl.includes(oldUrl)) {
+    setMeta('serverUrl', newUrl);
+    console.log('Migrated server URL from old to new host');
+  }
+  
   registerIpc();
   createWindow();
   setUpdater();
