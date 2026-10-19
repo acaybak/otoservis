@@ -126,7 +126,11 @@ export class PublicService {
         id: true,
         orderNumber: true,
         status: true,
+        km: true,
+        customerComplaint: true,
         diagnosis: true,
+        plannedWork: true,
+        performedWork: true,
         totalAmount: true,
         createdAt: true,
         parts: {
@@ -163,6 +167,8 @@ export class PublicService {
     const lastKm = maintenanceRecords[0]?.km || vehicle.km;
 
     // Calculate next due maintenance
+    const currentKm = vehicle.km || lastKm || 0;
+    const now = new Date();
     const nextDue = vehicleMaintenances
       .filter((i: any) => i.lastKm != null || i.lastDate != null)
       .map((i: any) => {
@@ -172,15 +178,40 @@ export class PublicService {
         const nextDueDate = i.lastDate && intervalDays != null
           ? new Date(new Date(i.lastDate).getTime() + intervalDays * 86400000).toISOString().split('T')[0]
           : null;
+        
+        // Calculate remaining km and days
+        const kmRemaining = nextDueKm != null ? nextDueKm - currentKm : null;
+        const daysRemaining = nextDueDate != null
+          ? Math.ceil((new Date(nextDueDate).getTime() - now.getTime()) / 86400000)
+          : null;
+        
+        // Determine status
+        let status = 'OK';
+        if ((kmRemaining !== null && kmRemaining <= 0) || (daysRemaining !== null && daysRemaining <= 0)) {
+          status = 'OVERDUE';
+        } else if ((kmRemaining !== null && kmRemaining <= 1000) || (daysRemaining !== null && daysRemaining <= 7)) {
+          status = 'DUE_SOON';
+        } else if ((kmRemaining !== null && kmRemaining <= 5000) || (daysRemaining !== null && daysRemaining <= 30)) {
+          status = 'UPCOMING';
+        }
+        
         return {
           typeName: i.maintenanceType.name,
+          intervalKm,
+          intervalDays,
           nextDueKm,
           nextDueDate,
           lastKm: i.lastKm,
           lastPerformedAt: i.lastDate,
+          kmRemaining,
+          daysRemaining,
+          status,
         };
       })
       .sort((a: any, b: any) => {
+        // Sort by urgency: OVERDUE first, then DUE_SOON, then UPCOMING, then OK
+        const statusOrder = { OVERDUE: 0, DUE_SOON: 1, UPCOMING: 2, OK: 3 };
+        if (statusOrder[a.status] !== statusOrder[b.status]) return statusOrder[a.status] - statusOrder[b.status];
         if (a.nextDueKm && b.nextDueKm) return a.nextDueKm - b.nextDueKm;
         if (a.nextDueKm) return -1;
         if (b.nextDueKm) return 1;

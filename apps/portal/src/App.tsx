@@ -76,6 +76,37 @@ const S = {
   th: { padding: '0.65rem 0.75rem', textAlign: 'left' as const, fontSize: '0.8rem', color: '#64748b', fontWeight: '600', borderBottom: '2px solid #e2e8f0' } as React.CSSProperties,
   td: { padding: '0.65rem 0.75rem', fontSize: '0.9rem', color: '#1e293b', borderBottom: '1px solid #f1f5f9' } as React.CSSProperties,
   printBtn: { padding: '0.5rem 1.25rem', fontSize: '0.85rem', fontWeight: '600', borderRadius: '8px', border: 'none', background: 'rgba(255,255,255,0.15)', color: 'white', cursor: 'pointer', backdropFilter: 'blur(4px)' } as React.CSSProperties,
+  
+  // Maintenance schedule card
+  scheduleCard: (status: string) => {
+    const bg = status === 'OVERDUE' ? '#fef2f2' : status === 'DUE_SOON' ? '#fefce8' : status === 'UPCOMING' ? '#eff6ff' : '#f0fdf4';
+    const border = status === 'OVERDUE' ? '#fecaca' : status === 'DUE_SOON' ? '#fef08a' : status === 'UPCOMING' ? '#bfdbfe' : '#bbf7d0';
+    return { padding: '1rem 1.25rem', borderRadius: '10px', background: bg, border: `1.5px solid ${border}`, marginBottom: '0.6rem' } as React.CSSProperties;
+  },
+  scheduleStatusBadge: (status: string) => {
+    const bg = status === 'OVERDUE' ? '#dc2626' : status === 'DUE_SOON' ? '#d97706' : status === 'UPCOMING' ? '#2563eb' : '#16a34a';
+    return { display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '20px', fontSize: '0.7rem', fontWeight: '700', color: 'white', background: bg, letterSpacing: '0.02em' } as React.CSSProperties;
+  },
+  progressBar: (pct: number, color: string) => ({
+    height: '6px', borderRadius: '3px', background: '#e2e8f0', overflow: 'hidden', position: 'relative' as const,
+  }),
+  progressFill: (pct: number, color: string) => ({
+    height: '100%', borderRadius: '3px', background: color, width: `${Math.min(100, Math.max(0, pct))}%`, transition: 'width 0.3s ease',
+  }),
+  detailRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', fontSize: '0.85rem' } as React.CSSProperties,
+  detailLabel: { color: '#64748b', fontWeight: '500' } as React.CSSProperties,
+  detailValue: { color: '#1e293b', fontWeight: '600' } as React.CSSProperties,
+  expandBtn: { background: 'none', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.35rem 0.75rem', fontSize: '0.8rem', color: '#475569', cursor: 'pointer', fontWeight: '500' } as React.CSSProperties,
+  itemChip: (type: string) => ({
+    display: 'inline-block', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '600',
+    background: type === 'OPERATION' ? '#dbeafe' : '#fce7f3',
+    color: type === 'OPERATION' ? '#1e40af' : '#9d174d',
+    marginRight: '0.4rem',
+  }),
+  timelineDot: (color: string) => ({
+    width: '12px', height: '12px', borderRadius: '50%', background: color, border: '2px solid white', boxShadow: '0 0 0 2px ' + color + '40', flexShrink: 0,
+  }),
+  sectionTitle: { fontSize: '1.05rem', fontWeight: '700', color: '#1e293b', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' } as React.CSSProperties,
 };
 
 // ============================================================================
@@ -264,6 +295,11 @@ function VehicleHistoryPage() {
   const [tenantInfo, setTenantInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [expandedRecords, setExpandedRecords] = useState<Set<string>>(new Set());
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<'schedule' | 'history' | 'orders'>('schedule');
+  const toggleRecord = (id: string) => setExpandedRecords(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleOrder = (id: string) => setExpandedOrders(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -360,130 +396,295 @@ function VehicleHistoryPage() {
 
       <main style={{ ...S.contentMain, padding: isMobile ? '1.25rem 1rem' : '2rem' }}>
         {/* Vehicle Info */}
-        <div style={{ ...S.card, padding: isMobile ? '1.1rem' : '1.5rem' }}>
+        <div style={{ ...S.card, padding: isMobile ? '1.1rem' : '1.5rem', background: 'linear-gradient(135deg, #f8fafc 0%, white 100%)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
-              <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.2rem', fontWeight: '500' }}>Araç Bilgileri</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: '700', color: '#1e293b' }}>{vehicle.plate}</div>
-              <div style={{ color: '#475569', marginTop: '0.15rem' }}>{vehicle.brand} {vehicle.model} {vehicle.year ? `• ${vehicle.year}` : ''}</div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.2rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Araç Bilgileri</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#1e293b', letterSpacing: '-0.02em' }}>{vehicle.plate}</div>
+              <div style={{ color: '#475569', marginTop: '0.2rem', fontSize: '0.95rem' }}>{vehicle.brand} {vehicle.model} {vehicle.year ? `• ${vehicle.year}` : ''}</div>
+              {(vehicle.color || vehicle.transmission) && <div style={{ color: '#94a3b8', marginTop: '0.15rem', fontSize: '0.8rem' }}>{vehicle.color || ''} {vehicle.color && vehicle.transmission ? '•' : ''} {vehicle.transmission || ''}</div>}
             </div>
-            <div style={{ display: 'flex', gap: '2rem' }}>
+            <div style={{ display: 'flex', gap: isMobile ? '1.25rem' : '2rem' }}>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '500' }}>Kilometre</div>
-                <div style={{ fontSize: '1.15rem', fontWeight: '600', color: '#1e293b' }}>{vehicle.km ? `${Number(vehicle.km).toLocaleString('tr-TR')} km` : '-'}</div>
+                <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '600', marginBottom: '0.15rem' }}>Kilometre</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: '700', color: '#1e293b' }}>{vehicle.km ? `${Number(vehicle.km).toLocaleString('tr-TR')} km` : '-'}</div>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '500' }}>Yakıt</div>
-                <div style={{ fontSize: '1.15rem', fontWeight: '600', color: '#1e293b' }}>{vehicle.fuelType || '-'}</div>
+                <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '600', marginBottom: '0.15rem' }}>Yakıt</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: '700', color: '#1e293b' }}>{vehicle.fuelType || '-'}</div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Stats */}
-        <div style={S.statGrid}>
-          <div style={S.statCard(primaryColor)}>
-            <div style={S.statLabel}>Toplam Bakım</div>
-            <div style={S.statValue(primaryColor)}>{summary.maintenanceCount}</div>
-          </div>
-          <div style={S.statCard('#8b5cf6')}>
-            <div style={S.statLabel}>İş Emri</div>
-            <div style={S.statValue('#8b5cf6')}>{summary.serviceOrderCount}</div>
-          </div>
-          <div style={S.statCard('#10b981')}>
-            <div style={S.statLabel}>Toplam Harcama</div>
-            <div style={S.statValue('#10b981')}>₺{summary.totalSpent.toLocaleString('tr-TR')}</div>
-          </div>
-          <div style={S.statCard('#f59e0b')}>
-            <div style={S.statLabel}>Son KM</div>
-            <div style={S.statValue('#f59e0b')}>{summary.lastKm ? `${Number(summary.lastKm).toLocaleString('tr-TR')} km` : '-'}</div>
-          </div>
-        </div>
+        {(() => {
+          const overdueCount = maintenanceSchedule.filter((s: any) => s.status === 'OVERDUE').length;
+          const dueSoonCount = maintenanceSchedule.filter((s: any) => s.status === 'DUE_SOON').length;
+          return (
+            <div style={{ ...S.statGrid, gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
+              <div style={S.statCard(primaryColor)}>
+                <div style={S.statLabel}>Toplam Bakım</div>
+                <div style={S.statValue(primaryColor)}>{summary.maintenanceCount}</div>
+              </div>
+              <div style={S.statCard('#8b5cf6')}>
+                <div style={S.statLabel}>İş Emri</div>
+                <div style={S.statValue('#8b5cf6')}>{summary.serviceOrderCount}</div>
+              </div>
+              <div style={S.statCard('#10b981')}>
+                <div style={S.statLabel}>Toplam Harcama</div>
+                <div style={{ ...S.statValue('#10b981'), fontSize: '1.15rem' }}>₺{summary.totalSpent.toLocaleString('tr-TR')}</div>
+              </div>
+              <div style={S.statCard(overdueCount > 0 ? '#dc2626' : '#16a34a')}>
+                <div style={S.statLabel}>Gecikmiş</div>
+                <div style={S.statValue(overdueCount > 0 ? '#dc2626' : '#16a34a')}>{overdueCount}</div>
+              </div>
+              <div style={S.statCard('#f59e0b')}>
+                <div style={S.statLabel}>Yaklaşan</div>
+                <div style={S.statValue('#f59e0b')}>{dueSoonCount}</div>
+              </div>
+            </div>
+          );
+        })()}
 
-        {/* Maintenance Schedule */}
-        {maintenanceSchedule.length > 0 && (
-          <div style={{ ...S.card, padding: isMobile ? '1.1rem' : '1.5rem' }}>
-            <h2 style={{ fontSize: '1rem', fontWeight: '600', color: '#1e293b', marginBottom: '1rem' }}>📅 Bakım Takvimi</h2>
-            <div style={{ display: 'grid', gap: '0.5rem' }}>
-              {maintenanceSchedule.map((item: any, idx: number) => {
-                const currentKm = vehicle.km || summary.lastKm || 0;
-                const isOverdue = item.nextDueKm && currentKm > item.nextDueKm;
-                const isDueSoon = item.nextDueKm && currentKm >= item.nextDueKm - 1000;
-                return (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.85rem 1rem', borderRadius: '8px', background: isOverdue ? '#fef2f2' : isDueSoon ? '#fefce8' : '#f8fafc', border: `1px solid ${isOverdue ? '#fecaca' : isDueSoon ? '#fef08a' : '#e2e8f0'}` }}>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '0.9rem' }}>{item.typeName}</div>
-                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.15rem' }}>
-                        Son: {item.lastKm ? `${Number(item.lastKm).toLocaleString('tr-TR')} km` : '-'}
-                        {item.lastPerformedAt && ` • ${new Date(item.lastPerformedAt).toLocaleDateString('tr-TR')}`}
+        {/* Tab Navigation */}
+        {(() => {
+          const hasData = maintenanceSchedule.length > 0 || maintenanceRecords.length > 0 || serviceOrders.length > 0;
+          if (!hasData) return (
+            <div style={{ ...S.card, textAlign: 'center', padding: '3rem' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>📭</div>
+              <div style={{ color: '#64748b', fontSize: '0.95rem' }}>Bu araç için henüz kayıt bulunmamaktadır.</div>
+            </div>
+          );
+          const tabs = [
+            { key: 'schedule' as const, label: 'Bakım Takvimi', icon: '📅', count: maintenanceSchedule.length },
+            { key: 'history' as const, label: 'Bakım Geçmişi', icon: '🔧', count: maintenanceRecords.length },
+            { key: 'orders' as const, label: 'İş Emri', icon: '📝', count: serviceOrders.length },
+          ];
+          return (
+            <>
+              {/* Tab Bar */}
+              <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '1.25rem', background: 'white', borderRadius: '12px', padding: '0.35rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0', overflowX: 'auto' }}>
+                {tabs.map(tab => (
+                  <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{ flex: 1, padding: isMobile ? '0.6rem 0.5rem' : '0.7rem 1rem', borderRadius: '8px', border: 'none', background: activeTab === tab.key ? primaryColor : 'transparent', color: activeTab === tab.key ? 'white' : '#64748b', fontWeight: '600', fontSize: isMobile ? '0.75rem' : '0.85rem', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', whiteSpace: 'nowrap' }}>
+                    <span>{tab.icon}</span>
+                    <span>{tab.label}</span>
+                    {tab.count > 0 && <span style={{ background: activeTab === tab.key ? 'rgba(255,255,255,0.25)' : '#f1f5f9', padding: '0.1rem 0.4rem', borderRadius: '10px', fontSize: '0.7rem', fontWeight: '700' }}>{tab.count}</span>}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tab: Schedule */}
+              {activeTab === 'schedule' && maintenanceSchedule.length > 0 && (
+                <div style={{ display: 'grid', gap: '0.75rem' }}>
+                  {maintenanceSchedule.map((item: any, idx: number) => {
+                    const statusLabel = item.status === 'OVERDUE' ? 'Gecikmiş' : item.status === 'DUE_SOON' ? 'Yaklaşıyor' : item.status === 'UPCOMING' ? 'Planlı' : 'Tamamlandı';
+                    const kmPct = item.intervalKm ? Math.min(100, Math.max(0, ((item.intervalKm - (item.kmRemaining || 0)) / item.intervalKm) * 100)) : 0;
+                    const progressColor = item.status === 'OVERDUE' ? '#dc2626' : item.status === 'DUE_SOON' ? '#d97706' : item.status === 'UPCOMING' ? '#2563eb' : '#16a34a';
+                    return (
+                      <div key={idx} style={S.scheduleCard(item.status)}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                              <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '0.95rem' }}>{item.typeName}</span>
+                              <span style={S.scheduleStatusBadge(item.status)}>{statusLabel}</span>
+                            </div>
+                            {item.intervalKm && <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Her {item.intervalKm.toLocaleString('tr-TR')} km'de bir{item.intervalDays ? ` • Her ${item.intervalDays} günde bir` : ''}</div>}
+                          </div>
+                        </div>
+                        {/* KM Progress */}
+                        {item.intervalKm && (
+                          <div style={{ marginBottom: '0.75rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#64748b', marginBottom: '0.3rem' }}>
+                              <span>Son: {item.lastKm ? `${Number(item.lastKm).toLocaleString('tr-TR')} km` : '-'}</span>
+                              <span>Sonraki: {item.nextDueKm ? `${Number(item.nextDueKm).toLocaleString('tr-TR')} km` : '-'}</span>
+                            </div>
+                            <div style={S.progressBar(kmPct, progressColor)}>
+                              <div style={S.progressFill(kmPct, progressColor)} />
+                            </div>
+                            <div style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: '600', color: progressColor, marginTop: '0.25rem' }}>
+                              {item.kmRemaining !== null ? (item.kmRemaining <= 0 ? `${Math.abs(item.kmRemaining).toLocaleString('tr-TR')} km gecikmiş!` : `${item.kmRemaining.toLocaleString('tr-TR')} km kaldı`) : '-'}
+                            </div>
+                          </div>
+                        )}
+                        {/* Date info */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                          <div>
+                            <span style={{ color: '#64748b' }}>Son bakım: </span>
+                            <span style={{ color: '#1e293b', fontWeight: '600' }}>{item.lastPerformedAt ? new Date(item.lastPerformedAt).toLocaleDateString('tr-TR') : '-'}</span>
+                          </div>
+                          <div>
+                            <span style={{ color: '#64748b' }}>Sonraki: </span>
+                            <span style={{ color: '#1e293b', fontWeight: '600' }}>{item.nextDueDate ? new Date(item.nextDueDate).toLocaleDateString('tr-TR') : '-'}</span>
+                          </div>
+                        </div>
+                        {item.daysRemaining !== null && (
+                          <div style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: '600', color: item.daysRemaining <= 0 ? '#dc2626' : item.daysRemaining <= 7 ? '#d97706' : '#059669', marginTop: '0.4rem' }}>
+                            {item.daysRemaining <= 0 ? `${Math.abs(item.daysRemaining)} gün gecikmiş!` : `${item.daysRemaining} gün kaldı`}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Sonraki</div>
-                      <div style={{ fontWeight: '600', fontSize: '0.9rem', color: isOverdue ? '#dc2626' : isDueSoon ? '#d97706' : '#059669' }}>{item.nextDueKm ? `${Number(item.nextDueKm).toLocaleString('tr-TR')} km` : '-'}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Maintenance Records */}
-        {maintenanceRecords.length > 0 && (
-          <div style={{ ...S.card, padding: isMobile ? '1.1rem' : '1.5rem' }}>
-            <h2 style={{ fontSize: '1rem', fontWeight: '600', color: '#1e293b', marginBottom: '1rem' }}>🔧 Bakım Kayıtları</h2>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={S.table}>
-                <thead>
-                  <tr><th style={S.th}>Tarih</th><th style={S.th}>Bakım Tipi</th><th style={{ ...S.th, textAlign: 'right' }}>KM</th><th style={{ ...S.th, textAlign: 'right' }}>Tutar</th></tr>
-                </thead>
-                <tbody>
-                  {maintenanceRecords.map((r: any) => (
-                    <tr key={r.id}>
-                      <td style={S.td}>{r.performedAt ? new Date(r.performedAt).toLocaleDateString('tr-TR') : '-'}</td>
-                      <td style={S.td}>{r.maintenanceType?.name || 'Genel Bakım'}</td>
-                      <td style={{ ...S.td, textAlign: 'right' }}>{r.km ? Number(r.km).toLocaleString('tr-TR') : '-'}</td>
-                      <td style={{ ...S.td, textAlign: 'right', fontWeight: '600' }}>₺{Number(r.totalAmount || 0).toLocaleString('tr-TR')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* Service Orders */}
-        {serviceOrders.length > 0 && (
-          <div style={{ ...S.card, padding: isMobile ? '1.1rem' : '1.5rem' }}>
-            <h2 style={{ fontSize: '1rem', fontWeight: '600', color: '#1e293b', marginBottom: '1rem' }}>📝 İş Emri Kayıtları</h2>
-            <div style={{ display: 'grid', gap: '0.5rem' }}>
-              {serviceOrders.map((o: any) => (
-                <div key={o.id} style={{ padding: '0.85rem 1rem', borderRadius: '8px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                    <span style={{ fontWeight: '600', color: '#1e293b' }}>#{o.orderNumber}</span>
-                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{new Date(o.createdAt).toLocaleDateString('tr-TR')}</span>
-                  </div>
-                  {o.diagnosis && <div style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '0.35rem' }}>{o.diagnosis}</div>}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: '600', background: o.status === 'DELIVERED' ? '#dcfce7' : '#fef3c7', color: o.status === 'DELIVERED' ? '#166534' : '#92400e' }}>
-                      {o.status === 'DELIVERED' ? 'Teslim Edildi' : o.status === 'IN_PROGRESS' ? 'Devam Ediyor' : o.status === 'PENDING' ? 'Bekliyor' : o.status}
-                    </span>
-                    <span style={{ fontWeight: '600', color: '#1e293b' }}>₺{Number(o.totalAmount || 0).toLocaleString('tr-TR')}</span>
-                  </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+              )}
+              {activeTab === 'schedule' && maintenanceSchedule.length === 0 && (
+                <div style={{ ...S.card, textAlign: 'center', padding: '2.5rem' }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>📅</div>
+                  <div style={{ color: '#64748b' }}>Henüz bakım takvimi tanımlanmamış.</div>
+                </div>
+              )}
 
-        {/* Empty */}
-        {maintenanceRecords.length === 0 && serviceOrders.length === 0 && (
-          <div style={{ ...S.card, textAlign: 'center', padding: '3rem' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>📭</div>
-            <div style={{ color: '#64748b' }}>Bu araç için henüz kayıt bulunmamaktadır.</div>
-          </div>
-        )}
+              {/* Tab: History */}
+              {activeTab === 'history' && maintenanceRecords.length > 0 && (
+                <div style={{ display: 'grid', gap: '0.75rem' }}>
+                  {maintenanceRecords.map((r: any) => {
+                    const isExpanded = expandedRecords.has(r.id);
+                    const operations = (r.items || []).filter((i: any) => i.itemType === 'OPERATION');
+                    const parts = (r.items || []).filter((i: any) => i.itemType === 'PART');
+                    return (
+                      <div key={r.id} style={{ ...S.card, padding: '1rem 1.25rem', marginBottom: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', cursor: 'pointer' }} onClick={() => toggleRecord(r.id)}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
+                              <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '0.95rem' }}>{r.maintenanceType?.name || 'Genel Bakım'}</span>
+                              <span style={{ padding: '0.15rem 0.5rem', borderRadius: '20px', fontSize: '0.65rem', fontWeight: '700', background: '#dcfce7', color: '#166534' }}>✓ Yapıldı</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.8rem', color: '#64748b' }}>
+                              <span>📅 {r.performedAt ? new Date(r.performedAt).toLocaleDateString('tr-TR') : '-'}</span>
+                              <span>🛣️ {r.km ? `${Number(r.km).toLocaleString('tr-TR')} km` : '-'}</span>
+                              <span>💰 ₺{Number(r.totalAmount || 0).toLocaleString('tr-TR')}</span>
+                            </div>
+                          </div>
+                          <button style={S.expandBtn}>{(r.items || []).length > 0 ? (isExpanded ? '▲ Gizle' : `▼ Detay (${(r.items || []).length})`) : ''}</button>
+                        </div>
+                        {isExpanded && (r.items || []).length > 0 && (
+                          <div style={{ marginTop: '1rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem' }}>
+                            {operations.length > 0 && (
+                              <div style={{ marginBottom: '0.75rem' }}>
+                                <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#1e40af', marginBottom: '0.4rem' }}>🔧 İşlemler</div>
+                                {operations.map((op: any, i: number) => (
+                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.3rem 0', fontSize: '0.85rem', borderBottom: '1px solid #f1f5f9' }}>
+                                    <span style={{ color: '#1e293b' }}>{op.name}</span>
+                                    <span style={{ color: '#475569', fontWeight: '600' }}>₺{Number(op.total || 0).toLocaleString('tr-TR')}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {parts.length > 0 && (
+                              <div>
+                                <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#9d174d', marginBottom: '0.4rem' }}>🔩 Parçalar</div>
+                                {parts.map((p: any, i: number) => (
+                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.3rem 0', fontSize: '0.85rem', borderBottom: '1px solid #f1f5f9' }}>
+                                    <span style={{ color: '#1e293b' }}>{p.name} <span style={{ color: '#94a3b8' }}>×{Number(p.quantity).toLocaleString('tr-TR')}</span></span>
+                                    <span style={{ color: '#475569', fontWeight: '600' }}>₺{Number(p.total || 0).toLocaleString('tr-TR')}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {activeTab === 'history' && maintenanceRecords.length === 0 && (
+                <div style={{ ...S.card, textAlign: 'center', padding: '2.5rem' }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🔧</div>
+                  <div style={{ color: '#64748b' }}>Henüz bakım kaydı bulunmamaktadır.</div>
+                </div>
+              )}
+
+              {/* Tab: Orders */}
+              {activeTab === 'orders' && serviceOrders.length > 0 && (
+                <div style={{ display: 'grid', gap: '0.75rem' }}>
+                  {serviceOrders.map((o: any) => {
+                    const isExpanded = expandedOrders.has(o.id);
+                    const statusMap: Record<string, { label: string; bg: string; color: string }> = {
+                      DELIVERED: { label: 'Teslim Edildi', bg: '#dcfce7', color: '#166534' },
+                      COMPLETED: { label: 'Tamamlandı', bg: '#dcfce7', color: '#166534' },
+                      IN_PROGRESS: { label: 'Devam Ediyor', bg: '#dbeafe', color: '#1e40af' },
+                      PENDING: { label: 'Bekliyor', bg: '#fef3c7', color: '#92400e' },
+                      CANCELLED: { label: 'İptal', bg: '#fef2f2', color: '#991b1b' },
+                    };
+                    const st = statusMap[o.status] || { label: o.status, bg: '#f1f5f9', color: '#475569' };
+                    return (
+                      <div key={o.id} style={{ ...S.card, padding: '1rem 1.25rem', marginBottom: 0 }}>
+                        <div style={{ cursor: 'pointer' }} onClick={() => toggleOrder(o.id)}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '0.95rem' }}>#{o.orderNumber}</span>
+                                <span style={{ padding: '0.15rem 0.5rem', borderRadius: '20px', fontSize: '0.7rem', fontWeight: '700', background: st.bg, color: st.color }}>{st.label}</span>
+                              </div>
+                              <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.8rem', color: '#64748b', marginTop: '0.3rem' }}>
+                                <span>📅 {new Date(o.createdAt).toLocaleDateString('tr-TR')}</span>
+                                {o.km && <span>🛣️ {Number(o.km).toLocaleString('tr-TR')} km</span>}
+                                <span>💰 ₺{Number(o.totalAmount || 0).toLocaleString('tr-TR')}</span>
+                              </div>
+                            </div>
+                            <button style={S.expandBtn}>{(o.parts?.length > 0 || o.labor?.length > 0 || o.diagnosis || o.performedWork) ? (isExpanded ? '▲ Gizle' : '▼ Detay') : ''}</button>
+                          </div>
+                        </div>
+                        {isExpanded && (
+                          <div style={{ marginTop: '0.75rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.75rem' }}>
+                            {o.customerComplaint && (
+                              <div style={{ marginBottom: '0.6rem' }}>
+                                <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.2rem' }}>Müşteri Şikayeti</div>
+                                <div style={{ fontSize: '0.85rem', color: '#1e293b', background: '#fef3c7', padding: '0.5rem 0.75rem', borderRadius: '6px' }}>{o.customerComplaint}</div>
+                              </div>
+                            )}
+                            {o.diagnosis && (
+                              <div style={{ marginBottom: '0.6rem' }}>
+                                <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.2rem' }}>Teşhis</div>
+                                <div style={{ fontSize: '0.85rem', color: '#1e293b', background: '#f8fafc', padding: '0.5rem 0.75rem', borderRadius: '6px' }}>{o.diagnosis}</div>
+                              </div>
+                            )}
+                            {o.performedWork && (
+                              <div style={{ marginBottom: '0.6rem' }}>
+                                <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '0.2rem' }}>Yapılan İşlem</div>
+                                <div style={{ fontSize: '0.85rem', color: '#1e293b', background: '#dcfce7', padding: '0.5rem 0.75rem', borderRadius: '6px' }}>{o.performedWork}</div>
+                              </div>
+                            )}
+                            {o.parts?.length > 0 && (
+                              <div style={{ marginBottom: '0.6rem' }}>
+                                <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#9d174d', marginBottom: '0.3rem' }}>🔩 Kullanılan Parçalar</div>
+                                {o.parts.map((p: any, i: number) => (
+                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0', fontSize: '0.85rem', borderBottom: '1px solid #f1f5f9' }}>
+                                    <span style={{ color: '#1e293b' }}>{p.name} <span style={{ color: '#94a3b8' }}>×{Number(p.quantity).toLocaleString('tr-TR')}</span></span>
+                                    <span style={{ color: '#475569', fontWeight: '600' }}>₺{Number(p.total || 0).toLocaleString('tr-TR')}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {o.labor?.length > 0 && (
+                              <div>
+                                <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#1e40af', marginBottom: '0.3rem' }}>🔧 İşçilik</div>
+                                {o.labor.map((l: any, i: number) => (
+                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0', fontSize: '0.85rem', borderBottom: '1px solid #f1f5f9' }}>
+                                    <span style={{ color: '#1e293b' }}>{l.description} {l.hours && <span style={{ color: '#94a3b8' }}>({l.hours} saat)</span>}</span>
+                                    <span style={{ color: '#475569', fontWeight: '600' }}>₺{Number(l.total || 0).toLocaleString('tr-TR')}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {activeTab === 'orders' && serviceOrders.length === 0 && (
+                <div style={{ ...S.card, textAlign: 'center', padding: '2.5rem' }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>📝</div>
+                  <div style={{ color: '#64748b' }}>Henüz iş emri bulunmamaktadır.</div>
+                </div>
+              )}
+            </>
+          );
+        })()}
       </main>
     </div>
   );
