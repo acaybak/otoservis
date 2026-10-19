@@ -95,9 +95,12 @@ function useAuth() {
   useEffect(() => {
     const token = getToken();
     if (token) {
+      const timeout = setTimeout(() => { setToken(null); setLoading(false); }, 15000); // 15s timeout
       authApi.me().then((res: any) => {
+        clearTimeout(timeout);
         setUser({ id: res.id, email: res.email, firstName: res.firstName, lastName: res.lastName, tenantId: res.tenantId, roles: res.roles || [], status: res.status });
-      }).catch(() => { setToken(null); setLoading(false); });
+        setLoading(false);
+      }).catch(() => { clearTimeout(timeout); setToken(null); setLoading(false); });
     } else {
       setLoading(false);
     }
