@@ -1661,6 +1661,7 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                     <th style={AdminStyles.th}>Firma</th>
                     <th style={AdminStyles.th}>İletişim</th>
                     <th style={AdminStyles.th}>Slug</th>
+                    <th style={AdminStyles.th}>Portal Linkleri</th>
                     <th style={AdminStyles.th}>Durum</th>
                     <th style={AdminStyles.th}>Kullanıcı</th>
                     <th style={AdminStyles.th}>Müşteri</th>
@@ -1679,6 +1680,12 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                         </div>
                       </td>
                       <td style={AdminStyles.td}><code style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: 4, fontSize: 12 }}>{t.slug}</code></td>
+                      <td style={AdminStyles.td}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <a href={`https://portal.otoservisapp.com/${t.slug}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#2563eb', textDecoration: 'none' }} title="Portal Ana Sayfa">🏠 Portal</a>
+                          <a href={`https://portal.otoservisapp.com/${t.slug}/appointment`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#2563eb', textDecoration: 'none' }} title="Randevu Linki">📅 Randevu</a>
+                        </div>
+                      </td>
                       <td style={AdminStyles.td}>
                         <select value={t.status} onChange={e => handleStatusChange(t.id, e.target.value)} style={{ ...AdminStyles.select, padding: '6px 10px', fontSize: 12 }}>
                           <option value="ACTIVE">Aktif</option>
@@ -1918,6 +1925,30 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                       <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Vergi No</div>
                       <div style={{ fontSize: 14, fontWeight: 600 }}>{selectedTenant.taxNumber || <span style={{ color: '#94a3b8', fontWeight: 400 }}>Belirtilmemiş</span>}</div>
                     </div>
+                  </div>
+                </div>
+                {/* Portal Linkleri */}
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                  <h4 style={{ margin: '0 0 12px', color: '#15803d', fontSize: 14 }}>🔗 Portal Linkleri</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 12 }}>
+                    <div style={{ background: 'white', borderRadius: 6, padding: 12, border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>🏠 Portal Ana Sayfa</div>
+                      <a href={`https://portal.otoservisapp.com/${selectedTenant.slug}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: '#2563eb', wordBreak: 'break-all', textDecoration: 'none' }}>
+                        portal.otoservisapp.com/{selectedTenant.slug}
+                      </a>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Müşteriler araç bakım geçmişi sorgular</div>
+                    </div>
+                    <div style={{ background: 'white', borderRadius: 6, padding: 12, border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>📅 Randevu Linki</div>
+                      <a href={`https://portal.otoservisapp.com/${selectedTenant.slug}/appointment`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: '#2563eb', wordBreak: 'break-all', textDecoration: 'none' }}>
+                        portal.otoservisapp.com/{selectedTenant.slug}/appointment
+                      </a>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Müşteriler online randevu alır</div>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button onClick={() => { navigator.clipboard.writeText(`https://portal.otoservisapp.com/${selectedTenant.slug}/appointment`); addToast('Randevu linki kopyalandı!', 'success'); }} style={{ ...AdminStyles.btnSecondary, fontSize: 12, padding: '6px 12px' }}>📋 Randevu Linkini Kopyala</button>
+                    <button onClick={() => { navigator.clipboard.writeText(`https://portal.otoservisapp.com/${selectedTenant.slug}`); addToast('Portal linki kopyalandı!', 'success'); }} style={{ ...AdminStyles.btnSecondary, fontSize: 12, padding: '6px 12px' }}>📋 Portal Linkini Kopyala</button>
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 20 }}>
