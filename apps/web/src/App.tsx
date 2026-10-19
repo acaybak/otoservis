@@ -824,7 +824,8 @@ function NewServiceOrderPage({ tenantId }: { tenantId: string }) {
         status: 'RECEIVED',
       });
       addToast('Servis kaydı oluşturuldu', 'success');
-      navigate(`/service-orders/${orderRes.id}`);
+      // Navigate to service orders page with the new order ID to open detail
+      navigate(`/service-orders?open=${orderRes.id}`);
     } catch (e: any) { addToast(e.message || 'Hata oluştu', 'error'); }
     finally { setSaving(false); }
   };
@@ -910,6 +911,7 @@ function NewServiceOrderPage({ tenantId }: { tenantId: string }) {
 // ============ SERVICE ORDERS PAGE (Kanban + List + Detail) ============
 function ServiceOrdersPage({ tenantId }: { tenantId: string }) {
   const { addToast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [orders, setOrders] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -937,6 +939,19 @@ function ServiceOrdersPage({ tenantId }: { tenantId: string }) {
   }, [tenantId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Auto-open order detail if ?open=ID is in URL
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    if (openId && orders.length > 0 && !selectedOrder) {
+      const order = orders.find(o => o.id === openId);
+      if (order) {
+        loadOrderDetail(openId);
+        // Clear the URL parameter
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, orders, selectedOrder]);
 
   const loadOrderDetail = async (id: string) => {
     try {
