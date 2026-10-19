@@ -97,6 +97,10 @@ export class AuthService {
       throw new UnauthorizedException('Hesabınız aktif değil. Yöneticinizle iletişime geçin.');
     }
 
+    if (!user.tenant) {
+      throw new UnauthorizedException('Hesabınız bir servise bağlı değil. Yöneticinizle iletişime geçin.');
+    }
+
     if (user.tenant.status !== 'ACTIVE' && user.tenant.status !== 'TRIAL') {
       throw new UnauthorizedException('Servis hesabı aktif değil.');
     }
