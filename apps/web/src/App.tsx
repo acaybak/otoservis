@@ -321,6 +321,7 @@ function Layout({ user, onLogout, onAdmin, children }: { user: User; onLogout: (
     ]},
     { title: 'Depo & Stok', items: [
       { path: '/inventory', icon: '📦', label: 'Stok Yönetimi' },
+      { path: '/suppliers', icon: '🏭', label: 'Tedarikçiler' },
       { path: '/maintenance', icon: '🛠️', label: 'Bakım Kayıtları' },
     ]},
     { title: 'Sistem', items: [
@@ -1173,6 +1174,99 @@ function InventoryPage({ tenantId }: { tenantId: string }) {
             </div>
             <div style={S.formGroup}><label style={S.label}>Stok Adedi</label><input style={S.input} type="number" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} /></div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}><button style={S.btnSecondary} onClick={() => setShowForm(false)}>İptal</button><button style={S.btnPrimary as any} onClick={handleCreate}>Kaydet</button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ SUPPLIERS PAGE ============
+function SuppliersPage({ tenantId }: { tenantId: string }) {
+  const { addToast } = useToast();
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
+  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', taxNo: '', notes: '' });
+
+  const load = useCallback(async () => {
+    try { const res = await inventoryApi.listSuppliers(tenantId); setSuppliers(res?.data || res || []); } catch { /* ignore */ }
+    setLoading(false);
+  }, [tenantId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    try {
+      await inventoryApi.createSupplier(tenantId, form);
+      setShowForm(false);
+      setForm({ name: '', phone: '', email: '', address: '', taxNo: '', notes: '' });
+      addToast('Tedarikçi eklendi', 'success');
+      load();
+    } catch (e: any) { addToast(e.message || 'Hata', 'error'); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tedarikçiyi silmek istediğinize emin misiniz?')) return;
+    try {
+      await inventoryApi.removeSupplier(tenantId, id);
+      addToast('Tedarikçi silindi', 'success');
+      load();
+    } catch (e: any) { addToast(e.message || 'Silinemedi', 'error'); }
+  };
+
+  const filtered = suppliers.filter(s => !search || s.name?.toLowerCase().includes(search.toLowerCase()) || s.phone?.includes(search) || s.email?.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div>
+      <div style={S.header}>
+        <h1 style={S.pageTitle}>Tedarikçiler</h1>
+        <button style={S.btnPrimary as any} onClick={() => setShowForm(true)}>+ Yeni Tedarikçi</button>
+      </div>
+      <div style={{ ...S.card, padding: '12px 24px' }}>
+        <input placeholder="Tedarikçi ara..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...S.input, marginBottom: 0, maxWidth: 400 }} />
+      </div>
+      <div style={S.card}>
+        {loading ? <div style={S.empty}>Yükleniyor...</div> : filtered.length === 0 ? <div style={S.empty}>Tedarikçi bulunamadı</div> : (
+          <table style={S.table}>
+            <thead><tr><th style={S.th}>Firma Adı</th><th style={S.th}>Telefon</th><th style={S.th}>E-posta</th><th style={S.th}>Vergi No</th><th style={S.th}>Adres</th><th style={{ ...S.th, width: 80 }}></th></tr></thead>
+            <tbody>
+              {filtered.map(s => (
+                <tr key={s.id}>
+                  <td style={S.td}><strong>{s.name}</strong></td>
+                  <td style={S.td}>{s.phone || '-'}</td>
+                  <td style={S.td}>{s.email || '-'}</td>
+                  <td style={S.td}>{s.taxNo || '-'}</td>
+                  <td style={{ ...S.td, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.address || '-'}</td>
+                  <td style={S.td}>
+                    <button onClick={() => handleDelete(s.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 18 }} title="Sil">🗑️</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {showForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowForm(false)}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: '100%', maxWidth: 500, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0 }}>Yeni Tedarikçi</h3>
+              <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#64748b' }}>×</button>
+            </div>
+            <div style={S.formGroup}><label style={S.label}>Firma Adı *</label><input style={S.input} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={S.formGroup}><label style={S.label}>Telefon</label><input style={S.input} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
+              <div style={S.formGroup}><label style={S.label}>E-posta</label><input style={S.input} type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+            </div>
+            <div style={S.formGroup}><label style={S.label}>Vergi Numarası</label><input style={S.input} value={form.taxNo} onChange={e => setForm({ ...form, taxNo: e.target.value })} /></div>
+            <div style={S.formGroup}><label style={S.label}>Adres</label><textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' as const }} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
+            <div style={S.formGroup}><label style={S.label}>Notlar</label><textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' as const }} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button style={S.btnSecondary} onClick={() => setShowForm(false)}>İptal</button>
+              <button style={S.btnPrimary as any} onClick={handleCreate}>Kaydet</button>
+            </div>
           </div>
         </div>
       )}
@@ -2971,6 +3065,7 @@ function AppInner() {
           <Route path="/customers" element={<CustomersPage tenantId={user.tenantId} />} />
           <Route path="/vehicles" element={<VehiclesPage tenantId={user.tenantId} />} />
           <Route path="/inventory" element={<InventoryPage tenantId={user.tenantId} />} />
+          <Route path="/suppliers" element={<SuppliersPage tenantId={user.tenantId} />} />
           <Route path="/maintenance" element={<MaintenancePage tenantId={user.tenantId} />} />
           <Route path="/receivables" element={<ReceivablesPage tenantId={user.tenantId} />} />
           <Route path="/financial" element={<FinancialPage tenantId={user.tenantId} />} />
