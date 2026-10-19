@@ -10,35 +10,39 @@ export class AccountingService {
 
   // === PAYMENTS ===
   async createPayment(tenantId: string, data: {
-    customerId: string; amount: number; method: string;
-    referenceNo?: string; note?: string; cashRegisterId?: string;
+    invoiceId: string; amount: number; paymentMethod: string;
+    referenceNo?: string; notes?: string;
   }, userId: string) {
-    const customer = await this.prisma.customer.findFirst({ where: { id: data.customerId, tenantId } });
-    if (!customer) throw new NotFoundException('Müşteri bulunamadı.');
+    const invoice = await this.prisma.invoice.findFirst({ where: { id: data.invoiceId, tenantId } });
+    if (!invoice) throw new NotFoundException('Fatura bulunamadı.');
 
     const payment = await this.prisma.$transaction(async (tx) => {
       const created = await tx.payment.create({
         data: {
           tenantId,
-          customerId: data.customerId,
+          invoiceId: data.invoiceId,
           amount: data.amount,
-          method: data.method,
+          paymentMethod: data.paymentMethod,
           referenceNo: data.referenceNo || null,
-          note: data.note || null,
-          receivedById: userId,
-          cashRegisterId: data.cashRegisterId || null,
+          notes: data.notes || null,
         },
       });
 
+      // Update invoice paid amount
+      await tx.invoice.update({
+        where: { id: data.invoiceId },
+        data: { paidAmount: { increment: data.amount } },
+      });
+
       // Update customer account balance
-      const account = await tx.customerAccount.findFirst({ where: { customerId: data.customerId } });
+      const account = await tx.customerAccount.findFirst({ where: { customerId: invoice.customerId } });
       if (account) {
         await tx.accountTransaction.create({
           data: {
             customerAccountId: account.id,
             type: 'PAYMENT',
             amount: -data.amount,
-            description: `Ödeme: ${data.method}`,
+            description: `Ödeme: ${data.paymentMethod}`,
             referenceId: created.id,
             referenceType: 'Payment',
             createdById: userId,
@@ -47,25 +51,6 @@ export class AccountingService {
         await tx.customerAccount.update({
           where: { id: account.id },
           data: { balance: { decrement: data.amount } },
-        });
-      }
-
-      // Cash register transaction
-      if (data.cashRegisterId && data.method === 'CASH') {
-        await tx.cashTransaction.create({
-          data: {
-            cashRegisterId: data.cashRegisterId,
-            type: 'IN',
-            amount: data.amount,
-            description: `Müşteri ödemesi: ${customer.firstName} ${customer.lastName}`,
-            referenceId: created.id,
-            referenceType: 'Payment',
-            userId,
-          },
-        });
-        await tx.cashRegister.update({
-          where: { id: data.cashRegisterId },
-          data: { balance: { increment: data.amount } },
         });
       }
 
@@ -97,11 +82,11 @@ export class AccountingService {
 
   // === INVOICES ===
   async createInvoice(tenantId: string, data: {
-    customerId?: string; issueDate: string; dueDate?: string; notes?: string;
-    items: Array<{ serviceOrderId?: string; description: string; quantity: number; unitPrice: number; taxRate: number }>;
+    customerId: string; serviceOrderId?: string; issueDate: string; dueDate: string; notes?: string;
+    items: Array<{ description: string; quantity: number; unitPrice: number }>;
   }, userId: string) {
     const subtotal = data.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    const taxAmount = data.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice * item.taxRate / 100), 0);
+    const taxAmount = 0; // Will be calculated per item if needed
     const totalAmount = subtotal + taxAmount;
 
     // Generate invoice number
@@ -113,12 +98,15 @@ export class AccountingService {
         data: {
           tenantId,
           invoiceNumber,
-          customerId: data.customerId || null,
+          customerId: data.customerId,
+          serviceOrderId: data.serviceOrderId || null,
           issueDate: new Date(data.issueDate),
-          dueDate: data.dueDate ? new Date(data.dueDate) : null,
+          dueDate: new Date(data.dueDate),
           subtotal,
           taxAmount,
+          discountAmount: 0,
           totalAmount,
+          paidAmount: 0,
           status: 'DRAFT',
           notes: data.notes || null,
         },
@@ -129,12 +117,10 @@ export class AccountingService {
         await tx.invoiceItem.create({
           data: {
             invoiceId: created.id,
-            serviceOrderId: item.serviceOrderId || null,
             description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            taxRate: item.taxRate,
-            total: itemTotal,
+            totalPrice: itemTotal,
           },
         });
       }

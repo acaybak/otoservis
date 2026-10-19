@@ -1,30 +1,28 @@
 import { z } from 'zod';
 
 export const createPaymentSchema = z.object({
-  customerId: z.string().uuid('Geçerli bir müşteri ID giriniz.'),
+  invoiceId: z.string().uuid('Geçerli bir fatura ID giriniz.'),
   amount: z.number().positive('Tutar pozitif olmalıdır.'),
-  method: z.enum(['CASH', 'CREDIT_CARD', 'BANK_TRANSFER', 'WIRE_TRANSFER', 'OTHER']),
+  paymentMethod: z.enum(['CASH', 'CARD', 'TRANSFER', 'CHECK']),
   referenceNo: z.string().optional(),
-  note: z.string().optional(),
-  cashRegisterId: z.string().uuid().optional(),
+  notes: z.string().optional(),
 });
 
 export const createInvoiceSchema = z.object({
-  customerId: z.string().uuid().optional(),
+  customerId: z.string().uuid(),
+  serviceOrderId: z.string().uuid().optional(),
   issueDate: z.string().min(1, 'Fatura tarihi zorunludur.'),
-  dueDate: z.string().optional(),
+  dueDate: z.string().min(1, 'Son ödeme tarihi zorunludur.'),
   notes: z.string().optional(),
   items: z.array(z.object({
-    serviceOrderId: z.string().uuid().optional(),
     description: z.string().min(1),
     quantity: z.number().positive(),
     unitPrice: z.number().min(0),
-    taxRate: z.number().min(0).max(100).default(20),
   })).min(1, 'En az bir kalem eklenmelidir.'),
 });
 
 export const updateInvoiceSchema = z.object({
-  status: z.enum(['DRAFT', 'ISSUED', 'PAID', 'CANCELLED']).optional(),
+  status: z.enum(['DRAFT', 'SENT', 'PAID', 'PARTIALLY_PAID', 'OVERDUE', 'CANCELLED']).optional(),
   notes: z.string().nullable().optional(),
 });
 

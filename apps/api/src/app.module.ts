@@ -25,6 +25,7 @@ import { VehicleMaintenanceModule } from './modules/vehicle-maintenance/vehicle-
 import { PublicModule } from './modules/public/public.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { LicensesModule } from './modules/licenses/licenses.module';
+import { QuotesModule } from './modules/quotes/quotes.module';
 import { HealthModule } from './modules/health/health.module';
 
 @Module({
@@ -59,6 +60,7 @@ import { HealthModule } from './modules/health/health.module';
     AuditModule_,
     SyncModule,
     VehicleMaintenanceModule,
+    QuotesModule,
     PublicModule,
     AdminModule,
     LicensesModule,

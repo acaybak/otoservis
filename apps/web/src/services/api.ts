@@ -152,6 +152,82 @@ export const settingsApi = {
   update: (tenantId: string, data: any) => api.put<any>('/settings', data, tenantId),
 };
 
+// Appointments
+export const appointmentApi = {
+  list: (tenantId: string, params?: string) =>
+    api.get<any>(`/appointments${params ? `?${params}` : ''}`, tenantId),
+  get: (tenantId: string, id: string) =>
+    api.get<any>(`/appointments/${id}`, tenantId),
+  create: (tenantId: string, data: any) =>
+    api.post<any>('/appointments', data, tenantId),
+  update: (tenantId: string, id: string, data: any) =>
+    api.patch<any>(`/appointments/${id}`, data, tenantId),
+  remove: (tenantId: string, id: string) =>
+    api.delete<any>(`/appointments/${id}`, tenantId),
+  changeStatus: (tenantId: string, id: string, data: { status: string; note?: string }) =>
+    api.post<any>(`/appointments/${id}/status`, data, tenantId),
+};
+
+// Inventory / Products
+export const inventoryApi = {
+  listProducts: (tenantId: string, params?: string) =>
+    api.get<any>(`/inventory/products${params ? `?${params}` : ''}`, tenantId),
+  getProduct: (tenantId: string, id: string) =>
+    api.get<any>(`/inventory/products/${id}`, tenantId),
+  createProduct: (tenantId: string, data: any) =>
+    api.post<any>('/inventory/products', data, tenantId),
+  updateProduct: (tenantId: string, id: string, data: any) =>
+    api.patch<any>(`/inventory/products/${id}`, data, tenantId),
+  removeProduct: (tenantId: string, id: string) =>
+    api.delete<any>(`/inventory/products/${id}`, tenantId),
+  listSuppliers: (tenantId: string) =>
+    api.get<any>('/inventory/suppliers', tenantId),
+  createSupplier: (tenantId: string, data: any) =>
+    api.post<any>('/inventory/suppliers', data, tenantId),
+  updateSupplier: (tenantId: string, id: string, data: any) =>
+    api.patch<any>(`/inventory/suppliers/${id}`, data, tenantId),
+  removeSupplier: (tenantId: string, id: string) =>
+    api.delete<any>(`/inventory/suppliers/${id}`, tenantId),
+};
+
+// Maintenance
+export const maintenanceApi = {
+  listRecords: (tenantId: string, params?: string) =>
+    api.get<any>(`/maintenance/records${params ? `?${params}` : ''}`, tenantId),
+  getRecord: (tenantId: string, id: string) =>
+    api.get<any>(`/maintenance/records/${id}`, tenantId),
+  createRecord: (tenantId: string, data: any) =>
+    api.post<any>('/maintenance/records', data, tenantId),
+  updateRecord: (tenantId: string, id: string, data: any) =>
+    api.patch<any>(`/maintenance/records/${id}`, data, tenantId),
+  removeRecord: (tenantId: string, id: string) =>
+    api.delete<any>(`/maintenance/records/${id}`, tenantId),
+  listTypes: (tenantId: string) =>
+    api.get<any>('/maintenance/types', tenantId),
+  createType: (tenantId: string, data: any) =>
+    api.post<any>('/maintenance/types', data, tenantId),
+  listSchedules: (tenantId: string, vehicleId?: string) =>
+    api.get<any>(`/maintenance/schedules${vehicleId ? `?vehicleId=${vehicleId}` : ''}`, tenantId),
+  createSchedule: (tenantId: string, data: any) =>
+    api.post<any>('/maintenance/schedules', data, tenantId),
+  updateSchedule: (tenantId: string, id: string, data: any) =>
+    api.patch<any>(`/maintenance/schedules/${id}`, data, tenantId),
+};
+
+// Service Order Parts & Labor
+export const serviceOrderPartsApi = {
+  addPart: (tenantId: string, orderId: string, data: any) =>
+    api.post<any>(`/service-orders/${orderId}/parts`, data, tenantId),
+  removePart: (tenantId: string, orderId: string, partId: string) =>
+    api.delete<any>(`/service-orders/${orderId}/parts/${partId}`, tenantId),
+  addLabor: (tenantId: string, orderId: string, data: any) =>
+    api.post<any>(`/service-orders/${orderId}/labor`, data, tenantId),
+  removeLabor: (tenantId: string, orderId: string, laborId: string) =>
+    api.delete<any>(`/service-orders/${orderId}/labor/${laborId}`, tenantId),
+  addNote: (tenantId: string, orderId: string, data: { text: string }) =>
+    api.post<any>(`/service-orders/${orderId}/notes`, data, tenantId),
+};
+
 // Admin (Super Admin)
 export const adminApi = {
   getStats: () => api.get<any>('/admin/stats'),
