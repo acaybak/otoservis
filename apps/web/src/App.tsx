@@ -758,6 +758,13 @@ function NewServiceOrderPage({ tenantId }: { tenantId: string }) {
     setSearching(false);
   };
 
+  // Auto-search on page load if plate is in URL
+  useEffect(() => {
+    if (plateFromUrl) {
+      setTimeout(() => handlePlateSearch(), 100);
+    }
+  }, [plateFromUrl]);
+
   const handleSubmit = async () => {
     if (saving) return;
     setSaving(true);
