@@ -42,11 +42,14 @@ export class SyncService {
    * (upsert/delete per entity) and records them in sync_operations for audit.
    */
   async pushOperations(deviceKey: string, operations: SyncOperationDto[]) {
+    this.logger.log(`Push received from device ${deviceKey.substring(0, 8)}... with ${operations.length} operations`);
     const device = await this.getDevice(deviceKey);
+    this.logger.log(`Device found: tenant=${device.tenantId}, active=${device.isActive}`);
     const results: Array<{ entityId: string; status: string; error?: string }> = [];
 
     for (const op of operations) {
       try {
+        this.logger.log(`Applying ${op.operationType} on ${op.entityType}/${op.entityId}`);
         await this.applyOperation(device.tenantId, op);
         await this.prisma.syncOperation.create({
           data: {
@@ -60,6 +63,7 @@ export class SyncService {
             status: 'SYNCED',
           },
         });
+        this.logger.log(`Successfully synced ${op.entityType}/${op.entityId}`);
         results.push({ entityId: op.entityId, status: 'SYNCED' });
       } catch (err: any) {
         this.logger.warn(`Sync op failed (${op.entityType}/${op.operationType}): ${err.message}`);
@@ -72,6 +76,7 @@ export class SyncService {
       data: { lastSyncAt: new Date() },
     });
 
+    this.logger.log(`Push completed: ${results.filter(r => r.status === 'SYNCED').length}/${results.length} succeeded`);
     return results;
   }
 

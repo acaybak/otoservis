@@ -353,6 +353,7 @@ async function syncNow() {
   const serverUrl = getMeta('serverUrl');
   const deviceKey = getMeta('deviceKey');
   if (!serverUrl || !deviceKey || !getMeta('user')) {
+    console.log('[sync] Missing requirements:', { serverUrl: !!serverUrl, deviceKey: !!deviceKey, user: !!getMeta('user') });
     syncState.online = false;
     broadcast();
     return syncState;
@@ -366,6 +367,7 @@ async function syncNow() {
 
     // --- 1. PUSH outbox ---
     const rows = getDb().prepare('SELECT * FROM outbox ORDER BY id LIMIT 200').all();
+    console.log(`[sync] Pushing ${rows.length} operations from outbox`);
     if (rows.length > 0) {
       const operations = rows.map((r) => ({
         entityId: r.entity_id,
@@ -373,11 +375,13 @@ async function syncNow() {
         operationType: r.operation_type,
         payload: JSON.parse(r.payload),
       }));
+      console.log('[sync] Push payload:', JSON.stringify({ deviceKey: deviceKey.substring(0, 8) + '...', operations: operations.length }, null, 2));
       const res = await fetchJson(`${serverUrl}/api/v1/sync/push`, {
         method: 'POST',
         token,
         body: { deviceKey, operations },
       });
+      console.log('[sync] Push response:', { ok: res.ok, status: res.status, data: res.data });
       if (!res.ok) throw new Error(`Push başarısız (HTTP ${res.status})`);
 
       const results = Array.isArray(res.data) ? res.data : [];
@@ -396,6 +400,7 @@ async function syncNow() {
             getDb().prepare(`DELETE FROM ${table} WHERE id = ?`).run(row.entity_id);
           }
         } else {
+          console.warn(`[sync] Operation failed:`, row.entity_type, row.entity_id, r.error);
           // FAILED: drop after 5 retries to avoid infinite loops
           getDb().prepare('UPDATE outbox SET retry_count = retry_count + 1 WHERE id = ?').run(row.id);
           const updated = getDb().prepare('SELECT retry_count FROM outbox WHERE id = ?').get(row.id);
@@ -416,6 +421,7 @@ async function syncNow() {
     if (!pullRes.ok) throw new Error(`Pull başarısız (HTTP ${pullRes.status})`);
 
     const pulledCount = applyPulledEntities(pullRes.data && pullRes.data.entities ? pullRes.data.entities : {});
+    console.log(`[sync] Pulled ${pulledCount} entities from server`);
     if (pullRes.data && pullRes.data.serverTime) {
       setMeta('lastPullAt', pullRes.data.serverTime);
     }
@@ -429,7 +435,9 @@ async function syncNow() {
     syncState.online = true;
     syncState.lastSyncAt = new Date().toISOString();
     syncState.lastError = null;
+    console.log('[sync] Sync completed successfully');
   } catch (err) {
+    console.error('[sync] Sync failed:', err.message);
     syncState.online = false;
     syncState.lastError = err.message || 'Bağlantı hatası';
   } finally {
