@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
-import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { authApi, setToken, getToken, customerApi, vehicleApi, serviceOrderApi, accountingApi, reportingApi, adminApi, licenseApi, tenantApi, PORTAL_URL, warmupApi, appointmentApi, inventoryApi, maintenanceApi, serviceOrderPartsApi } from './services/api';
 
 // Yönetim paneli (Lisans Yönetimi dahil) yalnızca bu e-postalara açıktır.
@@ -432,12 +432,7 @@ function DashboardPage({ tenantId }: { tenantId: string }) {
 
   const handlePlateSearch = () => {
     if (!plateSearch.trim()) return;
-    const v = vehicles.find((veh: any) => (veh.plate || '').toLowerCase().replace(/\s/g, '') === plateSearch.toLowerCase().replace(/\s/g, ''));
-    if (v) {
-      navigate('/vehicles');
-    } else {
-      addToast('Araç bulunamadı', 'info');
-    }
+    navigate(`/service-orders/new?plate=${encodeURIComponent(plateSearch.trim())}`);
   };
 
   const getCustomerName = (id: string) => customers.find((c: any) => c.id === id)?.fullName || '-';
@@ -703,6 +698,216 @@ function VehiclesPage({ tenantId }: { tenantId: string }) {
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button style={S.btnSecondary} onClick={() => setShowForm(false)}>İptal</button>
               <button style={S.btnPrimary as any} onClick={handleCreate}>Kaydet</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ NEW SERVICE ORDER PAGE (Plate Search Workflow) ============
+function NewServiceOrderPage({ tenantId }: { tenantId: string }) {
+  const { addToast } = useToast();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const plateFromUrl = searchParams.get('plate') || '';
+
+  const [step, setStep] = useState<'search' | 'customer' | 'vehicle' | 'order'>(plateFromUrl ? 'search' : 'customer');
+  const [plateInput, setPlateInput] = useState(plateFromUrl);
+  const [searching, setSearching] = useState(false);
+  const [foundVehicle, setFoundVehicle] = useState<any>(null);
+  const [foundCustomer, setFoundCustomer] = useState<any>(null);
+
+  // Customer form
+  const [customerForm, setCustomerForm] = useState({ firstName: '', lastName: '', phone: '', email: '', address: '', notes: '' });
+  // Vehicle form
+  const [vehicleForm, setVehicleForm] = useState({ plate: '', brand: '', model: '', year: '', km: '', color: '', vin: '', fuelType: '', transmission: '' });
+  // Order form
+  const [orderForm, setOrderForm] = useState({ customerComplaint: '', diagnosis: '', plannedWork: '', km: '', status: 'APPOINTMENT' });
+
+  const handlePlateSearch = async () => {
+    const cleanPlate = plateInput.replace(/\s+/g, '').toUpperCase();
+    if (!cleanPlate) return;
+    setSearching(true);
+    try {
+      const res = await vehicleApi.list(tenantId, `limit=1&q=${encodeURIComponent(cleanPlate)}`);
+      const vehicles = res?.data || res || [];
+      if (vehicles.length > 0) {
+        const v = vehicles[0];
+        setFoundVehicle(v);
+        setVehicleForm({ plate: v.plate || '', brand: v.brand || '', model: v.model || '', year: v.year || '', km: v.km || '', color: v.color || '', vin: v.vin || '', fuelType: v.fuelType || '', transmission: v.transmission || '' });
+        // Load customer
+        const custRes = await customerApi.get(tenantId, v.customerId);
+        setFoundCustomer(custRes);
+        setStep('order');
+      } else {
+        setVehicleForm({ ...vehicleForm, plate: cleanPlate });
+        setStep('customer');
+      }
+    } catch {
+      addToast('Araç aranırken hata oluştu', 'error');
+    }
+    setSearching(false);
+  };
+
+  const handleCreateCustomer = async () => {
+    if (!customerForm.firstName || !customerForm.phone) {
+      addToast('Ad ve telefon zorunludur', 'error');
+      return;
+    }
+    try {
+      const res = await customerApi.create(tenantId, customerForm);
+      setFoundCustomer(res);
+      setStep('vehicle');
+      addToast('Müşteri oluşturuldu', 'success');
+    } catch (e: any) { addToast(e.message || 'Hata', 'error'); }
+  };
+
+  const handleCreateVehicle = async () => {
+    if (!vehicleForm.plate) {
+      addToast('Plaka zorunludur', 'error');
+      return;
+    }
+    try {
+      const res = await vehicleApi.create(tenantId, {
+        ...vehicleForm,
+        customerId: foundCustomer.id,
+        year: vehicleForm.year ? Number(vehicleForm.year) : null,
+        km: vehicleForm.km ? Number(vehicleForm.km) : null,
+      });
+      setFoundVehicle(res);
+      setStep('order');
+      addToast('Araç oluşturuldu', 'success');
+    } catch (e: any) { addToast(e.message || 'Hata', 'error'); }
+  };
+
+  const handleCreateOrder = async () => {
+    if (!foundCustomer || !foundVehicle) {
+      addToast('Müşteri ve araç seçilmelidir', 'error');
+      return;
+    }
+    try {
+      await serviceOrderApi.create(tenantId, {
+        customerId: foundCustomer.id,
+        vehicleId: foundVehicle.id,
+        km: orderForm.km ? Number(orderForm.km) : null,
+        customerComplaint: orderForm.customerComplaint || null,
+        diagnosis: orderForm.diagnosis || null,
+        plannedWork: orderForm.plannedWork || null,
+        status: orderForm.status,
+      });
+      addToast('Servis kaydı oluşturuldu', 'success');
+      navigate('/service-orders');
+    } catch (e: any) { addToast(e.message || 'Hata', 'error'); }
+  };
+
+  return (
+    <div>
+      <div style={S.header}>
+        <h1 style={S.pageTitle}>Yeni Servis Kaydı</h1>
+        <button style={S.btnSecondary} onClick={() => navigate('/service-orders')}>← Geri</button>
+      </div>
+
+      {/* Step Indicator */}
+      <div style={{ ...S.card, padding: '16px 24px', marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+          <span style={{ fontWeight: step === 'search' ? 700 : 400, color: step === 'search' ? '#1e40af' : '#64748b' }}>1. Plaka Ara</span>
+          <span>→</span>
+          <span style={{ fontWeight: step === 'customer' ? 700 : 400, color: step === 'customer' ? '#1e40af' : '#64748b' }}>2. Müşteri</span>
+          <span>→</span>
+          <span style={{ fontWeight: step === 'vehicle' ? 700 : 400, color: step === 'vehicle' ? '#1e40af' : '#64748b' }}>3. Araç</span>
+          <span>→</span>
+          <span style={{ fontWeight: step === 'order' ? 700 : 400, color: step === 'order' ? '#1e40af' : '#64748b' }}>4. Servis Kaydı</span>
+        </div>
+      </div>
+
+      {/* Step 1: Plate Search */}
+      {step === 'search' && (
+        <div style={S.card}>
+          <h3 style={{ marginBottom: 16 }}>Plaka ile Araç Sorgula</h3>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <input style={{ ...S.input, marginBottom: 0, flex: 1, fontSize: 18, fontWeight: 600, letterSpacing: '1px' }} placeholder="34 ABC 123" value={plateInput} onChange={e => setPlateInput(e.target.value.toUpperCase())} onKeyDown={e => e.key === 'Enter' && handlePlateSearch()} autoFocus />
+            <button style={{ ...S.btnPrimary as any, padding: '12px 24px', fontSize: 16 }} onClick={handlePlateSearch} disabled={searching}>{searching ? '...' : '🔍 Ara'}</button>
+          </div>
+          <div style={{ fontSize: 12, color: '#64748b' }}>Araç bulunamazsa yeni müşteri ve araç kaydı açılır.</div>
+        </div>
+      )}
+
+      {/* Step 2: Customer Creation */}
+      {step === 'customer' && (
+        <div style={S.card}>
+          <h3 style={{ marginBottom: 16 }}>Yeni Müşteri Bilgileri</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={S.formGroup}><label style={S.label}>Ad *</label><input style={S.input} value={customerForm.firstName} onChange={e => setCustomerForm({ ...customerForm, firstName: e.target.value })} required /></div>
+            <div style={S.formGroup}><label style={S.label}>Soyad</label><input style={S.input} value={customerForm.lastName} onChange={e => setCustomerForm({ ...customerForm, lastName: e.target.value })} /></div>
+          </div>
+          <div style={S.formGroup}><label style={S.label}>Telefon *</label><input style={S.input} type="tel" value={customerForm.phone} onChange={e => setCustomerForm({ ...customerForm, phone: e.target.value })} required /></div>
+          <div style={S.formGroup}><label style={S.label}>E-posta</label><input style={S.input} type="email" value={customerForm.email} onChange={e => setCustomerForm({ ...customerForm, email: e.target.value })} /></div>
+          <div style={S.formGroup}><label style={S.label}>Adres</label><textarea style={{ ...S.input, minHeight: 60 }} value={customerForm.address} onChange={e => setCustomerForm({ ...customerForm, address: e.target.value })} /></div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+            <button style={S.btnSecondary} onClick={() => setStep('search')}>← Geri</button>
+            <button style={S.btnPrimary as any} onClick={handleCreateCustomer}>Kaydet ve Devam Et →</button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Vehicle Creation */}
+      {step === 'vehicle' && (
+        <div style={S.card}>
+          <h3 style={{ marginBottom: 16 }}>Yeni Araç Bilgileri</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={S.formGroup}><label style={S.label}>Plaka *</label><input style={S.input} value={vehicleForm.plate} onChange={e => setVehicleForm({ ...vehicleForm, plate: e.target.value })} required /></div>
+            <div style={S.formGroup}><label style={S.label}>Marka</label><input style={S.input} value={vehicleForm.brand} onChange={e => setVehicleForm({ ...vehicleForm, brand: e.target.value })} /></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={S.formGroup}><label style={S.label}>Model</label><input style={S.input} value={vehicleForm.model} onChange={e => setVehicleForm({ ...vehicleForm, model: e.target.value })} /></div>
+            <div style={S.formGroup}><label style={S.label}>Yıl</label><input style={S.input} type="number" value={vehicleForm.year} onChange={e => setVehicleForm({ ...vehicleForm, year: e.target.value })} /></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={S.formGroup}><label style={S.label}>Renk</label><input style={S.input} value={vehicleForm.color} onChange={e => setVehicleForm({ ...vehicleForm, color: e.target.value })} /></div>
+            <div style={S.formGroup}><label style={S.label}>KM</label><input style={S.input} type="number" value={vehicleForm.km} onChange={e => setVehicleForm({ ...vehicleForm, km: e.target.value })} /></div>
+          </div>
+          <div style={S.formGroup}><label style={S.label}>Şasi No (VIN)</label><input style={S.input} value={vehicleForm.vin} onChange={e => setVehicleForm({ ...vehicleForm, vin: e.target.value })} /></div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+            <button style={S.btnSecondary} onClick={() => setStep('customer')}>← Geri</button>
+            <button style={S.btnPrimary as any} onClick={handleCreateVehicle}>Kaydet ve Devam Et →</button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 4: Service Order Creation */}
+      {step === 'order' && foundCustomer && foundVehicle && (
+        <div>
+          {/* Customer & Vehicle Summary */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+            <div style={S.card}>
+              <h4 style={{ margin: '0 0 12px', color: '#1e40af' }}>👤 Müşteri</h4>
+              <div style={{ fontSize: 14 }}><strong>{foundCustomer.firstName} {foundCustomer.lastName}</strong></div>
+              <div style={{ fontSize: 13, color: '#64748b' }}>{foundCustomer.phone}</div>
+              {foundCustomer.email && <div style={{ fontSize: 12, color: '#94a3b8' }}>{foundCustomer.email}</div>}
+            </div>
+            <div style={S.card}>
+              <h4 style={{ margin: '0 0 12px', color: '#7c3aed' }}>🚗 Araç</h4>
+              <div style={{ fontSize: 14 }}><strong>{foundVehicle.plate}</strong></div>
+              <div style={{ fontSize: 13, color: '#64748b' }}>{foundVehicle.brand} {foundVehicle.model}</div>
+              {foundVehicle.year && <div style={{ fontSize: 12, color: '#94a3b8' }}>{foundVehicle.year} · {foundVehicle.color || '-'}</div>}
+            </div>
+          </div>
+
+          {/* Service Order Form */}
+          <div style={S.card}>
+            <h3 style={{ marginBottom: 16 }}>Servis Kaydı Oluştur</h3>
+            <div style={S.formGroup}><label style={S.label}>Müşteri Şikayeti</label><textarea style={{ ...S.input, minHeight: 80 }} value={orderForm.customerComplaint} onChange={e => setOrderForm({ ...orderForm, customerComplaint: e.target.value })} placeholder="Müşterinin şikayetini buraya yazın..." /></div>
+            <div style={S.formGroup}><label style={S.label}>Teşhis</label><textarea style={{ ...S.input, minHeight: 60 }} value={orderForm.diagnosis} onChange={e => setOrderForm({ ...orderForm, diagnosis: e.target.value })} placeholder="Yapılan teşhis..." /></div>
+            <div style={S.formGroup}><label style={S.label}>Planlanan İş</label><textarea style={{ ...S.input, minHeight: 60 }} value={orderForm.plannedWork} onChange={e => setOrderForm({ ...orderForm, plannedWork: e.target.value })} placeholder="Yapılacak işler..." /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={S.formGroup}><label style={S.label}>Araç KM</label><input style={S.input} type="number" value={orderForm.km} onChange={e => setOrderForm({ ...orderForm, km: e.target.value })} /></div>
+              <div style={S.formGroup}><label style={S.label}>Durum</label><select style={S.input} value={orderForm.status} onChange={e => setOrderForm({ ...orderForm, status: e.target.value })}><option value="APPOINTMENT">Randevu</option><option value="WAITING">Bekliyor</option><option value="IN_PROGRESS">Devam Ediyor</option></select></div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+              <button style={S.btnSecondary} onClick={() => setStep(foundVehicle.id ? 'order' : 'vehicle')}>← Geri</button>
+              <button style={S.btnPrimary as any} onClick={handleCreateOrder}>✓ Servis Kaydı Oluştur</button>
             </div>
           </div>
         </div>
@@ -3061,6 +3266,7 @@ function AppInner() {
         <Routes>
           <Route path="/" element={<DashboardPage tenantId={user.tenantId} />} />
           <Route path="/service-orders" element={<ServiceOrdersPage tenantId={user.tenantId} />} />
+          <Route path="/service-orders/new" element={<NewServiceOrderPage tenantId={user.tenantId} />} />
           <Route path="/appointments" element={<AppointmentsPage tenantId={user.tenantId} />} />
           <Route path="/customers" element={<CustomersPage tenantId={user.tenantId} />} />
           <Route path="/vehicles" element={<VehiclesPage tenantId={user.tenantId} />} />
