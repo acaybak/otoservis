@@ -458,7 +458,7 @@ function DashboardPage({ tenantId }: { tenantId: string }) {
       <div style={{ ...S.card, background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: 'white', marginBottom: 24 }}>
         <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, opacity: 0.8 }}>Hızlı Araç Sorgulama</h3>
         <div style={{ display: 'flex', gap: 8 }}>
-          <input style={{ ...S.input, marginBottom: 0, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', flex: 1 }} placeholder="PLAKA YAZIN (örn: 34 ABC 123)" value={plateSearch} onChange={e => setPlateSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && handlePlateSearch()} />
+          <input style={{ ...S.input, marginBottom: 0, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', flex: 1, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '1px' }} placeholder="PLAKA YAZIN (örn: 34 ABC 123)" value={plateSearch} onChange={e => setPlateSearch(e.target.value.toUpperCase())} onKeyDown={e => e.key === 'Enter' && handlePlateSearch()} />
           <button style={{ ...S.btnPrimary, width: 'auto', padding: '12px 24px' }} onClick={handlePlateSearch}>🔍 Sorgula</button>
         </div>
       </div>
@@ -636,7 +636,7 @@ function VehiclesPage({ tenantId }: { tenantId: string }) {
   useEffect(() => { load(); }, [load]);
 
   const handleCreate = async () => {
-    await vehicleApi.create(tenantId, { ...form, year: form.year ? Number(form.year) : null });
+    await vehicleApi.create(tenantId, { ...form, plate: form.plate.replace(/\s+/g, '').toUpperCase(), year: form.year ? Number(form.year) : null });
     setShowForm(false);
     setForm({ plate: '', brand: '', model: '', year: '', color: '', customerId: '' });
     load();
@@ -681,7 +681,7 @@ function VehiclesPage({ tenantId }: { tenantId: string }) {
         <div style={S.modal} onClick={() => setShowForm(false)}>
           <div style={S.modalContent} onClick={e => e.stopPropagation()}>
             <div style={S.modalTitle}>Yeni Araç</div>
-            <div style={S.formGroup}><label style={S.label}>Plaka</label><input style={S.input} value={form.plate} onChange={e => setForm({ ...form, plate: e.target.value })} /></div>
+            <div style={S.formGroup}><label style={S.label}>Plaka</label><input style={{ ...S.input, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '1px' }} value={form.plate} onChange={e => setForm({ ...form, plate: e.target.value.toUpperCase() })} placeholder="34 ABC 123" /></div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
               <div style={S.formGroup}><label style={S.label}>Marka</label><input style={S.input} value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} /></div>
               <div style={S.formGroup}><label style={S.label}>Model</label><input style={S.input} value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} /></div>
@@ -728,6 +728,7 @@ function NewServiceOrderPage({ tenantId }: { tenantId: string }) {
   const [vehicleForm, setVehicleForm] = useState({ plate: plateFromUrl, brand: '', model: '', year: '', km: '', color: '', vin: '', fuelType: '', transmission: '' });
   // Order form
   const [orderForm, setOrderForm] = useState({ customerComplaint: '', diagnosis: '', plannedWork: '', km: '', status: 'APPOINTMENT' });
+  const [saving, setSaving] = useState(false);
 
   const handlePlateSearch = async () => {
     const cleanPlate = plateInput.replace(/\s+/g, '').toUpperCase();
@@ -758,6 +759,8 @@ function NewServiceOrderPage({ tenantId }: { tenantId: string }) {
   };
 
   const handleSubmit = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       let customer = foundCustomer;
       let vehicle = foundVehicle;
@@ -765,10 +768,16 @@ function NewServiceOrderPage({ tenantId }: { tenantId: string }) {
       // Create customer if new
       if (isNewCustomer && !customer) {
         if (!customerForm.firstName || !customerForm.phone) {
-          addToast('Müşteri adı ve telefon zorunludur', 'error');
+          addToast('Ad ve telefon zorunludur', 'error');
+          setSaving(false);
           return;
         }
-        customer = await customerApi.create(tenantId, customerForm);
+        customer = await customerApi.create(tenantId, {
+          firstName: customerForm.firstName,
+          lastName: customerForm.lastName,
+          phone: customerForm.phone,
+          email: customerForm.email,
+        });
         addToast('Müşteri oluşturuldu', 'success');
       }
 
@@ -776,35 +785,41 @@ function NewServiceOrderPage({ tenantId }: { tenantId: string }) {
       if (isNewVehicle && !vehicle) {
         if (!vehicleForm.plate) {
           addToast('Plaka zorunludur', 'error');
+          setSaving(false);
           return;
         }
         vehicle = await vehicleApi.create(tenantId, {
-          ...vehicleForm,
           customerId: customer.id,
+          plate: vehicleForm.plate.replace(/\s+/g, '').toUpperCase(),
+          brand: vehicleForm.brand || null,
+          model: vehicleForm.model || null,
           year: vehicleForm.year ? Number(vehicleForm.year) : null,
           km: vehicleForm.km ? Number(vehicleForm.km) : null,
+          color: vehicleForm.color || null,
+          vin: vehicleForm.vin || null,
         });
         addToast('Araç oluşturuldu', 'success');
       }
 
       if (!customer || !vehicle) {
         addToast('Müşteri ve araç seçilmelidir', 'error');
+        setSaving(false);
         return;
       }
 
       // Create service order
-      await serviceOrderApi.create(tenantId, {
+      const orderRes = await serviceOrderApi.create(tenantId, {
         customerId: customer.id,
         vehicleId: vehicle.id,
-        km: orderForm.km ? Number(orderForm.km) : (vehicle.km || null),
+        km: vehicleForm.km ? Number(vehicleForm.km) : (vehicle.km || null),
         customerComplaint: orderForm.customerComplaint || null,
         diagnosis: orderForm.diagnosis || null,
-        plannedWork: orderForm.plannedWork || null,
-        status: orderForm.status,
+        status: 'RECEIVED',
       });
       addToast('Servis kaydı oluşturuldu', 'success');
-      navigate('/service-orders');
-    } catch (e: any) { addToast(e.message || 'Hata', 'error'); }
+      navigate(`/service-orders/${orderRes.id}`);
+    } catch (e: any) { addToast(e.message || 'Hata oluştu', 'error'); }
+    finally { setSaving(false); }
   };
 
   return (
@@ -816,9 +831,9 @@ function NewServiceOrderPage({ tenantId }: { tenantId: string }) {
 
       {/* Plate Search */}
       {plateFromUrl && (
-        <div style={{ ...S.card, background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)', color: 'white', marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, opacity: 0.9 }}>🆕 Yeni Kayıt: {plateFromUrl}</div>
-          <div style={{ fontSize: 12, opacity: 0.8 }}>Bu plaka kayıtlı değil. Müşteri ve araç bilgilerini giriniz.</div>
+        <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 8, padding: '12px 16px', marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#92400e' }}>🆕 Yeni Kayıt: <strong style={{ letterSpacing: '1px' }}>{plateFromUrl}</strong></div>
+          <div style={{ fontSize: 13, color: '#78350f' }}>Bu plaka kayıtlı değil. Müşteri ve araç bilgilerini giriniz.</div>
         </div>
       )}
 
@@ -833,10 +848,10 @@ function NewServiceOrderPage({ tenantId }: { tenantId: string }) {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div style={S.formGroup}><label style={S.label}>Ad *</label><input style={S.input} value={customerForm.firstName} onChange={e => setCustomerForm({ ...customerForm, firstName: e.target.value })} required /></div>
-            <div style={S.formGroup}><label style={S.label}>Soyad</label><input style={S.input} value={customerForm.lastName} onChange={e => setCustomerForm({ ...customerForm, lastName: e.target.value })} /></div>
-            <div style={S.formGroup}><label style={S.label}>Telefon *</label><input style={S.input} type="tel" value={customerForm.phone} onChange={e => setCustomerForm({ ...customerForm, phone: e.target.value })} required /></div>
-            <div style={S.formGroup}><label style={S.label}>E-posta</label><input style={S.input} type="email" value={customerForm.email} onChange={e => setCustomerForm({ ...customerForm, email: e.target.value })} /></div>
+            <div style={S.formGroup}><label style={S.label}>Ad *</label><input style={S.input} value={customerForm.firstName} onChange={e => setCustomerForm({ ...customerForm, firstName: e.target.value })} placeholder="Ahmet" required /></div>
+            <div style={S.formGroup}><label style={S.label}>Soyad</label><input style={S.input} value={customerForm.lastName} onChange={e => setCustomerForm({ ...customerForm, lastName: e.target.value })} placeholder="Yılmaz" /></div>
+            <div style={S.formGroup}><label style={S.label}>Telefon *</label><input style={S.input} value={customerForm.phone} onChange={e => setCustomerForm({ ...customerForm, phone: e.target.value })} placeholder="5551234567" required /></div>
+            <div style={S.formGroup}><label style={S.label}>E-posta</label><input style={S.input} type="email" value={customerForm.email} onChange={e => setCustomerForm({ ...customerForm, email: e.target.value })} placeholder="ahmet@email.com" /></div>
           </div>
         )}
       </div>
@@ -852,19 +867,21 @@ function NewServiceOrderPage({ tenantId }: { tenantId: string }) {
           </div>
         ) : (
           <div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div style={S.formGroup}><label style={S.label}>Plaka *</label><input style={S.input} value={vehicleForm.plate} onChange={e => setVehicleForm({ ...vehicleForm, plate: e.target.value })} required /></div>
-              <div style={S.formGroup}><label style={S.label}>Marka</label><input style={S.input} value={vehicleForm.brand} onChange={e => setVehicleForm({ ...vehicleForm, brand: e.target.value })} /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 12 }}>
+              <div style={S.formGroup}><label style={S.label}>Plaka *</label><input style={{ ...S.input, fontSize: '1.1rem', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }} value={vehicleForm.plate} onChange={e => setVehicleForm({ ...vehicleForm, plate: e.target.value.toUpperCase() })} placeholder="34 ABC 123" required /></div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div style={S.formGroup}><label style={S.label}>Model</label><input style={S.input} value={vehicleForm.model} onChange={e => setVehicleForm({ ...vehicleForm, model: e.target.value })} /></div>
-              <div style={S.formGroup}><label style={S.label}>Yıl</label><input style={S.input} type="number" value={vehicleForm.year} onChange={e => setVehicleForm({ ...vehicleForm, year: e.target.value })} /></div>
+              <div style={S.formGroup}><label style={S.label}>Marka</label><input style={S.input} value={vehicleForm.brand} onChange={e => setVehicleForm({ ...vehicleForm, brand: e.target.value })} placeholder="Toyota" /></div>
+              <div style={S.formGroup}><label style={S.label}>Model</label><input style={S.input} value={vehicleForm.model} onChange={e => setVehicleForm({ ...vehicleForm, model: e.target.value })} placeholder="Corolla" /></div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div style={S.formGroup}><label style={S.label}>Renk</label><input style={S.input} value={vehicleForm.color} onChange={e => setVehicleForm({ ...vehicleForm, color: e.target.value })} /></div>
-              <div style={S.formGroup}><label style={S.label}>KM</label><input style={S.input} type="number" value={vehicleForm.km} onChange={e => setVehicleForm({ ...vehicleForm, km: e.target.value })} /></div>
+              <div style={S.formGroup}><label style={S.label}>Yıl</label><input style={S.input} type="number" value={vehicleForm.year} onChange={e => setVehicleForm({ ...vehicleForm, year: e.target.value })} placeholder="2020" /></div>
+              <div style={S.formGroup}><label style={S.label}>KM</label><input style={S.input} type="number" value={vehicleForm.km} onChange={e => setVehicleForm({ ...vehicleForm, km: e.target.value })} placeholder="85000" /></div>
             </div>
-            <div style={S.formGroup}><label style={S.label}>Şasi No (VIN)</label><input style={S.input} value={vehicleForm.vin} onChange={e => setVehicleForm({ ...vehicleForm, vin: e.target.value })} /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={S.formGroup}><label style={S.label}>Renk</label><input style={S.input} value={vehicleForm.color} onChange={e => setVehicleForm({ ...vehicleForm, color: e.target.value })} placeholder="Beyaz" /></div>
+              <div style={S.formGroup}><label style={S.label}>Şasi No (VIN)</label><input style={{ ...S.input, textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600 }} value={vehicleForm.vin} onChange={e => setVehicleForm({ ...vehicleForm, vin: e.target.value.toUpperCase() })} placeholder="WVWZZZ3CZWE123456" maxLength={17} /></div>
+            </div>
           </div>
         )}
       </div>
@@ -874,9 +891,9 @@ function NewServiceOrderPage({ tenantId }: { tenantId: string }) {
         <h3 style={{ marginBottom: 16 }}>🔧 Şikayet & Tanı</h3>
         <div style={S.formGroup}><label style={S.label}>Müşteri Şikayeti</label><textarea style={{ ...S.input, minHeight: 80 }} value={orderForm.customerComplaint} onChange={e => setOrderForm({ ...orderForm, customerComplaint: e.target.value })} placeholder="Müşterinin şikayeti..." /></div>
         <div style={S.formGroup}><label style={S.label}>Ön Tanı / Not</label><textarea style={{ ...S.input, minHeight: 60 }} value={orderForm.diagnosis} onChange={e => setOrderForm({ ...orderForm, diagnosis: e.target.value })} placeholder="Yapılan ön kontrol..." /></div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
           <button style={S.btnSecondary} onClick={() => navigate('/service-orders')}>← Farklı Plaka</button>
-          <button style={{ ...S.btnPrimary as any, flex: 1 }} onClick={handleSubmit}>✓ Servis Kaydı Oluştur</button>
+          <button style={{ ...S.btnPrimary as any, flex: 1, marginLeft: 8 }} disabled={saving} onClick={handleSubmit}>{saving ? 'Oluşturuluyor...' : '✓ Servis Kaydı Oluştur'}</button>
         </div>
       </div>
     </div>
