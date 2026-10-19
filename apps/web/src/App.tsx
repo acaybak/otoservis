@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { authApi, setToken, getToken, customerApi, vehicleApi, serviceOrderApi, accountingApi, reportingApi, adminApi, licenseApi, tenantApi, PORTAL_URL, warmupApi } from './services/api';
+import { authApi, setToken, getToken, customerApi, vehicleApi, serviceOrderApi, accountingApi, reportingApi, adminApi, licenseApi, tenantApi, PORTAL_URL, warmupApi, appointmentApi, inventoryApi, maintenanceApi, serviceOrderPartsApi } from './services/api';
 
 // Yönetim paneli (Lisans Yönetimi dahil) yalnızca bu e-postalara açıktır.
 // Sunucu tarafındaki ADMIN_EMAILS listesiyle (render.yaml) aynı tutulmalıdır.
@@ -300,14 +300,29 @@ function Layout({ user, onLogout, onAdmin, children }: { user: User; onLogout: (
   const isMobile = useIsMobile();
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
-  const navItems = [
-    { path: '/', icon: '📊', label: 'Dashboard' },
-    { path: '/customers', icon: '👥', label: 'Müşteriler' },
-    { path: '/vehicles', icon: '🚗', label: 'Araçlar' },
-    { path: '/service-orders', icon: '🔧', label: 'Servis Siparişleri' },
-    { path: '/receivables', icon: '💳', label: 'Cari Hesaplar' },
-    { path: '/financial', icon: '💰', label: 'Ön Muhasebe' },
-    { path: '/settings', icon: '⚙️', label: 'Ayarlar' },
+  const navSections = [
+    { title: 'Ana Sayfa', items: [
+      { path: '/', icon: '📊', label: 'Gösterge Paneli' },
+    ]},
+    { title: 'Servis', items: [
+      { path: '/service-orders', icon: '🔧', label: 'Servis Kayıtları' },
+      { path: '/appointments', icon: '📅', label: 'Randevular' },
+    ]},
+    { title: 'Müşteriler & Araçlar', items: [
+      { path: '/customers', icon: '👥', label: 'Müşteriler' },
+      { path: '/vehicles', icon: '🚘', label: 'Araçlar' },
+    ]},
+    { title: 'Finans', items: [
+      { path: '/receivables', icon: '💳', label: 'Cari Hesaplar' },
+      { path: '/financial', icon: '💰', label: 'Ön Muhasebe' },
+    ]},
+    { title: 'Depo & Stok', items: [
+      { path: '/inventory', icon: '📦', label: 'Stok Yönetimi' },
+      { path: '/maintenance', icon: '🛠️', label: 'Bakım Kayıtları' },
+    ]},
+    { title: 'Sistem', items: [
+      { path: '/settings', icon: '⚙️', label: 'Ayarlar' },
+    ]},
   ];
 
   return (
@@ -325,11 +340,16 @@ function Layout({ user, onLogout, onAdmin, children }: { user: User; onLogout: (
           <aside style={{ ...S.sidebar, left: 0, zIndex: 130, boxShadow: isMobile ? '0 0 40px rgba(0,0,0,0.35)' : 'none' }}>
             <div style={S.sidebarLogo}>OtoServis</div>
             <nav>
-              {navItems.map(item => (
-                <Link key={item.path} to={item.path} style={location.pathname === item.path ? S.navItemActive : S.navItem} onClick={() => setMenuOpen(false)}>
-                  <span>{item.icon}</span>
-                  <span>{item.label}</span>
-                </Link>
+              {navSections.map(section => (
+                <div key={section.title} style={{ marginBottom: 8 }}>
+                  <div style={{ padding: '8px 20px 4px', fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{section.title}</div>
+                  {section.items.map(item => (
+                    <Link key={item.path} to={item.path} style={location.pathname === item.path ? S.navItemActive : S.navItem} onClick={() => setMenuOpen(false)}>
+                      <span>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </Link>
+                  ))}
+                </div>
               ))}
             </nav>
             <div style={{ padding: '20px', marginTop: 'auto', borderTop: '1px solid #1e293b', position: 'absolute', bottom: 0, width: 240 }}>
@@ -350,70 +370,160 @@ function Layout({ user, onLogout, onAdmin, children }: { user: User; onLogout: (
 
 // ============ DASHBOARD ============
 function DashboardPage({ tenantId }: { tenantId: string }) {
+  const { addToast } = useToast();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [plateSearch, setPlateSearch] = useState('');
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [activeOrders, setActiveOrders] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
 
-  useEffect(() => {
-    Promise.all([
-      reportingApi.getDashboard(tenantId).catch(() => null),
-      customerApi.list(tenantId, 'limit=1000').catch(() => ({ data: [] })),
-      vehicleApi.list(tenantId, 'limit=1000').catch(() => ({ data: [] })),
-      serviceOrderApi.list(tenantId, 'limit=1000').catch(() => ({ data: [] })),
-    ]).then(([report, cust, veh, ord]) => {
-      const customers = cust?.data || cust || [];
-      const vehicles = veh?.data || veh || [];
-      const orders = ord?.data || ord || [];
-      const activeOrders = orders.filter((o: any) => o.status !== 'COMPLETED' && o.status !== 'CANCELLED');
-      const completedOrders = orders.filter((o: any) => o.status === 'COMPLETED');
+  const loadData = useCallback(async () => {
+    try {
+      const [report, cust, veh, ord, appts] = await Promise.all([
+        reportingApi.getDashboard(tenantId).catch(() => null),
+        customerApi.list(tenantId, 'limit=1000').catch(() => ({ data: [] })),
+        vehicleApi.list(tenantId, 'limit=1000').catch(() => ({ data: [] })),
+        serviceOrderApi.list(tenantId, 'limit=1000').catch(() => ({ data: [] })),
+        appointmentApi.list(tenantId).catch(() => ({ data: [] })),
+      ]);
+      const customersArr = cust?.data || cust || [];
+      const vehiclesArr = veh?.data || veh || [];
+      const ordersArr = ord?.data || ord || [];
+      const apptsArr = appts?.data || appts || [];
+      const completedOrders = ordersArr.filter((o: any) => o.status === 'COMPLETED' || o.status === 'DELIVERED');
+      const activeOrdersArr = ordersArr.filter((o: any) => !['COMPLETED', 'DELIVERED', 'CANCELLED'].includes(o.status));
       const totalRevenue = completedOrders.reduce((sum: number, o: any) => sum + Number(o.totalAmount || 0), 0);
       const totalPaid = completedOrders.reduce((sum: number, o: any) => sum + Number(o.paidAmount || 0), 0);
 
+      const today = new Date().toISOString().split('T')[0];
+      const todayAppts = apptsArr.filter((a: any) => a.date && a.date.startsWith(today));
+      const now = new Date();
+      const weekEnd = new Date(now.getTime() + 7 * 86400000);
+      const monthEnd = new Date(now.getTime() + 30 * 86400000);
+      const weekRevenue = completedOrders.filter((o: any) => { const d = new Date(o.createdAt); return d >= now && d <= weekEnd; }).reduce((s: number, o: any) => s + Number(o.totalAmount || 0), 0);
+      const monthRevenue = completedOrders.filter((o: any) => { const d = new Date(o.createdAt); return d >= now && d <= monthEnd; }).reduce((s: number, o: any) => s + Number(o.totalAmount || 0), 0);
+
       setStats({
-        customerCount: Array.isArray(customers) ? customers.length : 0,
-        vehicleCount: Array.isArray(vehicles) ? vehicles.length : 0,
-        activeOrderCount: activeOrders.length,
+        customerCount: Array.isArray(customersArr) ? customersArr.length : 0,
+        vehicleCount: Array.isArray(vehiclesArr) ? vehiclesArr.length : 0,
+        activeOrderCount: activeOrdersArr.length,
         completedOrderCount: completedOrders.length,
-        totalRevenue,
-        totalPaid,
+        totalRevenue, totalPaid,
         receivables: totalRevenue - totalPaid,
+        todayRevenue: 0, weekRevenue, monthRevenue,
+        appointmentCount: apptsArr.length,
       });
+      setAppointments(todayAppts);
+      setActiveOrders(activeOrdersArr.slice(0, 5));
+      setCustomers(customersArr);
+      setVehicles(vehiclesArr);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    } catch { setLoading(false); }
   }, [tenantId]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const handlePlateSearch = () => {
+    if (!plateSearch.trim()) return;
+    const v = vehicles.find((veh: any) => (veh.plate || '').toLowerCase().replace(/\s/g, '') === plateSearch.toLowerCase().replace(/\s/g, ''));
+    if (v) {
+      navigate('/vehicles');
+    } else {
+      addToast('Araç bulunamadı', 'info');
+    }
+  };
+
+  const getCustomerName = (id: string) => customers.find((c: any) => c.id === id)?.fullName || '-';
+  const getVehiclePlate = (id: string) => vehicles.find((v: any) => v.id === id)?.plate || '-';
 
   if (loading) return <div style={S.empty}>Yükleniyor...</div>;
 
+  const statusColors: Record<string, string> = { PENDING: '#92400e', IN_PROGRESS: '#1e40af', WAITING_PARTS: '#92400e', READY: '#166534' };
+  const statusTexts: Record<string, string> = { PENDING: 'Bekliyor', IN_PROGRESS: 'Devam Ediyor', WAITING_PARTS: 'Parça Bekliyor', READY: 'Hazır' };
+
   return (
     <div>
-      <div style={S.header}><h1 style={S.pageTitle}>Dashboard</h1></div>
+      <div style={S.header}>
+        <h1 style={S.pageTitle}>Dashboard</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'white', borderRadius: 10, padding: '8px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+          <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>● Çevrimiçi</span>
+        </div>
+      </div>
+
+      {/* Quick Plate Search */}
+      <div style={{ ...S.card, background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: 'white', marginBottom: 24 }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, opacity: 0.8 }}>Hızlı Araç Sorgulama</h3>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input style={{ ...S.input, marginBottom: 0, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', flex: 1 }} placeholder="PLAKA YAZIN (örn: 34 ABC 123)" value={plateSearch} onChange={e => setPlateSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && handlePlateSearch()} />
+          <button style={{ ...S.btnPrimary, width: 'auto', padding: '12px 24px' }} onClick={handlePlateSearch}>🔍 Sorgula</button>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
       <div style={S.statGrid}>
-        <div style={S.statCard}>
-          <div style={S.statLabel}>Toplam Müşteri</div>
-          <div style={S.statValue}>{stats?.customerCount || 0}</div>
+        <div style={S.statCard}><div style={S.statLabel}>👥 Müşteriler</div><div style={S.statValue}>{stats?.customerCount || 0}</div></div>
+        <div style={S.statCard}><div style={S.statLabel}>🚗 Araçlar</div><div style={S.statValue}>{stats?.vehicleCount || 0}</div></div>
+        <div style={S.statCard}><div style={S.statLabel}>🔧 Aktif İşler</div><div style={{ ...S.statValue, color: '#2563eb' }}>{stats?.activeOrderCount || 0}</div></div>
+        <div style={S.statCard}><div style={S.statLabel}>✅ Teslim</div><div style={{ ...S.statValue, color: '#16a34a' }}>{stats?.completedOrderCount || 0}</div></div>
+        <div style={S.statCard}><div style={S.statLabel}>📅 Randevular</div><div style={{ ...S.statValue, color: '#7c3aed' }}>{stats?.appointmentCount || 0}</div></div>
+      </div>
+
+      {/* Revenue Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <div style={{ ...S.card, background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', marginBottom: 0 }}><div style={{ fontSize: 12, color: '#166534', fontWeight: 600, marginBottom: 4 }}>Bugün Gelir</div><div style={{ fontSize: 22, fontWeight: 700, color: '#166534' }}>₺0</div></div>
+        <div style={{ ...S.card, background: 'linear-gradient(135deg, #eff6ff, #dbeafe)', marginBottom: 0 }}><div style={{ fontSize: 12, color: '#1e40af', fontWeight: 600, marginBottom: 4 }}>Bu Hafta Gelir</div><div style={{ fontSize: 22, fontWeight: 700, color: '#1e40af' }}>₺{(stats?.weekRevenue || 0).toLocaleString('tr-TR')}</div></div>
+        <div style={{ ...S.card, background: 'linear-gradient(135deg, #faf5ff, #f3e8ff)', marginBottom: 0 }}><div style={{ fontSize: 12, color: '#7c3aed', fontWeight: 600, marginBottom: 4 }}>Bu Ay Gelir</div><div style={{ fontSize: 22, fontWeight: 700, color: '#7c3aed' }}>₺{(stats?.monthRevenue || 0).toLocaleString('tr-TR')}</div></div>
+      </div>
+
+      {/* Two Column Layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 20 }}>
+        {/* Today's Appointments */}
+        <div style={S.card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>📅 Bugünün Randevuları</h3>
+            <span style={{ fontSize: 12, color: '#64748b' }}>{new Date().toLocaleDateString('tr-TR')}</span>
+          </div>
+          {appointments.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 24, color: '#94a3b8' }}>📅 Bugün randevu yok</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {appointments.slice(0, 5).map((a: any) => (
+                <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{a.time || '-'}</div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>{a.customerName || a.phone || '-'}</div>
+                  </div>
+                  <span style={{ padding: '4px 8px', borderRadius: 12, fontSize: 11, fontWeight: 600, background: '#dbeafe', color: '#1e40af' }}>{a.status || 'PENDING'}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        <div style={S.statCard}>
-          <div style={S.statLabel}>Toplam Araç</div>
-          <div style={S.statValue}>{stats?.vehicleCount || 0}</div>
-        </div>
-        <div style={S.statCard}>
-          <div style={S.statLabel}>Aktif Siparişler</div>
-          <div style={{ ...S.statValue, color: '#2563eb' }}>{stats?.activeOrderCount || 0}</div>
-        </div>
-        <div style={S.statCard}>
-          <div style={S.statLabel}>Tamamlanan</div>
-          <div style={{ ...S.statValue, color: '#16a34a' }}>{stats?.completedOrderCount || 0}</div>
-        </div>
-        <div style={S.statCard}>
-          <div style={S.statLabel}>Toplam Gelir</div>
-          <div style={{ ...S.statValue, color: '#16a34a' }}>₺{(stats?.totalRevenue || 0).toLocaleString('tr-TR')}</div>
-        </div>
-        <div style={S.statCard}>
-          <div style={S.statLabel}>Tahsil Edilen</div>
-          <div style={{ ...S.statValue, color: '#16a34a' }}>₺{(stats?.totalPaid || 0).toLocaleString('tr-TR')}</div>
-        </div>
-        <div style={S.statCard}>
-          <div style={S.statLabel}>Alacaklar</div>
-          <div style={{ ...S.statValue, color: '#dc2626' }}>₺{(stats?.receivables || 0).toLocaleString('tr-TR')}</div>
+
+        {/* Active Work Orders */}
+        <div style={S.card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>🔧 Aktif İş Emirleri</h3>
+            <button style={{ ...S.btnSecondary, padding: '4px 12px', fontSize: 12 }} onClick={() => navigate('/service-orders')}>Tümü →</button>
+          </div>
+          {activeOrders.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 24, color: '#94a3b8' }}>🔧 Aktif iş emri yok</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {activeOrders.map((o: any) => (
+                <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>#{o.orderNumber || o.id.slice(0, 6)}</div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>{getVehiclePlate(o.vehicleId)} • {getCustomerName(o.customerId)}</div>
+                  </div>
+                  <span style={{ padding: '4px 8px', borderRadius: 12, fontSize: 11, fontWeight: 600, background: statusColors[o.status] ? `${statusColors[o.status]}20` : '#f1f5f9', color: statusColors[o.status] || '#64748b' }}>{statusTexts[o.status] || o.status}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -597,14 +707,20 @@ function VehiclesPage({ tenantId }: { tenantId: string }) {
   );
 }
 
-// ============ SERVICE ORDERS PAGE ============
+// ============ SERVICE ORDERS PAGE (Kanban + List + Detail) ============
 function ServiceOrdersPage({ tenantId }: { tenantId: string }) {
+  const { addToast } = useToast();
   const [orders, setOrders] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<'kanban' | 'list'>('kanban');
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ customerId: '', vehicleId: '', description: '', totalAmount: '', laborAmount: '', partsAmount: '' });
+  const [form, setForm] = useState({ customerId: '', vehicleId: '', customerComplaint: '', diagnosis: '', plannedWork: '', km: '' });
+  const [newPart, setNewPart] = useState({ name: '', quantity: '1', unitPrice: '' });
+  const [newLabor, setNewLabor] = useState({ description: '', hours: '1', hourlyRate: '' });
+  const [newNote, setNewNote] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -622,47 +738,333 @@ function ServiceOrdersPage({ tenantId }: { tenantId: string }) {
 
   useEffect(() => { load(); }, [load]);
 
+  const loadOrderDetail = async (id: string) => {
+    try {
+      const detail = await serviceOrderApi.get(tenantId, id);
+      setSelectedOrder(detail);
+    } catch { addToast('Sipariş detayı yüklenemedi', 'error'); }
+  };
+
   const handleCreate = async () => {
-    await serviceOrderApi.create(tenantId, {
-      ...form,
-      totalAmount: Number(form.totalAmount) || 0,
-      laborAmount: Number(form.laborAmount) || 0,
-      partsAmount: Number(form.partsAmount) || 0,
-    });
-    setShowForm(false);
-    setForm({ customerId: '', vehicleId: '', description: '', totalAmount: '', laborAmount: '', partsAmount: '' });
-    load();
+    try {
+      await serviceOrderApi.create(tenantId, {
+        ...form, km: form.km ? Number(form.km) : undefined,
+      });
+      setShowForm(false);
+      setForm({ customerId: '', vehicleId: '', customerComplaint: '', diagnosis: '', plannedWork: '', km: '' });
+      addToast('Servis siparişi oluşturuldu', 'success');
+      load();
+    } catch (e: any) { addToast(e.message || 'Hata', 'error'); }
+  };
+
+  const handleStatusChange = async (id: string, status: string) => {
+    try {
+      await serviceOrderApi.update(tenantId, id, { status });
+      addToast('Durum güncellendi', 'success');
+      load();
+      if (selectedOrder?.id === id) loadOrderDetail(id);
+    } catch (e: any) { addToast(e.message || 'Hata', 'error'); }
+  };
+
+  const handleAddPart = async () => {
+    if (!newPart.name || !selectedOrder) return;
+    try {
+      await serviceOrderPartsApi.addPart(tenantId, selectedOrder.id, {
+        name: newPart.name, quantity: Number(newPart.quantity) || 1, unitPrice: Number(newPart.unitPrice) || 0,
+      });
+      setNewPart({ name: '', quantity: '1', unitPrice: '' });
+      addToast('Parça eklendi', 'success');
+      loadOrderDetail(selectedOrder.id);
+      load();
+    } catch (e: any) { addToast(e.message || 'Hata', 'error'); }
+  };
+
+  const handleAddLabor = async () => {
+    if (!newLabor.description || !selectedOrder) return;
+    try {
+      await serviceOrderPartsApi.addLabor(tenantId, selectedOrder.id, {
+        description: newLabor.description, hours: Number(newLabor.hours) || 1, hourlyRate: Number(newLabor.hourlyRate) || 0,
+      });
+      setNewLabor({ description: '', hours: '1', hourlyRate: '' });
+      addToast('İşçilik eklendi', 'success');
+      loadOrderDetail(selectedOrder.id);
+      load();
+    } catch (e: any) { addToast(e.message || 'Hata', 'error'); }
+  };
+
+  const handleAddNote = async () => {
+    if (!newNote || !selectedOrder) return;
+    try {
+      await serviceOrderPartsApi.addNote(tenantId, selectedOrder.id, { text: newNote });
+      setNewNote('');
+      addToast('Not eklendi', 'success');
+      loadOrderDetail(selectedOrder.id);
+    } catch (e: any) { addToast(e.message || 'Hata', 'error'); }
   };
 
   const getCustomerName = (id: string) => customers.find(c => c.id === id)?.fullName || '-';
   const getVehiclePlate = (id: string) => vehicles.find(v => v.id === id)?.plate || '-';
 
-  const statusLabel: Record<string, { text: string; color: string }> = {
-    PENDING: { text: 'Bekliyor', color: 'yellow' },
-    IN_PROGRESS: { text: 'Devam Ediyor', color: 'blue' },
-    WAITING_PARTS: { text: 'Parça Bekliyor', color: 'yellow' },
-    COMPLETED: { text: 'Tamamlandı', color: 'green' },
-    CANCELLED: { text: 'İptal', color: 'red' },
+  const statusConfig: Record<string, { text: string; color: string; bg: string }> = {
+    PENDING: { text: 'Bekliyor', color: '#92400e', bg: '#fef3c7' },
+    IN_PROGRESS: { text: 'Devam Ediyor', color: '#1e40af', bg: '#dbeafe' },
+    WAITING_PARTS: { text: 'Parça Bekliyor', color: '#92400e', bg: '#fef3c7' },
+    READY: { text: 'Hazır', color: '#166534', bg: '#dcfce7' },
+    DELIVERED: { text: 'Teslim Edildi', color: '#166534', bg: '#dcfce7' },
+    CANCELLED: { text: 'İptal', color: '#991b1b', bg: '#fef2f2' },
   };
+
+  const kanbanColumns = ['PENDING', 'IN_PROGRESS', 'WAITING_PARTS', 'READY', 'DELIVERED'];
 
   return (
     <div>
       <div style={S.header}>
         <h1 style={S.pageTitle}>Servis Siparişleri</h1>
-        <button style={S.btnPrimary as any} onClick={() => setShowForm(true)}>+ Yeni Sipariş</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={() => setView('kanban')} style={{ ...S.btnSecondary, background: view === 'kanban' ? '#2563eb' : undefined, color: view === 'kanban' ? 'white' : undefined }}>📋 Kanban</button>
+          <button onClick={() => setView('list')} style={{ ...S.btnSecondary, background: view === 'list' ? '#2563eb' : undefined, color: view === 'list' ? 'white' : undefined }}>📄 Liste</button>
+          <button style={S.btnPrimary as any} onClick={() => setShowForm(true)}>+ Yeni Sipariş</button>
+        </div>
+      </div>
+
+      {loading ? <div style={S.card}><div style={S.empty}>Yükleniyor...</div></div> : view === 'kanban' ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, alignItems: 'start' }}>
+          {kanbanColumns.map(col => {
+            const cfg = statusConfig[col];
+            const colOrders = orders.filter(o => o.status === col);
+            return (
+              <div key={col} style={{ background: '#f8fafc', borderRadius: 10, padding: 10, minHeight: 200 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, padding: '4px 8px' }}>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: cfg.color }}>{cfg.text}</span>
+                  <span style={{ background: cfg.bg, color: cfg.color, padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 700 }}>{colOrders.length}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {colOrders.map(o => (
+                    <div key={o.id} onClick={() => { setSelectedOrder(o); loadOrderDetail(o.id); }} style={{ background: 'white', borderRadius: 8, padding: 12, cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0', transition: 'box-shadow 0.2s' }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: '#1e293b', marginBottom: 4 }}>{getVehiclePlate(o.vehicleId)}</div>
+                      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>{getCustomerName(o.customerId)}</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.customerComplaint || o.diagnosis || '-'}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 12 }}>
+                        <span style={{ color: '#64748b' }}>#{o.orderNumber}</span>
+                        <span style={{ fontWeight: 700, color: '#1e293b' }}>₺{Number(o.totalAmount || 0).toLocaleString('tr-TR')}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={S.card}>
+          {orders.length === 0 ? <div style={S.empty}>Sipariş bulunamadı</div> : (
+            <table style={S.table}>
+              <thead><tr><th style={S.th}>#</th><th style={S.th}>Müşteri</th><th style={S.th}>Araç</th><th style={S.th}>Şikayet</th><th style={S.th}>Tutar</th><th style={S.th}>Durum</th><th style={S.th}>Tarih</th></tr></thead>
+              <tbody>
+                {orders.map(o => (
+                  <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => { setSelectedOrder(o); loadOrderDetail(o.id); }}>
+                    <td style={S.td}><strong>#{o.orderNumber}</strong></td>
+                    <td style={S.td}>{getCustomerName(o.customerId)}</td>
+                    <td style={S.td}>{getVehiclePlate(o.vehicleId)}</td>
+                    <td style={S.td}>{o.customerComplaint || '-'}</td>
+                    <td style={S.td}><strong>₺{Number(o.totalAmount || 0).toLocaleString('tr-TR')}</strong></td>
+                    <td style={S.td}><span style={{ ...S.badge(statusConfig[o.status]?.color === '#166534' ? 'green' : statusConfig[o.status]?.color === '#991b1b' ? 'red' : statusConfig[o.status]?.color === '#1e40af' ? 'blue' : 'yellow'), background: statusConfig[o.status]?.bg }}>{statusConfig[o.status]?.text || o.status}</span></td>
+                    <td style={S.td}>{new Date(o.createdAt).toLocaleDateString('tr-TR')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* Order Detail Modal */}
+      {selectedOrder && (
+        <div style={S.modal} onClick={() => setSelectedOrder(null)}>
+          <div style={{ ...S.modalContent, width: 700, maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <div>
+                <div style={S.modalTitle}>Sipariş #{selectedOrder.orderNumber}</div>
+                <div style={{ fontSize: 13, color: '#64748b' }}>{getCustomerName(selectedOrder.customerId)} • {getVehiclePlate(selectedOrder.vehicleId)} {selectedOrder.km ? `• ${Number(selectedOrder.km).toLocaleString('tr-TR')} km` : ''}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {kanbanColumns.map(col => (
+                  <button key={col} onClick={() => handleStatusChange(selectedOrder.id, col)} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, border: selectedOrder.status === col ? `2px solid ${statusConfig[col].color}` : '1px solid #e2e8f0', background: selectedOrder.status === col ? statusConfig[col].bg : 'white', color: statusConfig[col].color, cursor: 'pointer' }}>{statusConfig[col].text}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Info Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 16 }}>
+              {selectedOrder.customerComplaint && <div style={{ background: '#fef3c7', borderRadius: 8, padding: 10 }}><div style={{ fontSize: 11, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>MÜŞTERİ ŞİKAYETİ</div><div style={{ fontSize: 13, color: '#1e293b' }}>{selectedOrder.customerComplaint}</div></div>}
+              {selectedOrder.diagnosis && <div style={{ background: '#f0f9ff', borderRadius: 8, padding: 10 }}><div style={{ fontSize: 11, fontWeight: 700, color: '#1e40af', marginBottom: 4 }}>TEŞHİS</div><div style={{ fontSize: 13, color: '#1e293b' }}>{selectedOrder.diagnosis}</div></div>}
+              {selectedOrder.performedWork && <div style={{ background: '#dcfce7', borderRadius: 8, padding: 10 }}><div style={{ fontSize: 11, fontWeight: 700, color: '#166534', marginBottom: 4 }}>YAPILAN İŞLEM</div><div style={{ fontSize: 13, color: '#1e293b' }}>{selectedOrder.performedWork}</div></div>}
+            </div>
+
+            {/* Parts Section */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>🔩 Parçalar</div>
+              {(selectedOrder.parts || []).length > 0 ? (
+                <table style={{ ...S.table, fontSize: 13 }}>
+                  <thead><tr><th style={{ ...S.th, padding: '6px 10px' }}>Parça</th><th style={{ ...S.th, padding: '6px 10px', textAlign: 'right' }}>Adet</th><th style={{ ...S.th, padding: '6px 10px', textAlign: 'right' }}>Birim</th><th style={{ ...S.th, padding: '6px 10px', textAlign: 'right' }}>Toplam</th></tr></thead>
+                  <tbody>{(selectedOrder.parts || []).map((p: any, i: number) => (
+                    <tr key={i}><td style={{ ...S.td, padding: '6px 10px' }}>{p.name}</td><td style={{ ...S.td, padding: '6px 10px', textAlign: 'right' }}>{Number(p.quantity).toLocaleString('tr-TR')}</td><td style={{ ...S.td, padding: '6px 10px', textAlign: 'right' }}>₺{Number(p.unitPrice || 0).toLocaleString('tr-TR')}</td><td style={{ ...S.td, padding: '6px 10px', textAlign: 'right', fontWeight: 600 }}>₺{Number(p.total || 0).toLocaleString('tr-TR')}</td></tr>
+                  ))}</tbody>
+                </table>
+              ) : <div style={{ fontSize: 13, color: '#94a3b8', padding: 8 }}>Parça eklenmemiş</div>}
+              <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                <input placeholder="Parça adı" value={newPart.name} onChange={e => setNewPart({ ...newPart, name: e.target.value })} style={{ ...S.input, marginBottom: 0, flex: 2, minWidth: 120 }} />
+                <input placeholder="Adet" type="number" value={newPart.quantity} onChange={e => setNewPart({ ...newPart, quantity: e.target.value })} style={{ ...S.input, marginBottom: 0, flex: 1, minWidth: 60 }} />
+                <input placeholder="Birim ₺" type="number" value={newPart.unitPrice} onChange={e => setNewPart({ ...newPart, unitPrice: e.target.value })} style={{ ...S.input, marginBottom: 0, flex: 1, minWidth: 80 }} />
+                <button onClick={handleAddPart} style={{ ...S.btnSuccess, whiteSpace: 'nowrap' }}>+ Ekle</button>
+              </div>
+            </div>
+
+            {/* Labor Section */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>🔧 İşçilik</div>
+              {(selectedOrder.labor || []).length > 0 ? (
+                <table style={{ ...S.table, fontSize: 13 }}>
+                  <thead><tr><th style={{ ...S.th, padding: '6px 10px' }}>Açıklama</th><th style={{ ...S.th, padding: '6px 10px', textAlign: 'right' }}>Saat</th><th style={{ ...S.th, padding: '6px 10px', textAlign: 'right' }}>Saat Başı</th><th style={{ ...S.th, padding: '6px 10px', textAlign: 'right' }}>Toplam</th></tr></thead>
+                  <tbody>{(selectedOrder.labor || []).map((l: any, i: number) => (
+                    <tr key={i}><td style={{ ...S.td, padding: '6px 10px' }}>{l.description}</td><td style={{ ...S.td, padding: '6px 10px', textAlign: 'right' }}>{l.hours}</td><td style={{ ...S.td, padding: '6px 10px', textAlign: 'right' }}>₺{Number(l.hourlyRate || 0).toLocaleString('tr-TR')}</td><td style={{ ...S.td, padding: '6px 10px', textAlign: 'right', fontWeight: 600 }}>₺{Number(l.total || 0).toLocaleString('tr-TR')}</td></tr>
+                  ))}</tbody>
+                </table>
+              ) : <div style={{ fontSize: 13, color: '#94a3b8', padding: 8 }}>İşçilik eklenmemiş</div>}
+              <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                <input placeholder="Açıklama" value={newLabor.description} onChange={e => setNewLabor({ ...newLabor, description: e.target.value })} style={{ ...S.input, marginBottom: 0, flex: 2, minWidth: 120 }} />
+                <input placeholder="Saat" type="number" value={newLabor.hours} onChange={e => setNewLabor({ ...newLabor, hours: e.target.value })} style={{ ...S.input, marginBottom: 0, flex: 1, minWidth: 60 }} />
+                <input placeholder="₺/Saat" type="number" value={newLabor.hourlyRate} onChange={e => setNewLabor({ ...newLabor, hourlyRate: e.target.value })} style={{ ...S.input, marginBottom: 0, flex: 1, minWidth: 80 }} />
+                <button onClick={handleAddLabor} style={{ ...S.btnSuccess, whiteSpace: 'nowrap' }}>+ Ekle</button>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>📝 Notlar</div>
+              {(selectedOrder.notes_ || []).length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+                  {(selectedOrder.notes_ || []).map((n: any, i: number) => (
+                    <div key={i} style={{ background: '#f8fafc', borderRadius: 6, padding: 8, fontSize: 13, color: '#1e293b', borderLeft: '3px solid #2563eb' }}>{n.text}</div>
+                  ))}
+                </div>
+              ) : null}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input placeholder="Not ekle..." value={newNote} onChange={e => setNewNote(e.target.value)} style={{ ...S.input, marginBottom: 0, flex: 1 }} onKeyDown={e => e.key === 'Enter' && handleAddNote()} />
+                <button onClick={handleAddNote} style={S.btnSuccess}>Ekle</button>
+              </div>
+            </div>
+
+            {/* Total */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderTop: '2px solid #e2e8f0' }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Toplam: ₺{Number(selectedOrder.totalAmount || 0).toLocaleString('tr-TR')}</span>
+              <button style={S.btnSecondary} onClick={() => setSelectedOrder(null)}>Kapat</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Order Modal */}
+      {showForm && (
+        <div style={S.modal} onClick={() => setShowForm(false)}>
+          <div style={S.modalContent} onClick={e => e.stopPropagation()}>
+            <div style={S.modalTitle}>Yeni Servis Siparişi</div>
+            <div style={S.formGroup}><label style={S.label}>Müşteri</label><select style={S.select} value={form.customerId} onChange={e => setForm({ ...form, customerId: e.target.value })}><option value="">Seçiniz...</option>{customers.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}</select></div>
+            <div style={S.formGroup}><label style={S.label}>Araç</label><select style={S.select} value={form.vehicleId} onChange={e => setForm({ ...form, vehicleId: e.target.value })}><option value="">Seçiniz...</option>{vehicles.map(v => <option key={v.id} value={v.id}>{v.plate} - {v.brand} {v.model}</option>)}</select></div>
+            <div style={S.formGroup}><label style={S.label}>KM</label><input style={S.input} type="number" value={form.km} onChange={e => setForm({ ...form, km: e.target.value })} placeholder="Araç kilometre" /></div>
+            <div style={S.formGroup}><label style={S.label}>Müşteri Şikayeti</label><textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' }} value={form.customerComplaint} onChange={e => setForm({ ...form, customerComplaint: e.target.value })} placeholder="Müşterinin şikayeti..." /></div>
+            <div style={S.formGroup}><label style={S.label}>Teşhis</label><textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' }} value={form.diagnosis} onChange={e => setForm({ ...form, diagnosis: e.target.value })} placeholder="Yapılan teşhis..." /></div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button style={S.btnSecondary} onClick={() => setShowForm(false)}>İptal</button>
+              <button style={S.btnPrimary as any} onClick={handleCreate}>Kaydet</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ APPOINTMENTS PAGE ============
+function AppointmentsPage({ tenantId }: { tenantId: string }) {
+  const { addToast } = useToast();
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ customerId: '', vehicleId: '', date: '', time: '', service: '', phone: '', notes: '', status: 'PENDING' });
+
+  const load = useCallback(async () => {
+    try {
+      const [aRes, cRes, vRes] = await Promise.all([
+        appointmentApi.list(tenantId, 'limit=1000'),
+        customerApi.list(tenantId, 'limit=1000'),
+        vehicleApi.list(tenantId, 'limit=1000'),
+      ]);
+      setAppointments(aRes?.data || aRes || []);
+      setCustomers(cRes?.data || cRes || []);
+      setVehicles(vRes?.data || vRes || []);
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, [tenantId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    try {
+      await appointmentApi.create(tenantId, form);
+      setShowForm(false);
+      setForm({ customerId: '', vehicleId: '', date: '', time: '', service: '', phone: '', notes: '', status: 'PENDING' });
+      addToast('Randevu oluşturuldu', 'success');
+      load();
+    } catch (e: any) { addToast(e.message || 'Hata', 'error'); }
+  };
+
+  const handleStatusChange = async (id: string, status: string) => {
+    try {
+      await appointmentApi.changeStatus(tenantId, id, { status });
+      addToast('Durum güncellendi', 'success');
+      load();
+    } catch (e: any) { addToast(e.message || 'Hata', 'error'); }
+  };
+
+  const statusConfig: Record<string, { text: string; color: string; bg: string }> = {
+    PENDING: { text: 'Bekliyor', color: '#92400e', bg: '#fef3c7' },
+    CONFIRMED: { text: 'Onaylandı', color: '#1e40af', bg: '#dbeafe' },
+    IN_PROGRESS: { text: 'Devam Ediyor', color: '#4338ca', bg: '#e0e7ff' },
+    COMPLETED: { text: 'Tamamlandı', color: '#166534', bg: '#dcfce7' },
+    CANCELLED: { text: 'İptal', color: '#991b1b', bg: '#fef2f2' },
+    NO_SHOW: { text: 'Gelmedi', color: '#7c2d12', bg: '#fef2f2' },
+  };
+
+  const getCustomerName = (id: string) => customers.find(c => c.id === id)?.fullName || '-';
+  const getVehiclePlate = (id: string) => vehicles.find(v => v.id === id)?.plate || '-';
+
+  return (
+    <div>
+      <div style={S.header}>
+        <h1 style={S.pageTitle}>Randevular</h1>
+        <button style={S.btnPrimary as any} onClick={() => setShowForm(true)}>+ Yeni Randevu</button>
       </div>
       <div style={S.card}>
-        {loading ? <div style={S.empty}>Yükleniyor...</div> : orders.length === 0 ? <div style={S.empty}>Sipariş bulunamadı</div> : (
+        {loading ? <div style={S.empty}>Yükleniyor...</div> : appointments.length === 0 ? <div style={S.empty}>Randevu bulunamadı</div> : (
           <table style={S.table}>
-            <thead><tr><th style={S.th}>Müşteri</th><th style={S.th}>Araç</th><th style={S.th}>Açıklama</th><th style={S.th}>Tutar</th><th style={S.th}>Durum</th></tr></thead>
+            <thead><tr><th style={S.th}>Tarih</th><th style={S.th}>Saat</th><th style={S.th}>Müşteri</th><th style={S.th}>Araç</th><th style={S.th}>Hizmet</th><th style={S.th}>Durum</th><th style={S.th}>İşlem</th></tr></thead>
             <tbody>
-              {orders.map(o => (
-                <tr key={o.id}>
-                  <td style={S.td}>{getCustomerName(o.customerId)}</td>
-                  <td style={S.td}>{getVehiclePlate(o.vehicleId)}</td>
-                  <td style={S.td}>{o.description || '-'}</td>
-                  <td style={S.td}><strong>₺{Number(o.totalAmount || 0).toLocaleString('tr-TR')}</strong></td>
-                  <td style={S.td}><span style={S.badge(statusLabel[o.status]?.color || 'blue')}>{statusLabel[o.status]?.text || o.status}</span></td>
+              {appointments.sort((a, b) => `${a.date}${a.time}` > `${b.date}${b.time}` ? -1 : 1).map(a => (
+                <tr key={a.id}>
+                  <td style={S.td}><strong>{new Date(a.date).toLocaleDateString('tr-TR')}</strong></td>
+                  <td style={S.td}>{a.time}</td>
+                  <td style={S.td}>{getCustomerName(a.customerId)}</td>
+                  <td style={S.td}>{getVehiclePlate(a.vehicleId)}</td>
+                  <td style={S.td}>{a.service || '-'}</td>
+                  <td style={S.td}><span style={{ ...S.badge(statusConfig[a.status]?.color === '#166534' ? 'green' : statusConfig[a.status]?.color === '#991b1b' ? 'red' : statusConfig[a.status]?.color === '#1e40af' ? 'blue' : 'yellow'), background: statusConfig[a.status]?.bg }}>{statusConfig[a.status]?.text || a.status}</span></td>
+                  <td style={S.td}>
+                    <select value={a.status} onChange={e => handleStatusChange(a.id, e.target.value)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600 }}>
+                      {Object.entries(statusConfig).map(([k, v]) => <option key={k} value={k}>{v.text}</option>)}
+                    </select>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -672,31 +1074,186 @@ function ServiceOrdersPage({ tenantId }: { tenantId: string }) {
       {showForm && (
         <div style={S.modal} onClick={() => setShowForm(false)}>
           <div style={S.modalContent} onClick={e => e.stopPropagation()}>
-            <div style={S.modalTitle}>Yeni Servis Siparişi</div>
-            <div style={S.formGroup}>
-              <label style={S.label}>Müşteri</label>
-              <select style={S.select} value={form.customerId} onChange={e => setForm({ ...form, customerId: e.target.value })}>
-                <option value="">Seçiniz...</option>
-                {customers.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
-              </select>
+            <div style={S.modalTitle}>Yeni Randevu</div>
+            <div style={S.formGroup}><label style={S.label}>Müşteri</label><select style={S.select} value={form.customerId} onChange={e => setForm({ ...form, customerId: e.target.value })}><option value="">Seçiniz...</option>{customers.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}</select></div>
+            <div style={S.formGroup}><label style={S.label}>Araç</label><select style={S.select} value={form.vehicleId} onChange={e => setForm({ ...form, vehicleId: e.target.value })}><option value="">Seçiniz...</option>{vehicles.map(v => <option key={v.id} value={v.id}>{v.plate} - {v.brand} {v.model}</option>)}</select></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={S.formGroup}><label style={S.label}>Tarih</label><input style={S.input} type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></div>
+              <div style={S.formGroup}><label style={S.label}>Saat</label><input style={S.input} type="time" value={form.time} onChange={e => setForm({ ...form, time: e.target.value })} /></div>
             </div>
-            <div style={S.formGroup}>
-              <label style={S.label}>Araç</label>
-              <select style={S.select} value={form.vehicleId} onChange={e => setForm({ ...form, vehicleId: e.target.value })}>
-                <option value="">Seçiniz...</option>
-                {vehicles.map(v => <option key={v.id} value={v.id}>{v.plate} - {v.brand} {v.model}</option>)}
-              </select>
+            <div style={S.formGroup}><label style={S.label}>Hizmet Türü</label><select style={S.select} value={form.service} onChange={e => setForm({ ...form, service: e.target.value })}><option value="">Seçiniz...</option><option value="PERIODIC_MAINTENANCE">Periyodik Bakım</option><option value="OIL_CHANGE">Yağ Değişimi</option><option value="BRAKE_SERVICE">Fren Servisi</option><option value="TIRE_SERVICE">Lastik Servisi</option><option value="MECHANICAL_REPAIR">Mekanik Tamir</option><option value="ELECTRICAL">Elektrik</option><option value="INSPECTION">Muayene Hazırlık</option></select></div>
+            <div style={S.formGroup}><label style={S.label}>Telefon</label><input style={S.input} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="0555 123 45 67" /></div>
+            <div style={S.formGroup}><label style={S.label}>Not</label><textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' }} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}><button style={S.btnSecondary} onClick={() => setShowForm(false)}>İptal</button><button style={S.btnPrimary as any} onClick={handleCreate}>Kaydet</button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ INVENTORY PAGE ============
+function InventoryPage({ tenantId }: { tenantId: string }) {
+  const { addToast } = useToast();
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
+  const [form, setForm] = useState({ name: '', brand: '', code: '', purchasePrice: '', salePrice: '', profitMargin: '', stock: '', category: '' });
+
+  const load = useCallback(async () => {
+    try { const res = await inventoryApi.listProducts(tenantId, 'limit=1000'); setProducts(res?.data || res || []); } catch { /* ignore */ }
+    setLoading(false);
+  }, [tenantId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    try {
+      await inventoryApi.createProduct(tenantId, {
+        ...form,
+        purchasePrice: Number(form.purchasePrice) || 0,
+        salePrice: Number(form.salePrice) || 0,
+        profitMargin: Number(form.profitMargin) || 0,
+        stock: Number(form.stock) || 0,
+      });
+      setShowForm(false);
+      setForm({ name: '', brand: '', code: '', purchasePrice: '', salePrice: '', profitMargin: '', stock: '', category: '' });
+      addToast('Ürün eklendi', 'success');
+      load();
+    } catch (e: any) { addToast(e.message || 'Hata', 'error'); }
+  };
+
+  const filtered = products.filter(p => !search || p.name?.toLowerCase().includes(search.toLowerCase()) || p.brand?.toLowerCase().includes(search.toLowerCase()) || p.code?.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div>
+      <div style={S.header}>
+        <h1 style={S.pageTitle}>Stok Yönetimi</h1>
+        <button style={S.btnPrimary as any} onClick={() => setShowForm(true)}>+ Yeni Ürün</button>
+      </div>
+      <div style={{ ...S.card, padding: '12px 24px' }}>
+        <input placeholder="Ürün ara..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...S.input, marginBottom: 0, maxWidth: 400 }} />
+      </div>
+      <div style={S.card}>
+        {loading ? <div style={S.empty}>Yükleniyor...</div> : filtered.length === 0 ? <div style={S.empty}>Ürün bulunamadı</div> : (
+          <table style={S.table}>
+            <thead><tr><th style={S.th}>Ürün</th><th style={S.th}>Marka</th><th style={S.th}>Kod</th><th style={{ ...S.th, textAlign: 'right' }}>Alış ₺</th><th style={{ ...S.th, textAlign: 'right' }}>Satış ₺</th><th style={{ ...S.th, textAlign: 'right' }}>Stok</th></tr></thead>
+            <tbody>
+              {filtered.map(p => (
+                <tr key={p.id}>
+                  <td style={S.td}><strong>{p.name}</strong></td>
+                  <td style={S.td}>{p.brand || '-'}</td>
+                  <td style={S.td}>{p.code || '-'}</td>
+                  <td style={{ ...S.td, textAlign: 'right' }}>₺{Number(p.purchasePrice || 0).toLocaleString('tr-TR')}</td>
+                  <td style={{ ...S.td, textAlign: 'right' }}><strong>₺{Number(p.salePrice || 0).toLocaleString('tr-TR')}</strong></td>
+                  <td style={{ ...S.td, textAlign: 'right' }}><span style={{ fontWeight: 700, color: Number(p.stock) <= 0 ? '#dc2626' : Number(p.stock) <= 5 ? '#d97706' : '#16a34a' }}>{Number(p.stock || 0).toLocaleString('tr-TR')}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {showForm && (
+        <div style={S.modal} onClick={() => setShowForm(false)}>
+          <div style={S.modalContent} onClick={e => e.stopPropagation()}>
+            <div style={S.modalTitle}>Yeni Ürün</div>
+            <div style={S.formGroup}><label style={S.label}>Ürün Adı</label><input style={S.input} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={S.formGroup}><label style={S.label}>Marka</label><input style={S.input} value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} /></div>
+              <div style={S.formGroup}><label style={S.label}>Kod</label><input style={S.input} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></div>
             </div>
-            <div style={S.formGroup}><label style={S.label}>Açıklama</label><input style={S.input} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-              <div style={S.formGroup}><label style={S.label}>Toplam Tutar</label><input style={S.input} type="number" value={form.totalAmount} onChange={e => setForm({ ...form, totalAmount: e.target.value })} /></div>
-              <div style={S.formGroup}><label style={S.label}>İşçilik</label><input style={S.input} type="number" value={form.laborAmount} onChange={e => setForm({ ...form, laborAmount: e.target.value })} /></div>
-              <div style={S.formGroup}><label style={S.label}>Parça</label><input style={S.input} type="number" value={form.partsAmount} onChange={e => setForm({ ...form, partsAmount: e.target.value })} /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+              <div style={S.formGroup}><label style={S.label}>Alış Fiyatı ₺</label><input style={S.input} type="number" value={form.purchasePrice} onChange={e => setForm({ ...form, purchasePrice: e.target.value })} /></div>
+              <div style={S.formGroup}><label style={S.label}>Kar Marjı %</label><input style={S.input} type="number" value={form.profitMargin} onChange={e => setForm({ ...form, profitMargin: e.target.value })} /></div>
+              <div style={S.formGroup}><label style={S.label}>Satış Fiyatı ₺</label><input style={S.input} type="number" value={form.salePrice} onChange={e => setForm({ ...form, salePrice: e.target.value })} /></div>
             </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button style={S.btnSecondary} onClick={() => setShowForm(false)}>İptal</button>
-              <button style={S.btnPrimary as any} onClick={handleCreate}>Kaydet</button>
+            <div style={S.formGroup}><label style={S.label}>Stok Adedi</label><input style={S.input} type="number" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} /></div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}><button style={S.btnSecondary} onClick={() => setShowForm(false)}>İptal</button><button style={S.btnPrimary as any} onClick={handleCreate}>Kaydet</button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ MAINTENANCE PAGE ============
+function MaintenancePage({ tenantId }: { tenantId: string }) {
+  const { addToast } = useToast();
+  const [records, setRecords] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ vehicleId: '', maintenanceTypeId: '', performedAt: '', km: '', notes: '', totalAmount: '' });
+
+  const load = useCallback(async () => {
+    try {
+      const [rRes, vRes] = await Promise.all([
+        maintenanceApi.listRecords(tenantId, 'limit=1000'),
+        vehicleApi.list(tenantId, 'limit=1000'),
+      ]);
+      setRecords(rRes?.data || rRes || []);
+      setVehicles(vRes?.data || vRes || []);
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, [tenantId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    try {
+      await maintenanceApi.createRecord(tenantId, {
+        ...form,
+        performedAt: form.performedAt || new Date().toISOString(),
+        km: form.km ? Number(form.km) : undefined,
+        totalAmount: Number(form.totalAmount) || 0,
+      });
+      setShowForm(false);
+      setForm({ vehicleId: '', maintenanceTypeId: '', performedAt: '', km: '', notes: '', totalAmount: '' });
+      addToast('Bakım kaydı eklendi', 'success');
+      load();
+    } catch (e: any) { addToast(e.message || 'Hata', 'error'); }
+  };
+
+  const getVehiclePlate = (id: string) => vehicles.find(v => v.id === id)?.plate || '-';
+
+  return (
+    <div>
+      <div style={S.header}>
+        <h1 style={S.pageTitle}>Bakım Kayıtları</h1>
+        <button style={S.btnPrimary as any} onClick={() => setShowForm(true)}>+ Yeni Bakım</button>
+      </div>
+      <div style={S.card}>
+        {loading ? <div style={S.empty}>Yükleniyor...</div> : records.length === 0 ? <div style={S.empty}>Bakım kaydı bulunamadı</div> : (
+          <table style={S.table}>
+            <thead><tr><th style={S.th}>Tarih</th><th style={S.th}>Araç</th><th style={S.th}>Bakım Tipi</th><th style={{ ...S.th, textAlign: 'right' }}>KM</th><th style={{ ...S.th, textAlign: 'right' }}>Tutar</th><th style={S.th}>Not</th></tr></thead>
+            <tbody>
+              {records.map(r => (
+                <tr key={r.id}>
+                  <td style={S.td}><strong>{r.performedAt ? new Date(r.performedAt).toLocaleDateString('tr-TR') : '-'}</strong></td>
+                  <td style={S.td}>{getVehiclePlate(r.vehicleId)}</td>
+                  <td style={S.td}>{r.maintenanceType?.name || 'Genel Bakım'}</td>
+                  <td style={{ ...S.td, textAlign: 'right' }}>{r.km ? `${Number(r.km).toLocaleString('tr-TR')} km` : '-'}</td>
+                  <td style={{ ...S.td, textAlign: 'right' }}><strong>₺{Number(r.totalAmount || 0).toLocaleString('tr-TR')}</strong></td>
+                  <td style={S.td}>{r.notes || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {showForm && (
+        <div style={S.modal} onClick={() => setShowForm(false)}>
+          <div style={S.modalContent} onClick={e => e.stopPropagation()}>
+            <div style={S.modalTitle}>Yeni Bakım Kaydı</div>
+            <div style={S.formGroup}><label style={S.label}>Araç</label><select style={S.select} value={form.vehicleId} onChange={e => setForm({ ...form, vehicleId: e.target.value })}><option value="">Seçiniz...</option>{vehicles.map(v => <option key={v.id} value={v.id}>{v.plate} - {v.brand} {v.model}</option>)}</select></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={S.formGroup}><label style={S.label}>Tarih</label><input style={S.input} type="date" value={form.performedAt} onChange={e => setForm({ ...form, performedAt: e.target.value })} /></div>
+              <div style={S.formGroup}><label style={S.label}>KM</label><input style={S.input} type="number" value={form.km} onChange={e => setForm({ ...form, km: e.target.value })} /></div>
             </div>
+            <div style={S.formGroup}><label style={S.label}>Tutar ₺</label><input style={S.input} type="number" value={form.totalAmount} onChange={e => setForm({ ...form, totalAmount: e.target.value })} /></div>
+            <div style={S.formGroup}><label style={S.label}>Not</label><textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' }} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}><button style={S.btnSecondary} onClick={() => setShowForm(false)}>İptal</button><button style={S.btnPrimary as any} onClick={handleCreate}>Kaydet</button></div>
           </div>
         </div>
       )}
@@ -2406,9 +2963,12 @@ function AppInner() {
       <Layout user={user} onLogout={logout} onAdmin={isAdminUser ? () => setShowAdmin(true) : undefined}>
         <Routes>
           <Route path="/" element={<DashboardPage tenantId={user.tenantId} />} />
+          <Route path="/service-orders" element={<ServiceOrdersPage tenantId={user.tenantId} />} />
+          <Route path="/appointments" element={<AppointmentsPage tenantId={user.tenantId} />} />
           <Route path="/customers" element={<CustomersPage tenantId={user.tenantId} />} />
           <Route path="/vehicles" element={<VehiclesPage tenantId={user.tenantId} />} />
-          <Route path="/service-orders" element={<ServiceOrdersPage tenantId={user.tenantId} />} />
+          <Route path="/inventory" element={<InventoryPage tenantId={user.tenantId} />} />
+          <Route path="/maintenance" element={<MaintenancePage tenantId={user.tenantId} />} />
           <Route path="/receivables" element={<ReceivablesPage tenantId={user.tenantId} />} />
           <Route path="/financial" element={<FinancialPage tenantId={user.tenantId} />} />
           <Route path="/settings" element={<SettingsPage user={user} />} />
