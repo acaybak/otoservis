@@ -259,3 +259,19 @@ export const licenseApi = {
   extend: (id: string, additionalDays: number) =>
     api.patch<any>(`/licenses/${id}/extend`, { additionalDays }),
 };
+
+// Quotes
+export const quoteApi = {
+  list: (tenantId: string) => api.get<any>('/quotes', tenantId),
+  create: (tenantId: string, data: any) => api.post<any>('/quotes', data, tenantId),
+  update: (tenantId: string, id: string, data: any) => api.patch<any>(`/quotes/${id}`, data, tenantId),
+  remove: (tenantId: string, id: string) => api.delete<any>(`/quotes/${id}`, tenantId),
+  changeStatus: (tenantId: string, id: string, status: string) => api.patch<any>(`/quotes/${id}/status`, { status }, tenantId),
+};
+
+// Invoices
+export const invoiceApi = {
+  list: (tenantId: string) => api.get<any>('/accounting/invoices', tenantId),
+  create: (tenantId: string, data: any) => api.post<any>('/accounting/invoices', data, tenantId),
+  update: (tenantId: string, id: string, data: any) => api.patch<any>(`/accounting/invoices/${id}`, data, tenantId),
+};

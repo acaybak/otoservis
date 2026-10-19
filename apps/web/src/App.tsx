@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { authApi, setToken, getToken, customerApi, vehicleApi, serviceOrderApi, accountingApi, reportingApi, adminApi, licenseApi, tenantApi, PORTAL_URL, warmupApi, appointmentApi, inventoryApi, maintenanceApi, serviceOrderPartsApi } from './services/api';
+import { authApi, setToken, getToken, customerApi, vehicleApi, serviceOrderApi, accountingApi, reportingApi, adminApi, licenseApi, tenantApi, PORTAL_URL, warmupApi, appointmentApi, inventoryApi, maintenanceApi, serviceOrderPartsApi, quoteApi, invoiceApi } from './services/api';
 
 // Yönetim paneli (Lisans Yönetimi dahil) yalnızca bu e-postalara açıktır.
 // Sunucu tarafındaki ADMIN_EMAILS listesiyle (render.yaml) aynı tutulmalıdır.
@@ -316,6 +316,8 @@ function Layout({ user, onLogout, onAdmin, children }: { user: User; onLogout: (
       { path: '/vehicles', icon: '🚘', label: 'Araçlar' },
     ]},
     { title: 'Finans', items: [
+      { path: '/estimates', icon: '📝', label: 'Teklifler' },
+      { path: '/invoices', icon: '🧾', label: 'Faturalar' },
       { path: '/receivables', icon: '💳', label: 'Cari Hesaplar' },
       { path: '/financial', icon: '💰', label: 'Ön Muhasebe' },
     ]},
@@ -1555,6 +1557,190 @@ function MaintenancePage({ tenantId }: { tenantId: string }) {
             </div>
             <div style={S.formGroup}><label style={S.label}>Tutar ₺</label><input style={S.input} type="number" value={form.totalAmount} onChange={e => setForm({ ...form, totalAmount: e.target.value })} /></div>
             <div style={S.formGroup}><label style={S.label}>Not</label><textarea style={{ ...S.input, minHeight: 60, resize: 'vertical' }} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}><button style={S.btnSecondary} onClick={() => setShowForm(false)}>İptal</button><button style={S.btnPrimary as any} onClick={handleCreate}>Kaydet</button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ QUOTES PAGE ============
+function QuotesPage({ tenantId }: { tenantId: string }) {
+  const { addToast } = useToast();
+  const [quotes, setQuotes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [form, setForm] = useState({ customerId: '', vehicleId: '', validUntil: '', notes: '', items: [{ description: '', quantity: 1, unitPrice: 0 }] });
+
+  const load = useCallback(async () => {
+    try {
+      const [qRes, cRes] = await Promise.all([
+        quoteApi.list(tenantId),
+        customerApi.list(tenantId, 'limit=1000'),
+      ]);
+      setQuotes(qRes?.data || qRes || []);
+      setCustomers(cRes?.data || cRes || []);
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, [tenantId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    if (!form.customerId) { addToast('Müşteri seçiniz', 'error'); return; }
+    try {
+      const subtotal = form.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+      await quoteApi.create(tenantId, {
+        customerId: form.customerId,
+        vehicleId: form.vehicleId || null,
+        validUntil: form.validUntil || new Date(Date.now() + 30 * 86400000).toISOString(),
+        notes: form.notes,
+        subtotal,
+        taxRate: 0,
+        taxAmount: 0,
+        discountAmount: 0,
+        totalAmount: subtotal,
+        items: form.items.map(item => ({
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.quantity * item.unitPrice,
+        })),
+      });
+      addToast('Teklif oluşturuldu', 'success');
+      setShowForm(false);
+      setForm({ customerId: '', vehicleId: '', validUntil: '', notes: '', items: [{ description: '', quantity: 1, unitPrice: 0 }] });
+      load();
+    } catch (e: any) { addToast(e.message || 'Hata', 'error'); }
+  };
+
+  const statusColors: Record<string, string> = { DRAFT: '#64748b', SENT: '#2563eb', ACCEPTED: '#16a34a', REJECTED: '#dc2626', EXPIRED: '#94a3b8' };
+  const statusTexts: Record<string, string> = { DRAFT: 'Taslak', SENT: 'Gönderildi', ACCEPTED: 'Kabul', REJECTED: 'Red', EXPIRED: 'Süresi Dolmuş' };
+
+  return (
+    <div>
+      <div style={S.header}>
+        <h1 style={S.pageTitle}>Teklifler</h1>
+        <button style={S.btnPrimary as any} onClick={() => setShowForm(true)}>+ Yeni Teklif</button>
+      </div>
+      <div style={S.card}>
+        {loading ? <div style={S.empty}>Yükleniyor...</div> : quotes.length === 0 ? <div style={S.empty}>Teklif bulunamadı</div> : (
+          <table style={S.table}>
+            <thead><tr><th style={S.th}>Teklif No</th><th style={S.th}>Müşteri</th><th style={S.th}>Tarih</th><th style={{ ...S.th, textAlign: 'right' }}>Tutar</th><th style={S.th}>Durum</th></tr></thead>
+            <tbody>
+              {quotes.map(q => (
+                <tr key={q.id}>
+                  <td style={S.td}><strong>{q.quoteNumber}</strong></td>
+                  <td style={S.td}>{q.customer?.firstName} {q.customer?.lastName}</td>
+                  <td style={S.td}>{new Date(q.issueDate).toLocaleDateString('tr-TR')}</td>
+                  <td style={{ ...S.td, textAlign: 'right' }}><strong>₺{Number(q.totalAmount || 0).toLocaleString('tr-TR')}</strong></td>
+                  <td style={S.td}><span style={{ ...S.badge('blue'), background: statusColors[q.status] || '#64748b', color: 'white' }}>{statusTexts[q.status] || q.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {showForm && (
+        <div style={S.modal} onClick={() => setShowForm(false)}>
+          <div style={S.modalContent} onClick={e => e.stopPropagation()}>
+            <div style={S.modalTitle}>Yeni Teklif</div>
+            <div style={S.formGroup}><label style={S.label}>Müşteri *</label><select style={S.input} value={form.customerId} onChange={e => setForm({ ...form, customerId: e.target.value })}><option value="">Seçiniz...</option>{customers.map(c => <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>)}</select></div>
+            <div style={S.formGroup}><label style={S.label}>Geçerlilik Tarihi</label><input style={S.input} type="date" value={form.validUntil} onChange={e => setForm({ ...form, validUntil: e.target.value })} /></div>
+            <div style={S.formGroup}><label style={S.label}>Notlar</label><textarea style={{ ...S.input, minHeight: 60 }} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}><button style={S.btnSecondary} onClick={() => setShowForm(false)}>İptal</button><button style={S.btnPrimary as any} onClick={handleCreate}>Kaydet</button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ INVOICES PAGE ============
+function InvoicesPage({ tenantId }: { tenantId: string }) {
+  const { addToast } = useToast();
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [form, setForm] = useState({ customerId: '', issueDate: '', dueDate: '', notes: '', items: [{ description: '', quantity: 1, unitPrice: 0 }] });
+
+  const load = useCallback(async () => {
+    try {
+      const [iRes, cRes] = await Promise.all([
+        invoiceApi.list(tenantId),
+        customerApi.list(tenantId, 'limit=1000'),
+      ]);
+      setInvoices(iRes?.data || iRes || []);
+      setCustomers(cRes?.data || cRes || []);
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, [tenantId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    if (!form.customerId) { addToast('Müşteri seçiniz', 'error'); return; }
+    try {
+      await invoiceApi.create(tenantId, {
+        customerId: form.customerId,
+        issueDate: form.issueDate || new Date().toISOString(),
+        dueDate: form.dueDate || new Date(Date.now() + 30 * 86400000).toISOString(),
+        notes: form.notes,
+        items: form.items.map(item => ({
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        })),
+      });
+      addToast('Fatura oluşturuldu', 'success');
+      setShowForm(false);
+      setForm({ customerId: '', issueDate: '', dueDate: '', notes: '', items: [{ description: '', quantity: 1, unitPrice: 0 }] });
+      load();
+    } catch (e: any) { addToast(e.message || 'Hata', 'error'); }
+  };
+
+  const statusColors: Record<string, string> = { DRAFT: '#64748b', SENT: '#2563eb', PAID: '#16a34a', PARTIALLY_PAID: '#f59e0b', OVERDUE: '#dc2626', CANCELLED: '#94a3b8' };
+  const statusTexts: Record<string, string> = { DRAFT: 'Taslak', SENT: 'Gönderildi', PAID: 'Ödendi', PARTIALLY_PAID: 'Kısmi Ödeme', OVERDUE: 'Vadesi Geçmiş', CANCELLED: 'İptal' };
+
+  return (
+    <div>
+      <div style={S.header}>
+        <h1 style={S.pageTitle}>Faturalar</h1>
+        <button style={S.btnPrimary as any} onClick={() => setShowForm(true)}>+ Yeni Fatura</button>
+      </div>
+      <div style={S.card}>
+        {loading ? <div style={S.empty}>Yükleniyor...</div> : invoices.length === 0 ? <div style={S.empty}>Fatura bulunamadı</div> : (
+          <table style={S.table}>
+            <thead><tr><th style={S.th}>Fatura No</th><th style={S.th}>Müşteri</th><th style={S.th}>Tarih</th><th style={S.th}>Vade</th><th style={{ ...S.th, textAlign: 'right' }}>Tutar</th><th style={{ ...S.th, textAlign: 'right' }}>Ödenen</th><th style={S.th}>Durum</th></tr></thead>
+            <tbody>
+              {invoices.map(inv => (
+                <tr key={inv.id}>
+                  <td style={S.td}><strong>{inv.invoiceNumber}</strong></td>
+                  <td style={S.td}>{inv.customer?.firstName} {inv.customer?.lastName}</td>
+                  <td style={S.td}>{new Date(inv.issueDate).toLocaleDateString('tr-TR')}</td>
+                  <td style={S.td}>{new Date(inv.dueDate).toLocaleDateString('tr-TR')}</td>
+                  <td style={{ ...S.td, textAlign: 'right' }}><strong>₺{Number(inv.totalAmount || 0).toLocaleString('tr-TR')}</strong></td>
+                  <td style={{ ...S.td, textAlign: 'right' }}>₺{Number(inv.paidAmount || 0).toLocaleString('tr-TR')}</td>
+                  <td style={S.td}><span style={{ ...S.badge('blue'), background: statusColors[inv.status] || '#64748b', color: 'white' }}>{statusTexts[inv.status] || inv.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {showForm && (
+        <div style={S.modal} onClick={() => setShowForm(false)}>
+          <div style={S.modalContent} onClick={e => e.stopPropagation()}>
+            <div style={S.modalTitle}>Yeni Fatura</div>
+            <div style={S.formGroup}><label style={S.label}>Müşteri *</label><select style={S.input} value={form.customerId} onChange={e => setForm({ ...form, customerId: e.target.value })}><option value="">Seçiniz...</option>{customers.map(c => <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>)}</select></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={S.formGroup}><label style={S.label}>Fatura Tarihi</label><input style={S.input} type="date" value={form.issueDate} onChange={e => setForm({ ...form, issueDate: e.target.value })} /></div>
+              <div style={S.formGroup}><label style={S.label}>Vade Tarihi</label><input style={S.input} type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} /></div>
+            </div>
+            <div style={S.formGroup}><label style={S.label}>Notlar</label><textarea style={{ ...S.input, minHeight: 60 }} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}><button style={S.btnSecondary} onClick={() => setShowForm(false)}>İptal</button><button style={S.btnPrimary as any} onClick={handleCreate}>Kaydet</button></div>
           </div>
         </div>
@@ -3273,6 +3459,8 @@ function AppInner() {
           <Route path="/inventory" element={<InventoryPage tenantId={user.tenantId} />} />
           <Route path="/suppliers" element={<SuppliersPage tenantId={user.tenantId} />} />
           <Route path="/maintenance" element={<MaintenancePage tenantId={user.tenantId} />} />
+          <Route path="/estimates" element={<QuotesPage tenantId={user.tenantId} />} />
+          <Route path="/invoices" element={<InvoicesPage tenantId={user.tenantId} />} />
           <Route path="/receivables" element={<ReceivablesPage tenantId={user.tenantId} />} />
           <Route path="/financial" element={<FinancialPage tenantId={user.tenantId} />} />
           <Route path="/settings" element={<SettingsPage user={user} />} />
