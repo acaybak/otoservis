@@ -340,7 +340,7 @@ function ZoomControls() {
 // Setup screen (first run: server address)
 // ============================================================================
 function SetupScreen({ onDone }: { onDone: () => void }) {
-  const [serverUrl, setServerUrl] = useState('https://otoservis-api.onrender.com');
+  const [serverUrl, setServerUrl] = useState('https://otoservis-api-lsuv.onrender.com');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
