@@ -1720,6 +1720,38 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                 <li>Süre dolunca aynı şekilde <strong>yeni anahtar</strong> gönderin; mevcut bitiş tarihinden itibaren uzatılır.</li>
               </ol>
             </div>
+            {/* Lisans Uyarı Özeti */}
+            {(() => {
+              const expired = licenses.filter((l: any) => l.expiresAt && Math.ceil((new Date(l.expiresAt).getTime() - Date.now()) / 86400000) <= 0);
+              const expiringSoon = licenses.filter((l: any) => { const d = l.expiresAt ? Math.ceil((new Date(l.expiresAt).getTime() - Date.now()) / 86400000) : null; return d !== null && d > 0 && d <= 7; });
+              const expiringWarning = licenses.filter((l: any) => { const d = l.expiresAt ? Math.ceil((new Date(l.expiresAt).getTime() - Date.now()) / 86400000) : null; return d !== null && d > 7 && d <= 30; });
+              if (expired.length === 0 && expiringSoon.length === 0 && expiringWarning.length === 0) return null;
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 16 }}>
+                  {expired.length > 0 && (
+                    <div style={{ ...AdminStyles.card, background: '#fef2f2', border: '2px solid #dc2626', padding: '12px 16px' }}>
+                      <div style={{ fontWeight: 700, color: '#dc2626', fontSize: 15 }}>🚨 Süresi Dolmuş</div>
+                      <div style={{ fontSize: 24, fontWeight: 800, color: '#dc2626' }}>{expired.length} lisans</div>
+                      <div style={{ fontSize: 12, color: '#991b1b' }}>Acil uzatma gerekli!</div>
+                    </div>
+                  )}
+                  {expiringSoon.length > 0 && (
+                    <div style={{ ...AdminStyles.card, background: '#fff7ed', border: '2px solid #ea580c', padding: '12px 16px' }}>
+                      <div style={{ fontWeight: 700, color: '#ea580c', fontSize: 15 }}>⚠️ 7 Gün İçinde Dolacak</div>
+                      <div style={{ fontSize: 24, fontWeight: 800, color: '#ea580c' }}>{expiringSoon.length} lisans</div>
+                      <div style={{ fontSize: 12, color: '#9a3412' }}>Yakında uzatma yapın</div>
+                    </div>
+                  )}
+                  {expiringWarning.length > 0 && (
+                    <div style={{ ...AdminStyles.card, background: '#fefce8', border: '2px solid #ca8a04', padding: '12px 16px' }}>
+                      <div style={{ fontWeight: 700, color: '#ca8a04', fontSize: 15 }}>📅 30 Gün İçinde Dolacak</div>
+                      <div style={{ fontSize: 24, fontWeight: 800, color: '#ca8a04' }}>{expiringWarning.length} lisans</div>
+                      <div style={{ fontSize: 12, color: '#854d0e' }}>Planlama yapın</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             {showCreateKeys && (
               <div style={{ ...AdminStyles.card, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                 <h4 style={{ margin: '0 0 16px', fontWeight: 600 }}>Yeni Lisans Anahtarı Oluştur</h4>
@@ -1783,18 +1815,32 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                     <th style={AdminStyles.th}>Max User</th>
                     <th style={AdminStyles.th}>Aktivasyon</th>
                     <th style={AdminStyles.th}>Bitiş</th>
+                    <th style={AdminStyles.th}>Kalan Gün</th>
                     <th style={AdminStyles.th}>İşlem</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {licenses.map((l: any) => (
-                    <tr key={l.id}>
+                  {[...licenses].sort((a: any, b: any) => {
+                    const dA = a.expiresAt ? Math.ceil((new Date(a.expiresAt).getTime() - Date.now()) / 86400000) : Infinity;
+                    const dB = b.expiresAt ? Math.ceil((new Date(b.expiresAt).getTime() - Date.now()) / 86400000) : Infinity;
+                    return dA - dB;
+                  }).map((l: any) => {
+                    const daysLeft = l.expiresAt ? Math.ceil((new Date(l.expiresAt).getTime() - Date.now()) / 86400000) : null;
+                    const isExpiringSoon = daysLeft !== null && daysLeft <= 7;
+                    const isExpiringWarning = daysLeft !== null && daysLeft > 7 && daysLeft <= 30;
+                    const isExpired = daysLeft !== null && daysLeft <= 0;
+                    const daysColor = isExpired ? '#dc2626' : isExpiringSoon ? '#ea580c' : isExpiringWarning ? '#ca8a04' : '#16a34a';
+                    return (
+                    <tr key={l.id} style={{ background: isExpiringSoon ? '#fef2f2' : isExpiringWarning ? '#fefce8' : 'transparent' }}>
                       <td style={AdminStyles.td}><strong>{l.tenant?.name || '-'}</strong></td>
                       <td style={AdminStyles.td}>{l.planType}</td>
                       <td style={AdminStyles.td}><span style={AdminStyles.badge(l.status)}>{l.status}</span></td>
                       <td style={AdminStyles.td}>{l.maxUsers}</td>
                       <td style={AdminStyles.td}>{l.activatedAt ? new Date(l.activatedAt).toLocaleDateString('tr-TR') : '-'}</td>
                       <td style={AdminStyles.td}>{l.expiresAt ? new Date(l.expiresAt).toLocaleDateString('tr-TR') : 'Süresiz'}</td>
+                      <td style={{ ...AdminStyles.td, fontWeight: 700, color: daysColor, textAlign: 'center' }}>
+                        {daysLeft === null ? '∞' : daysLeft <= 0 ? 'DOLMUŞ' : `${daysLeft} gün`}
+                      </td>
                       <td style={AdminStyles.td}>
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                           <select value={l.status} onChange={async (e) => { await licenseApi.updateStatus(l.id, e.target.value); loadLicenses(); }} style={{ ...AdminStyles.select, padding: '6px 10px', fontSize: 12 }}>
@@ -1817,7 +1863,8 @@ function AdminPanel({ onBack }: { onBack: () => void }) {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
