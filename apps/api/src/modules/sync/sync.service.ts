@@ -66,8 +66,10 @@ export class SyncService {
         this.logger.log(`Successfully synced ${op.entityType}/${op.entityId}`);
         results.push({ entityId: op.entityId, status: 'SYNCED' });
       } catch (err: any) {
-        this.logger.warn(`Sync op failed (${op.entityType}/${op.operationType}): ${err.message}`);
-        results.push({ entityId: op.entityId, status: 'FAILED', error: err.message });
+        const errorMsg = err.message || 'Bilinmeyen hata';
+        const errorDetails = err.errors || err.issues || [];
+        this.logger.warn(`Sync op failed (${op.entityType}/${op.operationType}): ${errorMsg}`, JSON.stringify(errorDetails));
+        results.push({ entityId: op.entityId, status: 'FAILED', error: `${errorMsg} ${JSON.stringify(errorDetails)}` });
       }
     }
 
