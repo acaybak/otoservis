@@ -1767,8 +1767,14 @@ function InvoicesPage({ tenantId }: { tenantId: string }) {
 function ReceivablesPage({ tenantId }: { tenantId: string }) {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('CASH');
+  const [paymentNote, setPaymentNote] = useState('');
 
-  useEffect(() => {
+  const loadData = () => {
+    setLoading(true);
     Promise.all([
       customerApi.list(tenantId, 'limit=1000'),
       serviceOrderApi.list(tenantId, 'limit=1000'),
@@ -1777,7 +1783,7 @@ function ReceivablesPage({ tenantId }: { tenantId: string }) {
       const orders = oRes?.data || oRes || [];
       const map = new Map<string, any>();
       for (const c of customers) {
-        map.set(c.id, { ...c, totalDebt: 0, totalPaid: 0, remainingBalance: 0, orderCount: 0 });
+        map.set(c.id, { ...c, totalDebt: 0, totalPaid: 0, remainingBalance: 0, orderCount: 0, orders: [] });
       }
       for (const o of orders) {
         const cust = map.get(o.customerId);
@@ -1786,12 +1792,48 @@ function ReceivablesPage({ tenantId }: { tenantId: string }) {
           cust.totalPaid += Number(o.paidAmount || 0);
           cust.remainingBalance += (Number(o.totalAmount || 0) - Number(o.paidAmount || 0));
           cust.orderCount += 1;
+          cust.orders.push(o);
         }
       }
       setData(Array.from(map.values()).filter(c => c.orderCount > 0));
       setLoading(false);
     }).catch(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadData();
   }, [tenantId]);
+
+  const handlePayment = async () => {
+    if (!selectedCustomer || !paymentAmount) return;
+    const amount = parseFloat(paymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Geçerli bir tutar giriniz.');
+      return;
+    }
+
+    try {
+      // Update the first unpaid/partially-paid service order
+      const order = selectedCustomer.orders.find((o: any) => 
+        Number(o.totalAmount || 0) > Number(o.paidAmount || 0)
+      );
+      if (order) {
+        const currentPaid = Number(order.paidAmount || 0);
+        const newPaid = Math.min(currentPaid + amount, Number(order.totalAmount || 0));
+        await serviceOrderApi.update(tenantId, order.id, { paidAmount: newPaid });
+        alert(`✓ ${amount.toLocaleString('tr-TR')} TL ödeme kaydedildi.`);
+        setShowPaymentModal(false);
+        setPaymentAmount('');
+        setPaymentNote('');
+        loadData();
+      } else {
+        alert('Ödenecek borç bulunamadı.');
+      }
+    } catch (err: any) {
+      console.error('Payment failed:', err);
+      alert('Ödeme kaydedilemedi: ' + (err.message || 'Bilinmeyen hata'));
+    }
+  };
 
   return (
     <div>
@@ -1799,7 +1841,7 @@ function ReceivablesPage({ tenantId }: { tenantId: string }) {
       <div style={S.card}>
         {loading ? <div style={S.empty}>Yükleniyor...</div> : data.length === 0 ? <div style={S.empty}>Kayıt bulunamadı</div> : (
           <table style={S.table}>
-            <thead><tr><th style={S.th}>Müşteri</th><th style={S.th}>Toplam Borç</th><th style={S.th}>Ödenen</th><th style={S.th}>Kalan</th><th style={S.th}>Durum</th></tr></thead>
+            <thead><tr><th style={S.th}>Müşteri</th><th style={S.th}>Toplam Borç</th><th style={S.th}>Ödenen</th><th style={S.th}>Kalan</th><th style={S.th}>Durum</th><th style={S.th}>İşlem</th></tr></thead>
             <tbody>
               {data.map(c => (
                 <tr key={c.id}>
@@ -1808,12 +1850,90 @@ function ReceivablesPage({ tenantId }: { tenantId: string }) {
                   <td style={S.td}>₺{c.totalPaid.toLocaleString('tr-TR')}</td>
                   <td style={S.td}><strong style={{ color: c.remainingBalance > 0 ? '#dc2626' : '#16a34a' }}>₺{c.remainingBalance.toLocaleString('tr-TR')}</strong></td>
                   <td style={S.td}><span style={S.badge(c.remainingBalance > 0 ? 'red' : 'green')}>{c.remainingBalance > 0 ? 'Borçlu' : 'Temiz'}</span></td>
+                  <td style={S.td}>
+                    {c.remainingBalance > 0 && (
+                      <button 
+                        onClick={() => { setSelectedCustomer(c); setShowPaymentModal(true); }}
+                        style={{ padding: '6px 12px', fontSize: 13, background: '#16a34a', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        💰 Ödeme Al
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {/* Payment Modal */}
+      {showPaymentModal && selectedCustomer && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowPaymentModal(false)}>
+          <div style={{ background: 'white', borderRadius: 12, maxWidth: 500, width: '90%', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
+              <h2 style={{ margin: 0, fontSize: 20 }}>💰 Ödeme Al</h2>
+              <button onClick={() => setShowPaymentModal(false)} style={{ background: 'none', border: 'none', fontSize: 28, cursor: 'pointer', color: '#64748b', lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ padding: 24 }}>
+              <div style={{ marginBottom: 16 }}>
+                <strong>Müşteri:</strong> {selectedCustomer.fullName}
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <strong>Kalan Borç:</strong>{' '}
+                <span style={{ color: '#dc2626', fontSize: 18 }}>
+                  ₺{selectedCustomer.remainingBalance.toLocaleString('tr-TR')}
+                </span>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>Ödeme Tutarı *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={selectedCustomer.remainingBalance}
+                  value={paymentAmount}
+                  onChange={e => setPaymentAmount(e.target.value)}
+                  placeholder="0.00"
+                  style={{ width: '100%', padding: 12, border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 18, fontWeight: 600 }}
+                  autoFocus
+                />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>Ödeme Yöntemi</label>
+                <select 
+                  value={paymentMethod} 
+                  onChange={e => setPaymentMethod(e.target.value)}
+                  style={{ width: '100%', padding: 12, border: '1px solid #cbd5e1', borderRadius: 8 }}
+                >
+                  <option value="CASH">💵 Nakit</option>
+                  <option value="CARD">💳 Kredi Kartı</option>
+                  <option value="TRANSFER">🏦 Havale/EFT</option>
+                  <option value="CHECK">📝 Çek</option>
+                </select>
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>Not</label>
+                <textarea
+                  value={paymentNote}
+                  onChange={e => setPaymentNote(e.target.value)}
+                  placeholder="Ödeme hakkında not (opsiyonel)"
+                  rows={3}
+                  style={{ width: '100%', padding: 12, border: '1px solid #cbd5e1', borderRadius: 8 }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button onClick={() => setShowPaymentModal(false)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
+                  İptal
+                </button>
+                <button onClick={handlePayment} style={{ flex: 1, padding: 12, background: '#16a34a', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
+                  ✓ Ödemeyi Kaydet
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
