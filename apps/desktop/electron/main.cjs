@@ -368,6 +368,7 @@ async function syncNow() {
     // --- 1. PUSH outbox ---
     const rows = getDb().prepare('SELECT * FROM outbox ORDER BY id LIMIT 200').all();
     console.log(`[sync] Pushing ${rows.length} operations from outbox`);
+    syncState.lastPushCount = rows.length;
     if (rows.length > 0) {
       const operations = rows.map((r) => ({
         entityId: r.entity_id,
@@ -382,7 +383,12 @@ async function syncNow() {
         body: { deviceKey, operations },
       });
       console.log('[sync] Push response:', { ok: res.ok, status: res.status, data: res.data });
-      if (!res.ok) throw new Error(`Push başarısız (HTTP ${res.status})`);
+      syncState.lastPushStatus = res.status;
+      syncState.lastPushOk = res.ok;
+      if (!res.ok) {
+        syncState.lastError = `Push başarısız (HTTP ${res.status})`;
+        throw new Error(`Push başarısız (HTTP ${res.status})`);
+      }
 
       const results = Array.isArray(res.data) ? res.data : [];
       const tableByType = {};

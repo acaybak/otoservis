@@ -113,7 +113,16 @@ interface TenantProfile {
 interface TenantProfileForm {
   name: string; phone: string; email: string; address: string; city: string; website: string; logo?: string;
 }
-interface SyncStatus { online: boolean; syncing: boolean; lastSyncAt: string | null; lastError: string | null; pending: number; }
+interface SyncStatus { 
+  online: boolean; 
+  syncing: boolean; 
+  lastSyncAt: string | null; 
+  lastError: string | null; 
+  pending: number;
+  lastPushCount?: number;
+  lastPushStatus?: number;
+  lastPushOk?: boolean;
+}
 interface UpdateStatus {
   status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error';
   version: string | null;
@@ -4550,6 +4559,26 @@ function SettingsPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#64748b' }}>Servis Kayıtları:</span>
                     <span style={{ fontWeight: 600, color: '#1e293b' }}>{localCounts.serviceOrders}</span>
+                  </div>
+                </>
+              )}
+              
+              {/* Push Debug Info */}
+              {syncStatus?.lastPushCount !== undefined && (
+                <>
+                  <div style={{ borderTop: '1px solid #e2e8f0', marginTop: '0.5rem', paddingTop: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>Son Push:</span>
+                      <span style={{ fontWeight: 600, color: '#1e293b' }}>{syncStatus.lastPushCount} kayıt</span>
+                    </div>
+                    {syncStatus.lastPushStatus !== undefined && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#64748b' }}>HTTP Durumu:</span>
+                        <span style={{ fontWeight: 600, color: syncStatus.lastPushOk ? '#16a34a' : '#dc2626' }}>
+                          {syncStatus.lastPushStatus} {syncStatus.lastPushOk ? '✓' : '✗'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
