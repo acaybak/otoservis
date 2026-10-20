@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
 import { normalizePlate } from '@otoservis/shared';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class VehiclesService {
@@ -172,6 +173,20 @@ export class VehiclesService {
       newValue: vehicle,
     });
 
+    // Create sync operation for desktop sync
+    await this.prisma.syncOperation.create({
+      data: {
+        tenantId,
+        deviceId: 'web',
+        operationId: randomUUID(),
+        entityId: vehicle!.id,
+        entityType: 'VEHICLE',
+        operationType: 'CREATE',
+        payload: vehicle as any,
+        status: 'SYNCED',
+      },
+    });
+
     this.logger.log(`Vehicle created: ${vehicle!.id} plate: ${plateNormalized}`);
     return vehicle;
   }
@@ -210,6 +225,20 @@ export class VehiclesService {
       entityId: id,
       oldValue: existing,
       newValue: updated,
+    });
+
+    // Create sync operation for desktop sync
+    await this.prisma.syncOperation.create({
+      data: {
+        tenantId,
+        deviceId: 'web',
+        operationId: randomUUID(),
+        entityId: id,
+        entityType: 'VEHICLE',
+        operationType: 'UPDATE',
+        payload: updated as any,
+        status: 'SYNCED',
+      },
     });
 
     return updated;
@@ -259,6 +288,20 @@ export class VehiclesService {
       entity: 'Vehicle',
       entityId: id,
       oldValue: existing,
+    });
+
+    // Create sync operation for desktop sync
+    await this.prisma.syncOperation.create({
+      data: {
+        tenantId,
+        deviceId: 'web',
+        operationId: randomUUID(),
+        entityId: id,
+        entityType: 'VEHICLE',
+        operationType: 'DELETE',
+        payload: {},
+        status: 'SYNCED',
+      },
     });
 
     return { message: 'Araç başarıyla silindi.' };

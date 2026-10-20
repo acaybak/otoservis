@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/services/audit.service';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class CustomersService {
@@ -142,6 +143,20 @@ export class CustomersService {
       newValue: customer,
     });
 
+    // Create sync operation for desktop sync
+    await this.prisma.syncOperation.create({
+      data: {
+        tenantId,
+        deviceId: 'web', // Web client
+        operationId: randomUUID(),
+        entityId: customer!.id,
+        entityType: 'CUSTOMER',
+        operationType: 'CREATE',
+        payload: customer as any,
+        status: 'SYNCED',
+      },
+    });
+
     this.logger.log(`Customer created: ${customer!.id}`);
     return customer;
   }
@@ -183,6 +198,20 @@ export class CustomersService {
       newValue: updated,
     });
 
+    // Create sync operation for desktop sync
+    await this.prisma.syncOperation.create({
+      data: {
+        tenantId,
+        deviceId: 'web',
+        operationId: randomUUID(),
+        entityId: id,
+        entityType: 'CUSTOMER',
+        operationType: 'UPDATE',
+        payload: updated as any,
+        status: 'SYNCED',
+      },
+    });
+
     return updated;
   }
 
@@ -218,6 +247,20 @@ export class CustomersService {
       entity: 'Customer',
       entityId: id,
       oldValue: existing,
+    });
+
+    // Create sync operation for desktop sync
+    await this.prisma.syncOperation.create({
+      data: {
+        tenantId,
+        deviceId: 'web',
+        operationId: randomUUID(),
+        entityId: id,
+        entityType: 'CUSTOMER',
+        operationType: 'DELETE',
+        payload: {},
+        status: 'SYNCED',
+      },
     });
 
     return { message: 'Müşteri başarıyla silindi.' };
