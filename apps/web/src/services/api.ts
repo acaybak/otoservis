@@ -195,25 +195,25 @@ export const inventoryApi = {
 // Maintenance
 export const maintenanceApi = {
   listRecords: (tenantId: string, params?: string) =>
-    api.get<any>(`/maintenance/records${params ? `?${params}` : ''}`, tenantId),
+    api.get<any>(`/maintenance-records${params ? `?${params}` : ''}`, tenantId),
   getRecord: (tenantId: string, id: string) =>
-    api.get<any>(`/maintenance/records/${id}`, tenantId),
+    api.get<any>(`/maintenance-records/${id}`, tenantId),
   createRecord: (tenantId: string, data: any) =>
-    api.post<any>('/maintenance/records', data, tenantId),
+    api.post<any>('/maintenance-records', data, tenantId),
   updateRecord: (tenantId: string, id: string, data: any) =>
-    api.patch<any>(`/maintenance/records/${id}`, data, tenantId),
+    api.patch<any>(`/maintenance-records/${id}`, data, tenantId),
   removeRecord: (tenantId: string, id: string) =>
-    api.delete<any>(`/maintenance/records/${id}`, tenantId),
+    api.delete<any>(`/maintenance-records/${id}`, tenantId),
   listTypes: (tenantId: string) =>
-    api.get<any>('/maintenance/types', tenantId),
+    api.get<any>('/maintenance-types', tenantId),
   createType: (tenantId: string, data: any) =>
-    api.post<any>('/maintenance/types', data, tenantId),
+    api.post<any>('/maintenance-types', data, tenantId),
   listSchedules: (tenantId: string, vehicleId?: string) =>
-    api.get<any>(`/maintenance/schedules${vehicleId ? `?vehicleId=${vehicleId}` : ''}`, tenantId),
+    api.get<any>(`/vehicle-maintenances${vehicleId ? `?vehicleId=${vehicleId}` : ''}`, tenantId),
   createSchedule: (tenantId: string, data: any) =>
-    api.post<any>('/maintenance/schedules', data, tenantId),
+    api.post<any>('/vehicle-maintenances', data, tenantId),
   updateSchedule: (tenantId: string, id: string, data: any) =>
-    api.patch<any>(`/maintenance/schedules/${id}`, data, tenantId),
+    api.patch<any>(`/vehicle-maintenances/${id}`, data, tenantId),
 };
 
 // Service Order Parts & Labor
