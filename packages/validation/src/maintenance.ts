@@ -94,14 +94,14 @@ export const maintenanceRecordSearchSchema = z.object({
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  limit: z.coerce.number().int().min(1).max(1000).default(20),
 });
 
 export const vehicleMaintenanceSearchSchema = z.object({
   vehicleId: z.string().uuid().optional(),
   maintenanceTypeId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  limit: z.coerce.number().int().min(1).max(1000).default(20),
 });
 
 // ---------------------------------------------------------------------------

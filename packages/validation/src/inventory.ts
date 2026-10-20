@@ -40,7 +40,7 @@ export const productSearchSchema = z.object({
   brand: z.string().optional(),
   lowStock: z.coerce.boolean().optional(),
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  limit: z.coerce.number().int().min(1).max(1000).default(20),
 });
 
 export const stockAdjustmentSchema = z.object({
