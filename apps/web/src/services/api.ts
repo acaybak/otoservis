@@ -96,6 +96,8 @@ export const customerApi = {
 export const vehicleApi = {
   list: (tenantId: string, params?: string) =>
     api.get<any>(`/vehicles${params ? `?${params}` : ''}`, tenantId),
+  get: (tenantId: string, id: string) =>
+    api.get<any>(`/vehicles/${id}`, tenantId),
   create: (tenantId: string, data: any) =>
     api.post<any>('/vehicles', data, tenantId),
   update: (tenantId: string, id: string, data: any) =>

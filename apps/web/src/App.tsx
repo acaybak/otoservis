@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
-import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useNavigate, useLocation, useSearchParams, useParams } from 'react-router-dom';
 import { authApi, setToken, getToken, customerApi, vehicleApi, serviceOrderApi, accountingApi, reportingApi, adminApi, licenseApi, tenantApi, PORTAL_URL, warmupApi, appointmentApi, inventoryApi, maintenanceApi, serviceOrderPartsApi, quoteApi, invoiceApi } from './services/api';
 
 // Yönetim paneli (Lisans Yönetimi dahil) yalnızca bu e-postalara açıktır.
@@ -624,6 +624,7 @@ function CustomersPage({ tenantId }: { tenantId: string }) {
 
 // ============ VEHICLES PAGE ============
 function VehiclesPage({ tenantId }: { tenantId: string }) {
+  const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -680,7 +681,17 @@ function VehiclesPage({ tenantId }: { tenantId: string }) {
                   <td style={S.td}>{v.year || '-'}</td>
                   <td style={S.td}>{v.color || '-'}</td>
                   <td style={S.td}>{getCustomerName(v.customerId)}</td>
-                  <td style={S.td}><button style={S.btnDanger} onClick={() => { vehicleApi.remove(tenantId, v.id); load(); }}>Sil</button></td>
+                  <td style={S.td}>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button 
+                        onClick={() => navigate(`/vehicles/${v.id}`)}
+                        style={{ padding: '6px 12px', fontSize: 13, background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        📋 Geçmiş
+                      </button>
+                      <button style={S.btnDanger} onClick={() => { vehicleApi.remove(tenantId, v.id); load(); }}>Sil</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -714,6 +725,282 @@ function VehiclesPage({ tenantId }: { tenantId: string }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============ VEHICLE DETAIL PAGE ============
+function VehicleDetailPage({ tenantId }: { tenantId: string }) {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [vehicle, setVehicle] = useState<any>(null);
+  const [serviceOrders, setServiceOrders] = useState<any[]>([]);
+  const [maintenanceRecords, setMaintenanceRecords] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'maintenance' | 'payments'>('overview');
+
+  useEffect(() => {
+    if (!id) return;
+    Promise.all([
+      vehicleApi.get(tenantId, id),
+      serviceOrderApi.list(tenantId, `vehicleId=${id}&limit=1000`),
+      maintenanceApi.listRecords(tenantId, `vehicleId=${id}&limit=1000`),
+    ]).then(([vRes, oRes, mRes]) => {
+      setVehicle(vRes);
+      setServiceOrders(oRes?.data || oRes || []);
+      setMaintenanceRecords(mRes?.data || mRes || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [id, tenantId]);
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>Yükleniyor...</div>;
+  if (!vehicle) return <div style={{ padding: 40, textAlign: 'center' }}>Araç bulunamadı</div>;
+
+  const totalSpent = serviceOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0) + 
+                    maintenanceRecords.reduce((sum, r) => sum + Number(r.totalAmount || 0), 0);
+  const totalPaid = serviceOrders.reduce((sum, o) => sum + Number(o.paidAmount || 0), 0);
+  const remainingBalance = totalSpent - totalPaid;
+
+  const statusColors: Record<string, string> = {
+    APPOINTMENT: '#3b82f6', VEHICLE_ARRIVED: '#8b5cf6', INSPECTION: '#f59e0b',
+    PREPARING_QUOTE: '#f59e0b', AWAITING_APPROVAL: '#f59e0b', APPROVED: '#10b981',
+    IN_PROGRESS: '#3b82f6', AWAITING_INSPECTION: '#f59e0b', READY: '#10b981',
+    DELIVERED: '#6b7280', CANCELLED: '#ef4444',
+  };
+  const statusLabels: Record<string, string> = {
+    APPOINTMENT: 'Randevu', VEHICLE_ARRIVED: 'Araç Geldi', INSPECTION: 'Muayene',
+    PREPARING_QUOTE: 'Teklif Hazırlanıyor', AWAITING_APPROVAL: 'Onay Bekliyor', APPROVED: 'Onaylandı',
+    IN_PROGRESS: 'İşlemde', AWAITING_INSPECTION: 'Muayene Bekliyor', READY: 'Hazır',
+    DELIVERED: 'Teslim Edildi', CANCELLED: 'İptal',
+  };
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ ...S.header, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <button onClick={() => navigate('/vehicles')} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer' }}>←</button>
+          <div>
+            <h1 style={{ ...S.pageTitle, margin: 0 }}>{vehicle.plate}</h1>
+            <div style={{ color: '#64748b', fontSize: 14, marginTop: 4 }}>
+              {vehicle.brand} {vehicle.model} {vehicle.year && `• ${vehicle.year}`}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, padding: '0 24px 24px' }}>
+        <div style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)', borderRadius: 12, padding: 20, color: 'white' }}>
+          <div style={{ fontSize: 14, opacity: 0.9 }}>Toplam Harcama</div>
+          <div style={{ fontSize: 28, fontWeight: 700, marginTop: 8 }}>₺{totalSpent.toLocaleString('tr-TR')}</div>
+        </div>
+        <div style={{ background: 'linear-gradient(135deg, #10b981, #059669)', borderRadius: 12, padding: 20, color: 'white' }}>
+          <div style={{ fontSize: 14, opacity: 0.9 }}>Ödenen</div>
+          <div style={{ fontSize: 28, fontWeight: 700, marginTop: 8 }}>₺{totalPaid.toLocaleString('tr-TR')}</div>
+        </div>
+        <div style={{ background: remainingBalance > 0 ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #6b7280, #4b5563)', borderRadius: 12, padding: 20, color: 'white' }}>
+          <div style={{ fontSize: 14, opacity: 0.9 }}>Kalan Borç</div>
+          <div style={{ fontSize: 28, fontWeight: 700, marginTop: 8 }}>₺{remainingBalance.toLocaleString('tr-TR')}</div>
+        </div>
+        <div style={{ background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', borderRadius: 12, padding: 20, color: 'white' }}>
+          <div style={{ fontSize: 14, opacity: 0.9 }}>Servis Sayısı</div>
+          <div style={{ fontSize: 28, fontWeight: 700, marginTop: 8 }}>{serviceOrders.length}</div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ padding: '0 24px' }}>
+        <div style={{ display: 'flex', gap: 8, borderBottom: '2px solid #e2e8f0', marginBottom: 24 }}>
+          {[
+            { key: 'overview', label: '📋 Genel Bakış' },
+            { key: 'orders', label: `🔧 Servis Kayıtları (${serviceOrders.length})` },
+            { key: 'maintenance', label: `🛠️ Bakım Kayıtları (${maintenanceRecords.length})` },
+            { key: 'payments', label: '💰 Ödemeler' },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as any)}
+              style={{
+                padding: '12px 20px',
+                background: activeTab === tab.key ? '#3b82f6' : 'transparent',
+                color: activeTab === tab.key ? 'white' : '#64748b',
+                border: 'none',
+                borderBottom: activeTab === tab.key ? '3px solid #3b82f6' : '3px solid transparent',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: 14,
+                marginBottom: -2,
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'overview' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+            <div style={S.card}>
+              <h3 style={{ marginBottom: 16, color: '#1e293b' }}>Araç Bilgileri</h3>
+              <div style={{ display: 'grid', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#64748b' }}>Plaka</span>
+                  <strong>{vehicle.plate}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#64748b' }}>Marka</span>
+                  <strong>{vehicle.brand || '-'}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#64748b' }}>Model</span>
+                  <strong>{vehicle.model || '-'}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#64748b' }}>Yıl</span>
+                  <strong>{vehicle.year || '-'}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#64748b' }}>Renk</span>
+                  <strong>{vehicle.color || '-'}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#64748b' }}>VIN</span>
+                  <strong>{vehicle.vin || '-'}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+                  <span style={{ color: '#64748b' }}>Müşteri</span>
+                  <strong>{vehicle.vehicleOwners?.[0]?.customer?.fullName || '-'}</strong>
+                </div>
+              </div>
+            </div>
+            <div style={S.card}>
+              <h3 style={{ marginBottom: 16, color: '#1e293b' }}>Son Aktivite</h3>
+              {serviceOrders.length === 0 ? (
+                <div style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>Henüz servis kaydı yok</div>
+              ) : (
+                <div style={{ display: 'grid', gap: 12 }}>
+                  {serviceOrders.slice(0, 5).map(order => (
+                    <div key={order.id} style={{ padding: 12, background: '#f8fafc', borderRadius: 8, borderLeft: `4px solid ${statusColors[order.status] || '#64748b'}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <strong style={{ fontSize: 14 }}>{new Date(order.createdAt).toLocaleDateString('tr-TR')}</strong>
+                        <span style={{ fontSize: 12, padding: '2px 8px', background: statusColors[order.status], color: 'white', borderRadius: 4 }}>
+                          {statusLabels[order.status] || order.status}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 13, color: '#64748b' }}>
+                        {order.customerComplaint || order.diagnosis || 'İş emri'}
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4, color: '#1e293b' }}>
+                        ₺{Number(order.totalAmount || 0).toLocaleString('tr-TR')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'orders' && (
+          <div style={S.card}>
+            {serviceOrders.length === 0 ? (
+              <div style={S.empty}>Servis kaydı bulunamadı</div>
+            ) : (
+              <table style={S.table}>
+                <thead>
+                  <tr>
+                    <th style={S.th}>Tarih</th>
+                    <th style={S.th}>Durum</th>
+                    <th style={S.th}>Şikayet</th>
+                    <th style={S.th}>Teşhis</th>
+                    <th style={{ ...S.th, textAlign: 'right' }}>Tutar</th>
+                    <th style={{ ...S.th, textAlign: 'right' }}>Ödenen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {serviceOrders.map(order => (
+                    <tr key={order.id}>
+                      <td style={S.td}><strong>{new Date(order.createdAt).toLocaleDateString('tr-TR')}</strong></td>
+                      <td style={S.td}>
+                        <span style={{ fontSize: 12, padding: '4px 10px', background: statusColors[order.status], color: 'white', borderRadius: 6, fontWeight: 600 }}>
+                          {statusLabels[order.status] || order.status}
+                        </span>
+                      </td>
+                      <td style={S.td}>{order.customerComplaint || '-'}</td>
+                      <td style={S.td}>{order.diagnosis || '-'}</td>
+                      <td style={{ ...S.td, textAlign: 'right' }}><strong>₺{Number(order.totalAmount || 0).toLocaleString('tr-TR')}</strong></td>
+                      <td style={{ ...S.td, textAlign: 'right' }}>₺{Number(order.paidAmount || 0).toLocaleString('tr-TR')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'maintenance' && (
+          <div style={S.card}>
+            {maintenanceRecords.length === 0 ? (
+              <div style={S.empty}>Bakım kaydı bulunamadı</div>
+            ) : (
+              <table style={S.table}>
+                <thead>
+                  <tr>
+                    <th style={S.th}>Tarih</th>
+                    <th style={S.th}>Bakım Tipi</th>
+                    <th style={{ ...S.th, textAlign: 'right' }}>KM</th>
+                    <th style={{ ...S.th, textAlign: 'right' }}>Tutar</th>
+                    <th style={S.th}>Not</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {maintenanceRecords.map(record => (
+                    <tr key={record.id}>
+                      <td style={S.td}><strong>{record.performedAt ? new Date(record.performedAt).toLocaleDateString('tr-TR') : '-'}</strong></td>
+                      <td style={S.td}>{record.maintenanceType?.name || 'Genel Bakım'}</td>
+                      <td style={{ ...S.td, textAlign: 'right' }}>{record.km ? `${Number(record.km).toLocaleString('tr-TR')} km` : '-'}</td>
+                      <td style={{ ...S.td, textAlign: 'right' }}><strong>₺{Number(record.totalAmount || 0).toLocaleString('tr-TR')}</strong></td>
+                      <td style={S.td}>{record.notes || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'payments' && (
+          <div style={S.card}>
+            <div style={{ padding: 20 }}>
+              <div style={{ display: 'grid', gap: 16 }}>
+                <div style={{ padding: 16, background: '#f0fdf4', borderRadius: 8, borderLeft: '4px solid #10b981' }}>
+                  <div style={{ color: '#64748b', fontSize: 14 }}>Toplam Ödenen</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#10b981', marginTop: 4 }}>₺{totalPaid.toLocaleString('tr-TR')}</div>
+                </div>
+                {remainingBalance > 0 && (
+                  <div style={{ padding: 16, background: '#fef2f2', borderRadius: 8, borderLeft: '4px solid #ef4444' }}>
+                    <div style={{ color: '#64748b', fontSize: 14 }}>Kalan Borç</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#ef4444', marginTop: 4 }}>₺{remainingBalance.toLocaleString('tr-TR')}</div>
+                  </div>
+                )}
+                <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8 }}>
+                  <div style={{ color: '#64748b', fontSize: 14, marginBottom: 12 }}>Ödeme Geçmişi</div>
+                  {serviceOrders.filter(o => Number(o.paidAmount || 0) > 0).map(order => (
+                    <div key={order.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e2e8f0' }}>
+                      <span>{new Date(order.createdAt).toLocaleDateString('tr-TR')} - Servis #{order.id.slice(0, 8)}</span>
+                      <strong style={{ color: '#10b981' }}>₺{Number(order.paidAmount || 0).toLocaleString('tr-TR')}</strong>
+                    </div>
+                  ))}
+                  {serviceOrders.filter(o => Number(o.paidAmount || 0) > 0).length === 0 && (
+                    <div style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>Henüz ödeme yapılmadı</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -3590,6 +3877,7 @@ function AppInner() {
           <Route path="/appointments" element={<AppointmentsPage tenantId={user.tenantId} />} />
           <Route path="/customers" element={<CustomersPage tenantId={user.tenantId} />} />
           <Route path="/vehicles" element={<VehiclesPage tenantId={user.tenantId} />} />
+          <Route path="/vehicles/:id" element={<VehicleDetailPage tenantId={user.tenantId} />} />
           <Route path="/inventory" element={<InventoryPage tenantId={user.tenantId} />} />
           <Route path="/suppliers" element={<SuppliersPage tenantId={user.tenantId} />} />
           <Route path="/maintenance" element={<MaintenancePage tenantId={user.tenantId} />} />
