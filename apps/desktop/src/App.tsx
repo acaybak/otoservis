@@ -4021,6 +4021,10 @@ function SettingsPage() {
   const [licenseErr, setLicenseErr] = useState('');
   const [licenseMsg, setLicenseMsg] = useState('');
 
+  // Sync debug (Ayarlar → Senkronizasyon)
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+  const [syncBusy, setSyncBusy] = useState(false);
+
   const loadProfile = useCallback(async () => {
     if (!bridge) return;
     setProfileLoading(true);
@@ -4042,6 +4046,7 @@ function SettingsPage() {
     if (!bridge) return;
     bridge.getConfig().then((c) => { setServerUrl(c.serverUrl || ''); setDeviceKey(c.deviceKey || ''); });
     bridge.info().then(setAppInfo).catch(() => {});
+    bridge.syncStatus().then(setSyncStatus).catch(() => {});
     loadProfile();
   }, [loadProfile]);
 
@@ -4112,6 +4117,19 @@ function SettingsPage() {
     await bridge.copyText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(''), 2000);
+  };
+
+  const handleManualSync = async () => {
+    if (!bridge) return;
+    setSyncBusy(true);
+    try {
+      const status = await bridge.syncNow();
+      setSyncStatus(status);
+    } catch (err: any) {
+      console.error('Sync failed:', err);
+    } finally {
+      setSyncBusy(false);
+    }
   };
 
   const handleActivateLicense = async () => {
@@ -4421,11 +4439,65 @@ function SettingsPage() {
 
         <div style={S.card}>
           <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Senkronizasyon</h3>
-          <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: 1.6 }}>
+          <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: 1.6, marginBottom: '1rem' }}>
             Değişiklikler her 30 saniyede bir otomatik olarak buluta gönderilir ve buluttaki güncellemeler
             indirilir. Üstteki durum çubuğundan bağlantı durumunu görebilir, "Senkronize Et" ile elle
             tetikleyebilirsiniz (Ctrl+S).
           </p>
+          
+          {/* Sync Debug Panel */}
+          <div style={{ background: '#f8fafc', borderRadius: 8, padding: '1rem', border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#1e293b' }}>Debug Bilgileri</h4>
+              <button 
+                onClick={handleManualSync} 
+                disabled={syncBusy}
+                style={{ 
+                  ...S.btnPrimary, 
+                  padding: '0.4rem 0.8rem', 
+                  fontSize: '0.82rem',
+                  opacity: syncBusy ? 0.6 : 1,
+                  cursor: syncBusy ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {syncBusy ? 'Senkronize ediliyor...' : '🔄 Şimdi Senkronize Et'}
+              </button>
+            </div>
+            
+            <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b' }}>Durum:</span>
+                <span style={{ 
+                  fontWeight: 600, 
+                  color: syncStatus?.online ? '#16a34a' : '#dc2626' 
+                }}>
+                  {syncStatus?.online ? '● Çevrimiçi' : '● Çevrimdışı'}
+                </span>
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b' }}>Bekleyen İşlemler (Outbox):</span>
+                <span style={{ fontWeight: 600, color: syncStatus?.pending && syncStatus.pending > 0 ? '#ea580c' : '#1e293b' }}>
+                  {syncStatus?.pending ?? 0}
+                </span>
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b' }}>Son Senkronizasyon:</span>
+                <span style={{ fontWeight: 500, color: '#1e293b', fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                  {syncStatus?.lastSyncAt ? new Date(syncStatus.lastSyncAt).toLocaleString('tr-TR') : 'Henüz yok'}
+                </span>
+              </div>
+              
+              {syncStatus?.lastError && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, padding: '0.5rem', marginTop: '0.5rem' }}>
+                  <div style={{ color: '#dc2626', fontSize: '0.82rem', fontWeight: 500 }}>
+                    ⚠️ Hata: {syncStatus.lastError}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </Layout>
