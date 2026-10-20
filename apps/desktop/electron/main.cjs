@@ -400,13 +400,16 @@ async function syncNow() {
             getDb().prepare(`DELETE FROM ${table} WHERE id = ?`).run(row.entity_id);
           }
         } else {
-          console.warn(`[sync] Operation failed:`, row.entity_type, row.entity_id, r.error);
+          const errorMsg = r.error || 'Bilinmeyen hata';
+          console.warn(`[sync] Operation failed:`, row.entity_type, row.entity_id, errorMsg);
+          // Store last error in syncState for debug panel
+          syncState.lastError = `${row.entity_type}/${row.entity_id}: ${errorMsg}`;
           // FAILED: drop after 5 retries to avoid infinite loops
           getDb().prepare('UPDATE outbox SET retry_count = retry_count + 1 WHERE id = ?').run(row.id);
           const updated = getDb().prepare('SELECT retry_count FROM outbox WHERE id = ?').get(row.id);
           if (updated && updated.retry_count >= 5) {
             getDb().prepare('DELETE FROM outbox WHERE id = ?').run(row.id);
-            console.error(`[sync] Op dropped after retries: ${row.entity_type}/${row.entity_id} - ${r.error || 'bilinmeyen hata'}`);
+            console.error(`[sync] Op dropped after retries: ${row.entity_type}/${row.entity_id} - ${errorMsg}`);
           }
         }
       });
