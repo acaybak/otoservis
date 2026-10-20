@@ -4,7 +4,7 @@ export const createCustomerSchema = z.object({
   firstName: z.string().min(1, 'Ad zorunludur.').max(100),
   lastName: z.string().max(100).optional(),
   phone: z.string().max(20).optional(),
-  email: z.string().email().optional(),
+  email: z.string().email().or(z.literal('')).optional(),
   tcNo: z.string().max(11).optional(),
   notes: z.string().optional(),
   addresses: z.array(z.object({
@@ -24,7 +24,7 @@ export const updateCustomerSchema = z.object({
   firstName: z.string().min(1).max(100).optional(),
   lastName: z.string().min(1).max(100).optional(),
   phone: z.string().max(20).nullable().optional(),
-  email: z.string().email().nullable().optional(),
+  email: z.string().email().or(z.literal('')).nullable().optional(),
   tcNo: z.string().max(11).nullable().optional(),
   notes: z.string().nullable().optional(),
 });
