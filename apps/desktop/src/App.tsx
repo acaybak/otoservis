@@ -4024,6 +4024,7 @@ function SettingsPage() {
   // Sync debug (Ayarlar → Senkronizasyon)
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [syncBusy, setSyncBusy] = useState(false);
+  const [localCounts, setLocalCounts] = useState<{ customers: number; vehicles: number; serviceOrders: number } | null>(null);
 
   const loadProfile = useCallback(async () => {
     if (!bridge) return;
@@ -4047,6 +4048,14 @@ function SettingsPage() {
     bridge.getConfig().then((c) => { setServerUrl(c.serverUrl || ''); setDeviceKey(c.deviceKey || ''); });
     bridge.info().then(setAppInfo).catch(() => {});
     bridge.syncStatus().then(setSyncStatus).catch(() => {});
+    // Load local record counts for debug
+    Promise.all([
+      bridge.list('customers', { limit: 1 }).then(r => r.total).catch(() => 0),
+      bridge.list('vehicles', { limit: 1 }).then(r => r.total).catch(() => 0),
+      bridge.list('service_orders', { limit: 1 }).then(r => r.total).catch(() => 0),
+    ]).then(([customers, vehicles, serviceOrders]) => {
+      setLocalCounts({ customers, vehicles, serviceOrders });
+    });
     loadProfile();
   }, [loadProfile]);
 
@@ -4488,6 +4497,26 @@ function SettingsPage() {
                   {syncStatus?.lastSyncAt ? new Date(syncStatus.lastSyncAt).toLocaleString('tr-TR') : 'Henüz yok'}
                 </span>
               </div>
+              
+              {localCounts && (
+                <>
+                  <div style={{ borderTop: '1px solid #e2e8f0', marginTop: '0.5rem', paddingTop: '0.5rem' }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#475569', marginBottom: '0.25rem' }}>Yerel Kayıtlar (SQLite):</div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>Müşteriler:</span>
+                    <span style={{ fontWeight: 600, color: '#1e293b' }}>{localCounts.customers}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>Araçlar:</span>
+                    <span style={{ fontWeight: 600, color: '#1e293b' }}>{localCounts.vehicles}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>Servis Kayıtları:</span>
+                    <span style={{ fontWeight: 600, color: '#1e293b' }}>{localCounts.serviceOrders}</span>
+                  </div>
+                </>
+              )}
               
               {syncStatus?.lastError && (
                 <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, padding: '0.5rem', marginTop: '0.5rem' }}>
