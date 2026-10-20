@@ -30,6 +30,7 @@ interface OtoservisBridge {
   stats: () => Promise<DashboardStats>;
   syncStatus: () => Promise<SyncStatus>;
   syncNow: () => Promise<SyncStatus>;
+  forceResync: () => Promise<{ success: boolean; count: number }>;
   onSyncStatus: (cb: (s: SyncStatus) => void) => () => void;
   // Arka plan senkronu yeni veri çektiğinde açık sayfalar listeyi yeniler
   onDataChanged: (cb: (info: { source?: string }) => void) => () => void;
@@ -4141,6 +4142,26 @@ function SettingsPage() {
     }
   };
 
+  const handleForceResync = async () => {
+    if (!bridge) return;
+    if (!window.confirm('Tüm yerel kayıtlar sunucuya tekrar gönderilecek. Emin misiniz?')) return;
+    setSyncBusy(true);
+    try {
+      const result = await bridge.forceResync();
+      if (result.success) {
+        alert(`✓ ${result.count} kayıt outbox\'a eklendi ve senkronizasyon başlatıldı.`);
+        // Refresh sync status
+        const status = await bridge.syncStatus();
+        setSyncStatus(status);
+      }
+    } catch (err: any) {
+      console.error('Force resync failed:', err);
+      alert('Force resync başarısız: ' + (err.message || 'Bilinmeyen hata'));
+    } finally {
+      setSyncBusy(false);
+    }
+  };
+
   const handleActivateLicense = async () => {
     if (!bridge || !profile) return;
     const key = licenseKeyInput.trim().toUpperCase();
@@ -4456,21 +4477,36 @@ function SettingsPage() {
           
           {/* Sync Debug Panel */}
           <div style={{ background: '#f8fafc', borderRadius: 8, padding: '1rem', border: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', gap: '0.5rem', flexWrap: 'wrap' }}>
               <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#1e293b' }}>Debug Bilgileri</h4>
-              <button 
-                onClick={handleManualSync} 
-                disabled={syncBusy}
-                style={{ 
-                  ...S.btnPrimary, 
-                  padding: '0.4rem 0.8rem', 
-                  fontSize: '0.82rem',
-                  opacity: syncBusy ? 0.6 : 1,
-                  cursor: syncBusy ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {syncBusy ? 'Senkronize ediliyor...' : '🔄 Şimdi Senkronize Et'}
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button 
+                  onClick={handleForceResync} 
+                  disabled={syncBusy}
+                  style={{ 
+                    ...S.btnSecondary, 
+                    padding: '0.4rem 0.8rem', 
+                    fontSize: '0.82rem',
+                    opacity: syncBusy ? 0.6 : 1,
+                    cursor: syncBusy ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  🔄 Force Re-Sync
+                </button>
+                <button 
+                  onClick={handleManualSync} 
+                  disabled={syncBusy}
+                  style={{ 
+                    ...S.btnPrimary, 
+                    padding: '0.4rem 0.8rem', 
+                    fontSize: '0.82rem',
+                    opacity: syncBusy ? 0.6 : 1,
+                    cursor: syncBusy ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {syncBusy ? 'Senkronize ediliyor...' : '🔄 Şimdi Senkronize Et'}
+                </button>
+              </div>
             </div>
             
             <div style={{ display: 'grid', gap: '0.5rem', fontSize: '0.85rem' }}>

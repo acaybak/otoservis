@@ -1032,6 +1032,43 @@ function registerIpc() {
   ipcMain.handle('store:update', (_e, entity, id, data) => handleUpdate(entity, id, data || {}));
   ipcMain.handle('store:remove', (_e, entity, id) => handleRemove(entity, id));
   ipcMain.handle('store:stats', () => handleStats());
+  
+  // Force re-sync: re-add all local records to outbox
+  ipcMain.handle('store:forceResync', () => {
+    const d = getDb();
+    const now = new Date().toISOString();
+    let count = 0;
+    
+    // Clear existing outbox
+    d.prepare('DELETE FROM outbox').run();
+    
+    // Re-add all entities to outbox
+    for (const [tableName, def] of Object.entries(ENTITIES)) {
+      try {
+        const rows = d.prepare(`SELECT * FROM ${tableName}`).all();
+        for (const row of rows) {
+          const payload = buildPayload(def, row);
+          // Add extra fields for service_orders
+          if (tableName === 'service_orders') {
+            const user = getMeta('user');
+            if (user) payload.createdById = JSON.parse(user).id;
+          }
+          d.prepare(
+            'INSERT INTO outbox (entity_type, entity_id, operation_type, payload, created_at) VALUES (?, ?, ?, ?, ?)'
+          ).run(def.type, row.id, 'CREATE', JSON.stringify(payload), now);
+          count++;
+        }
+        // Mark all as dirty
+        d.prepare(`UPDATE ${tableName} SET dirty = 1`).run();
+      } catch (err) {
+        console.error(`[forceResync] Error processing ${tableName}:`, err.message);
+      }
+    }
+    
+    console.log(`[forceResync] Re-added ${count} records to outbox`);
+    scheduleSync();
+    return { success: true, count };
+  });
 
   // Service order sub-entity handlers (parts, labor, notes)
   ipcMain.handle('so:listParts', (_e, serviceOrderId) => {
