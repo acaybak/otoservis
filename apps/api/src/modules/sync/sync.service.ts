@@ -7,6 +7,10 @@ import {
   createVehicleSchema,
   createAppointmentSchema,
   createProductSchema,
+  addPartSchema,
+  addLaborSchema,
+  addNoteSchema,
+  createMaintenanceTypeSchema,
 } from '@otoservis/validation';
 
 export interface SyncOperationDto {
@@ -195,6 +199,46 @@ export class SyncService {
         break;
       }
 
+      case 'SERVICE_ORDER_PART': {
+        const data = addPartSchema.parse(p);
+        await this.prisma.serviceOrderPart.upsert({
+          where: { id: entityId },
+          create: { id: entityId, serviceOrderId: p.serviceOrderId as string, ...data },
+          update: { ...data },
+        });
+        break;
+      }
+
+      case 'SERVICE_ORDER_LABOR': {
+        const data = addLaborSchema.parse(p);
+        await this.prisma.serviceOrderLabor.upsert({
+          where: { id: entityId },
+          create: { id: entityId, serviceOrderId: p.serviceOrderId as string, ...data },
+          update: { ...data },
+        });
+        break;
+      }
+
+      case 'SERVICE_ORDER_NOTE': {
+        const data = addNoteSchema.parse(p);
+        await this.prisma.serviceOrderNote.upsert({
+          where: { id: entityId },
+          create: { id: entityId, serviceOrderId: p.serviceOrderId as string, createdById: p.createdById as string, ...data },
+          update: { ...data },
+        });
+        break;
+      }
+
+      case 'MAINTENANCE_TYPE': {
+        const data = createMaintenanceTypeSchema.parse(p);
+        await this.prisma.maintenanceType.upsert({
+          where: { id: entityId },
+          create: { id: entityId, tenantId, ...data },
+          update: { ...data },
+        });
+        break;
+      }
+
       default:
         throw new Error(`Bilinmeyen entity tipi: ${entityType}`);
     }
@@ -270,6 +314,18 @@ export class SyncService {
           break;
         case 'SERVICE_ORDER':
           await this.prisma.serviceOrder.deleteMany({ where: { id: entityId, tenantId } });
+          break;
+        case 'SERVICE_ORDER_PART':
+          await this.prisma.serviceOrderPart.deleteMany({ where: { id: entityId } });
+          break;
+        case 'SERVICE_ORDER_LABOR':
+          await this.prisma.serviceOrderLabor.deleteMany({ where: { id: entityId } });
+          break;
+        case 'SERVICE_ORDER_NOTE':
+          await this.prisma.serviceOrderNote.deleteMany({ where: { id: entityId } });
+          break;
+        case 'MAINTENANCE_TYPE':
+          await this.prisma.maintenanceType.deleteMany({ where: { id: entityId, tenantId } });
           break;
         default:
           throw new Error(`Bilinmeyen entity tipi: ${entityType}`);

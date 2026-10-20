@@ -37,6 +37,7 @@ export const addPartSchema = z.object({
   name: z.string().min(1, 'Parça adı zorunludur.'),
   quantity: z.number().positive('Miktar pozitif olmalıdır.'),
   unitPrice: z.number().min(0, 'Birim fiyat negatif olamaz.'),
+  total: z.number().min(0),
   notes: z.string().optional(),
 });
 
@@ -44,6 +45,7 @@ export const addLaborSchema = z.object({
   description: z.string().min(1, 'İşçilik açıklaması zorunludur.'),
   hours: z.number().positive('Saat pozitif olmalıdır.'),
   hourlyRate: z.number().min(0, 'Saatlik ücret negatif olamaz.'),
+  total: z.number().min(0),
 });
 
 export const addNoteSchema = z.object({
