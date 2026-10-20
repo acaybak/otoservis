@@ -57,6 +57,7 @@ contextBridge.exposeInMainWorld('otoservis', {
   // Sync
   syncStatus: () => ipcRenderer.invoke('sync:status'),
   syncNow: () => ipcRenderer.invoke('sync:now'),
+  forceResync: () => ipcRenderer.invoke('store:forceResync'),
   onSyncStatus: (callback) => {
     const handler = (_event, status) => callback(status);
     ipcRenderer.on('sync:status', handler);
