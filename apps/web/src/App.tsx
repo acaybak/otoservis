@@ -741,16 +741,21 @@ function VehicleDetailPage({ tenantId }: { tenantId: string }) {
 
   useEffect(() => {
     if (!id) return;
+    console.log('[VehicleDetail] Loading vehicle:', id, 'tenant:', tenantId);
     Promise.all([
       vehicleApi.get(tenantId, id),
       serviceOrderApi.list(tenantId, `vehicleId=${id}&limit=1000`),
       maintenanceApi.listRecords(tenantId, `vehicleId=${id}&limit=1000`),
     ]).then(([vRes, oRes, mRes]) => {
+      console.log('[VehicleDetail] Vehicle response:', vRes);
       setVehicle(vRes);
       setServiceOrders(oRes?.data || oRes || []);
       setMaintenanceRecords(mRes?.data || mRes || []);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch((err) => {
+      console.error('[VehicleDetail] Error loading vehicle:', err);
+      setLoading(false);
+    });
   }, [id, tenantId]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>Yükleniyor...</div>;
