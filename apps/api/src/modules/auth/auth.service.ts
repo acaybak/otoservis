@@ -71,43 +71,62 @@ export class AuthService {
   }
 
   async login(email: string, password: string): Promise<LoginResponse> {
-    const user = await this.prisma.user.findFirst({
-      where: { email: email.toLowerCase() },
-      include: {
-        tenant: true,
-        userRoles: {
-          include: {
-            role: {
-              include: {
-                rolePermissions: {
-                  include: { permission: true },
+    this.logger.log(`Login attempt for email: ${email}`);
+    
+    let user;
+    try {
+      user = await this.prisma.user.findFirst({
+        where: { email: email.toLowerCase() },
+        include: {
+          tenant: true,
+          userRoles: {
+            include: {
+              role: {
+                include: {
+                  rolePermissions: {
+                    include: { permission: true },
+                  },
                 },
               },
             },
           },
         },
-      },
-    });
+      });
+    } catch (error: any) {
+      this.logger.error(`Database error during user lookup: ${error.message}`, error.stack);
+      throw new Error('Giriş işlemi sırasında veritabanı hatası oluştu.');
+    }
 
     if (!user) {
+      this.logger.warn(`Login failed: User not found for email ${email}`);
       throw new UnauthorizedException('E-posta veya şifre hatalı.');
     }
 
     if (user.status !== 'ACTIVE') {
+      this.logger.warn(`Login failed: User ${email} status is ${user.status}`);
       throw new UnauthorizedException('Hesabınız aktif değil. Yöneticinizle iletişime geçin.');
     }
 
     if (!user.tenant) {
+      this.logger.error(`Login failed: User ${email} has no tenant relation`);
       throw new UnauthorizedException('Hesabınız bir servise bağlı değil. Yöneticinizle iletişime geçin.');
     }
 
     if (user.tenant.status !== 'ACTIVE' && user.tenant.status !== 'TRIAL') {
+      this.logger.warn(`Login failed: Tenant ${user.tenantId} status is ${user.tenant.status}`);
       throw new UnauthorizedException('Servis hesabı aktif değil.');
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    let isPasswordValid;
+    try {
+      isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    } catch (error: any) {
+      this.logger.error(`Password comparison error: ${error.message}`, error.stack);
+      throw new Error('Şifre doğrulama hatası.');
+    }
 
     if (!isPasswordValid) {
+      this.logger.warn(`Login failed: Invalid password for ${email}`);
       throw new UnauthorizedException('E-posta veya şifre hatalı.');
     }
 
