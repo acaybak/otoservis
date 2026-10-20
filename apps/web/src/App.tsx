@@ -432,6 +432,13 @@ function DashboardPage({ tenantId }: { tenantId: string }) {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Refresh on window focus
+  useEffect(() => {
+    const handleFocus = () => loadData();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [loadData]);
+
   const handlePlateSearch = () => {
     if (!plateSearch.trim()) return;
     navigate(`/service-orders/new?plate=${encodeURIComponent(plateSearch.trim())}`);
@@ -449,8 +456,11 @@ function DashboardPage({ tenantId }: { tenantId: string }) {
     <div>
       <div style={S.header}>
         <h1 style={S.pageTitle}>Dashboard</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'white', borderRadius: 10, padding: '8px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
-          <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>● Çevrimiçi</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={loadData} style={{ ...S.btnSecondary, width: 'auto', padding: '8px 16px', fontSize: 13 }} title="Yenile">🔄 Yenile</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'white', borderRadius: 10, padding: '8px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+            <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>● Çevrimiçi</span>
+          </div>
         </div>
       </div>
 
