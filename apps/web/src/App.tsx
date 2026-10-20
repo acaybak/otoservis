@@ -742,20 +742,30 @@ function VehicleDetailPage({ tenantId }: { tenantId: string }) {
   useEffect(() => {
     if (!id) return;
     console.log('[VehicleDetail] Loading vehicle:', id, 'tenant:', tenantId);
+    
+    // Load vehicle and service orders (required)
     Promise.all([
       vehicleApi.get(tenantId, id),
       serviceOrderApi.list(tenantId, `vehicleId=${id}&limit=1000`),
-      maintenanceApi.listRecords(tenantId, `vehicleId=${id}&limit=1000`),
-    ]).then(([vRes, oRes, mRes]) => {
+    ]).then(([vRes, oRes]) => {
       console.log('[VehicleDetail] Vehicle response:', vRes);
       setVehicle(vRes);
       setServiceOrders(oRes?.data || oRes || []);
-      setMaintenanceRecords(mRes?.data || mRes || []);
       setLoading(false);
     }).catch((err) => {
       console.error('[VehicleDetail] Error loading vehicle:', err);
       setLoading(false);
     });
+    
+    // Load maintenance records (optional - may not exist yet)
+    maintenanceApi.listRecords(tenantId, `vehicleId=${id}&limit=1000`)
+      .then((mRes) => {
+        setMaintenanceRecords(mRes?.data || mRes || []);
+      })
+      .catch((err) => {
+        console.warn('[VehicleDetail] Maintenance records not available:', err.message);
+        setMaintenanceRecords([]);
+      });
   }, [id, tenantId]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>Yükleniyor...</div>;
